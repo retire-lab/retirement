@@ -1,4 +1,4 @@
-# 每次 push 到 main：先跑引擎測試，通過才 build 並發布到 GitHub Pages。
+# 每次 push 到 main：安裝套件 → 跑全部測試（引擎、畫面操作、PDF）→ 通過才 build 並發布到 GitHub Pages。
 # 測試沒過就不會發布，網站上永遠是測試過的版本。
 # 第一次使用：repo 的 Settings → Pages → Source 選「GitHub Actions」。
 name: test-build-deploy
@@ -26,10 +26,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: 引擎測試
+          cache: npm
+      - name: 安裝測試與 PDF 需要的套件（jsdom、pdfmake、pdf.js）
+        run: npm ci --omit=optional
+      - name: 引擎與規則測試
         run: npm test
-      - name: 合成單一 HTML
+      - name: 合成網頁（含 PDF 程式庫與楷書字型）
         run: npm run build
+      - name: 畫面操作測試
+        run: npm run test:ui
+      - name: PDF 報告測試
+        run: npm run test:pdf
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
