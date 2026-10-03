@@ -1,0 +1,17 @@
+{
+  "version": "115",
+  "ls_annuity_rate": { "value": 0.011473, "source": "勞保局 0018437：110–112 年新制勞退平均保證收益率" },
+  "li": {
+    "min_years": 15,
+    "f1_rate": 0.00775, "f1_add": 3000, "f2_rate": 0.0155,
+    "adjust_per_year": 0.04, "adjust_max_years": 5, "adjust_partial_year": "按月比例（勞保局整合試算 0109187，2026-10-02 實測：61 歲 3 個月請領減給 15%）",
+    "source": "勞保局 0109187 整合試算說明；0019821 老年年金給付"
+  },
+  "ls": { "employer_rate": 0.06, "min_contrib_years": 15, "claim_age": 60, "new_system_start": "2005-07",
+    "accumulation": "每月月底提繳、按月複利（勞動部個人退休金試算表實測為月底提繳、年內單利、年底複利；10 年相差約 0.007%）",
+    "source": "勞工退休金條例第 24 條（工作年資以實際提繳退休金之年資為準）；勞保局 0005595" },
+  "np": { "b_rate": 0.013, "source": "勞保局 0014336；已領勞保老年年金者僅能依 B 式（衛福部社會保險司問答）" },
+  "old": { "half_year_rule": "未滿半年以半年計；滿半年以一年計", "units_first15": 2, "units_after15": 1, "max_units": 45,
+    "source": "勞動基準法第 53、55 條；勞工退休金條例第 11 條" },
+  "nhi_supplementary": { "rate": 0.0211, "threshold": 20000, "used": false, "source": "健保署 cp-4516 補充保險費計算公式（未納入試算）" }
+}

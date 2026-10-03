@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>退休生命週期決策平台｜Retirement Lifecycle Decision Platform</title>
+<style>
+:root {
+  --bg: #f7f7f5; --card: #ffffff; --text: #1f1f1d; --muted: #6b6a66; --line: #e2e0da;
+  --input: #fff8e1; --calc: #f1f0ec; --accent: #1a4f8f; --accent-bg: #dbe9fb;
+  --ok: #2e6b1f; --ok-bg: #e3f1df; --warn: #7a5200; --warn-bg: #fdf0d5; --bad: #9b2c2c; --bad-bg: #fbe3e3;
+  --btn: #ffffff; --btn-line: #cfcdc6; --on-accent: #ffffff;
+  --pv-bg: #fff4d6; --pv-bd: #c98a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936;
+    --input: #3a3322; --calc: #2e2e2c; --accent: #9cc2f5; --accent-bg: #1f3450;
+    --ok: #9fd48f; --ok-bg: #22381d; --warn: #f0c46b; --warn-bg: #3d3018; --bad: #f2a3a3; --bad-bg: #432222;
+    --btn: #2e2e2c; --btn-line: #4a4945; --on-accent: #1b1b1a;
+    --pv-bg: #3a2f14; --pv-bd: #b8862e;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936;
+  --input: #3a3322; --calc: #2e2e2c; --accent: #9cc2f5; --accent-bg: #1f3450;
+  --ok: #9fd48f; --ok-bg: #22381d; --warn: #f0c46b; --warn-bg: #3d3018; --bad: #f2a3a3; --bad-bg: #432222;
+  --btn: #2e2e2c; --btn-line: #4a4945; --on-accent: #1b1b1a;
+  --pv-bg: #3a2f14; --pv-bd: #b8862e;
+}
+:root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+.wrap { max-width: 560px; margin: 0 auto; padding: 14px 14px 60px; }
+h1 { font-size: 26px; margin: 18px 0 4px; line-height: 1.3; }
+h2 { font-size: 17px; margin: 0; }
+.lead { color: var(--muted); font-size: 14px; }
+.muted { color: var(--muted); font-size: 13px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; }
+.sechead { display: flex; align-items: center; gap: 10px; }
+.num { width: 24px; height: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: var(--accent); color: var(--on-accent); flex: 0 0 auto; }
+.qf { margin-top: 16px; }
+.qlab { font-size: 15px; font-weight: 600; display: block; margin-bottom: 6px; }
+.qin { display: flex; align-items: center; gap: 8px; }
+.qin input { flex: 1 1 auto; min-width: 0; }
+.qin .u { color: var(--muted); font-size: 14px; flex: 0 0 auto; }
+input[type=text] { width: 100%; height: 48px; padding: 8px 10px; font-size: 17px; border: 1px solid var(--line); border-radius: 8px; background: var(--input); color: var(--text); font-family: inherit; }
+.sub input[type=text], .kid input[type=text], .prec input[type=text] { height: 44px; font-size: 16px; }
+.qhint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.qhint.ok { color: var(--accent); font-weight: 600; }
+label.f { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+select { width: 100%; height: 44px; padding: 0 10px; font: inherit; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--btn-line); background: var(--btn); color: var(--text); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.big { width: 100%; height: 52px; font-size: 17px; font-weight: 600; margin-top: 16px; }
+.accum { position: sticky; bottom: max(8px, env(safe-area-inset-bottom, 0px)); z-index: 2; box-shadow: 0 4px 16px rgba(0,0,0,.12); border: 1px solid var(--line); margin-top: 16px; border-radius: 10px; padding: 12px 14px; background: var(--calc); display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.accum b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.radios { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.radios .check { align-items: center; }
+.mini { width: 72px !important; height: 40px !important; flex: 0 0 auto; }
+.accum.neg { background: var(--bad-bg); color: var(--bad); }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.tile { min-height: 64px; border-radius: 10px; border: 1px solid var(--line); background: var(--calc); color: var(--text); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 10px 12px; text-align: left; }
+.tile .ic { font-size: 13px; color: var(--muted); }
+.tile b { font-size: 16px; }
+.tile[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.tile[aria-pressed="true"] .ic { color: var(--accent); }
+.sub { margin-top: 10px; border-radius: 10px; background: var(--calc); padding: 12px; }
+.sub .t { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kid { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 8px; }
+.kidtop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 52px; gap: 8px; align-items: end; }
+.kidtop button { height: 44px; padding: 0; }
+.knote { font-size: 12.5px; font-weight: 600; margin-top: 8px; color: var(--muted); }
+.knote.on { color: var(--accent); }
+.stg { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
+.stg label { font-size: 13.5px; line-height: 1.4; font-weight: 600; }
+.stg label span { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.cp { grid-column: 2; font-size: 11px; color: var(--accent); margin-top: -4px; }
+.add { margin-top: 10px; min-height: 40px; border-style: dashed; color: var(--accent); background: var(--card); }
+.check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 1px 0 0; flex: 0 0 auto; }
+.err { border-radius: 10px; padding: 10px 12px; margin-top: 14px; background: var(--bad-bg); color: var(--bad); font-size: 14px; font-weight: 600; }
+/* result */
+.hero { text-align: left; }
+.hero .rl { font-size: 14px; color: var(--muted); }
+.hero .age { font-size: 40px; font-weight: 700; color: var(--ok); line-height: 1.15; margin-top: 2px; }
+.hero .age.warn { color: var(--warn); }
+.hero .agey { display: inline-block; font-size: 17px; font-weight: 600; margin-left: 10px; vertical-align: baseline; white-space: nowrap; }
+.hero .ymd { font-size: 15px; font-weight: 600; color: var(--ok); margin-top: 2px; }
+.er .ea small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.hero .rs { font-size: 15px; margin-top: 4px; }
+.est { margin-top: 10px; font-size: 13px; color: var(--accent); background: var(--accent-bg); border-radius: 8px; padding: 8px 10px; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.kpi { background: var(--calc); border-radius: 8px; padding: 9px 10px; }
+.kpi .k { font-size: 11.5px; color: var(--muted); }
+.kpi .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.kpi.good { background: var(--ok-bg); color: var(--ok); }
+.kpi.good .k { color: var(--ok); }
+.kpi.short { background: var(--warn-bg); color: var(--warn); }
+.kpi.short .k { color: var(--warn); }
+.tl { position: relative; height: 34px; margin: 14px 6px 6px; }
+.tl .line { position: absolute; left: 0; right: 0; top: 16px; height: 3px; background: var(--line); border-radius: 2px; }
+.tl .bridge { position: absolute; top: 15px; height: 5px; background: var(--warn); border-radius: 3px; opacity: .55; }
+.tl .dot { position: absolute; top: 11px; width: 13px; height: 13px; margin-left: -6.5px; border-radius: 50%; background: var(--card); border: 2px solid var(--muted); }
+.tl .dot.ret { width: 19px; height: 19px; top: 8px; margin-left: -9.5px; background: var(--ok); border-color: var(--ok); }
+.tl .dot.inc { border-color: var(--accent); background: var(--accent); }
+.tl .dot.end { border-color: var(--warn); }
+.tlax { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin: 0 0 8px; }
+.ev { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.ev:first-of-type { border-top: 0; }
+.ev .a { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ev .a.ret { color: var(--ok); }
+.ev .a.inc { color: var(--accent); }
+.ev .a.end { color: var(--warn); }
+.phbar { display: flex; gap: 3px; margin-top: 12px; }
+.phc { flex: 1 1 0; min-width: 0; min-height: 58px; border: 2px solid transparent; background: var(--calc); border-radius: 6px; padding: 5px 2px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px; color: var(--muted); text-align: center; }
+.phc b { font-size: 12px; color: var(--text); white-space: nowrap; }
+.phc.work { background: var(--accent-bg); }
+.phc.work b { color: var(--accent); }
+.phc .rg { font-size: 10.5px; line-height: 1.3; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ph .pr { text-align: right; line-height: 1.5; }
+.phc[aria-selected="true"] { border-color: var(--text); background: var(--card); }
+.ppanel { margin-top: 10px; background: var(--calc); border-radius: 10px; padding: 12px; }
+.ppanel .phc.bad { background: var(--bad-bg); }
+.phc.bad b { color: var(--bad); }
+.bad { color: var(--bad); }
+.pa.bad, .pt.bad { color: var(--bad); }
+.pa.warnc { color: var(--warn); }
+.ypager { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
+.ypager button { min-height: 40px; font-size: 13.5px; }
+.ygrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+.yb { min-height: 52px; padding: 4px 2px; border: 0; background: var(--card); border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.yb b { font-size: 14px; }
+.yb span { font-size: 10.5px; color: var(--muted); }
+.yb.ev b::after { content: " ●"; font-size: 9px; color: var(--accent); vertical-align: top; }
+.yb[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--text); }
+.ygrid { padding-top: 2px; }
+.ypager button:disabled { opacity: .35; cursor: default; }
+.ylegend { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.ylegend b { color: var(--accent); font-weight: 400; }
+.mlist { margin-top: 10px; background: var(--card); border-radius: 8px; padding: 4px 10px; }
+.mhd { font-weight: 700; font-size: 14px; padding: 8px 0 4px; }
+.mr { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; align-items: baseline; }
+.mr .mm { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mr .me { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mr .me.neg { color: var(--bad); }
+.mr.past .mm { color: var(--muted); font-weight: 400; }
+.mev { line-height: 1.5; }
+.mev.in { color: var(--ok); }
+.mev.out { color: var(--text); }
+.mev.ret { color: var(--warn); font-weight: 600; }
+.mev.bad { color: var(--bad); font-weight: 600; }
+.msum { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.ph3 { font-size: 13.5px; margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.stg2 { margin-top: 10px; }
+.stl { font-size: 13.5px; font-weight: 600; }
+.stl span { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.stres { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.srow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 14px; }
+.srow:first-child { border-top: 0; }
+.srow .sk { color: var(--muted); }
+.srow .sv { text-align: right; font-weight: 600; }
+.srow .sv small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.srow.short { background: var(--warn-bg); } .srow.short .sv, .sv.short { color: var(--warn); }
+.srow.good { background: var(--ok-bg); } .srow.good .sv, .sv.good { color: var(--ok); }
+.srow.small { font-size: 13px; padding: 6px 0; border-top: 1px dashed var(--line); }
+.srow.sum { border-top: 1px solid var(--text); font-weight: 600; }
+.srow.sum + .srow.sum { border-top: 1px dashed var(--line); }
+.sv .over { display: inline-block; font-style: normal; font-size: 11px; font-weight: 600; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); }
+.sts { font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+.noinv { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-bg, #dbe9fb); color: var(--accent); font-size: 13.5px; line-height: 1.6; }
+.realr { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; }
+.realr.neg { background: var(--warn-bg); color: var(--warn); } .realr.pos { background: var(--ok-bg); color: var(--ok); }
+.stcats { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stcat + .stcat { border-top: 1px solid var(--line); }
+.stch { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 12px; border: 0; border-radius: 0; background: var(--card); font-family: inherit; font-size: 14px; text-align: left; color: var(--text); }
+.stch b { flex: 0 0 auto; width: 3em; }
+.stch span { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: 13px; }
+.stcat.on .stch span { color: var(--accent); font-weight: 600; }
+.stch i { font-style: normal; color: var(--muted); font-size: 12.5px; }
+.stbody { padding: 0 12px 12px; background: var(--card); }
+.stbody .stg2:first-child { margin-top: 0; }
+.pfold { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.pfold summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; cursor: pointer; list-style: none; font-size: 14px; }
+.pfold summary::-webkit-details-marker { display: none; }
+.pfold summary span { flex: 1 1 auto; text-align: right; color: var(--muted); font-size: 13px; }
+.pfold summary::after { content: '›'; color: var(--muted); transition: transform .15s; }
+.pfold[open] summary::after { transform: rotate(90deg); }
+.pfin { padding: 0 12px 12px; }
+.pfin .row:first-child, .pfin .g2:first-child { margin-top: 0; }
+.pfold summary { flex-wrap: wrap; }
+.chgs { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 8px; }
+.chgs[hidden] { display: none; }
+.chg { display: inline-block; padding: 1px 6px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); font-style: normal; font-size: 11.5px; font-weight: 600; white-space: normal; line-height: 1.5; }
+.pend { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 8px 8px 8px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 13.5px; }
+.pend button.sm { height: 36px; min-height: 36px; padding: 0 16px; font-size: 13.5px; }
+#applyPre:disabled { opacity: .45; }
+.hdelta { margin-top: 6px; font-size: 13.5px; font-weight: 600; }
+.hdelta.ok { color: var(--ok); } .hdelta.short { color: var(--warn); } .hdelta.same { color: var(--muted); font-weight: 400; }
+.hero .hook { margin-top: 14px; }
+.stgin { display: flex; gap: 6px; align-items: center; }
+.stgin input { flex: 1 1 auto; min-width: 0; }
+.same { flex: 0 0 auto; min-height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--accent); font-family: inherit; font-size: 13px; }
+.holdhint { margin-top: 4px; color: var(--warn); }
+.g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.retsel { box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 4px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-family: inherit; font-size: 15px; font-weight: 600; }
+.mapb { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; line-height: 1.6; }
+.mapb.fast { padding: 0; color: var(--muted); }
+.mapb.short { background: var(--warn-bg); color: var(--warn); }
+.mapb.later { background: var(--ok-bg); color: var(--ok); }
+.mapb.bad { background: var(--bad-bg, #fbe2da); color: var(--bad, #9a2d12); }
+.hookmap { margin-top: 4px; font-size: 13.5px; font-weight: 600; min-height: 36px; padding: 0; }
+.tryrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 48px; margin-top: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 14px; }
+.tryrow b { text-align: right; font-size: 13.5px; } .tryrow b.ok { color: var(--ok); } .tryrow b.short { color: var(--warn); } .tryrow b.same { color: var(--muted); font-weight: 400; }
+.rs2 { font-size: 14.5px; margin-top: 2px; }
+.hbr { font-size: 12.5px; color: var(--warn); margin-top: 6px; }
+.hero .age.pv { color: var(--accent); }
+.over { display: inline-block; font-style: normal; font-size: 11px; font-weight: 600; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); vertical-align: middle; }
+.hkbtns { display: flex; flex-wrap: wrap; gap: 4px 16px; } .hkbtns .linkbtn { font-weight: 600; min-height: 36px; padding: 0; }
+.pvbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--pv-bg, #fff4d6); border: 1px solid var(--pv-bd, #c98a00); color: var(--warn); font-size: 13.5px; line-height: 1.5; position: sticky; top: 0; z-index: 5; }
+.pvbar span { display: block; font-size: 12px; }
+.pvbar button { flex: 0 0 auto; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--pv-bd, #c98a00); background: var(--card); color: var(--warn); font-family: inherit; font-size: 13.5px; font-weight: 600; }
+.strow { display: grid; grid-template-columns: 4.6em 44px 1fr 44px; gap: 8px; align-items: center; margin-top: 10px; }
+.stlab { font-size: 13.5px; font-weight: 600; }
+.stb { height: 44px; min-height: 44px; padding: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 20px; }
+.stv { height: 44px; min-height: 44px; padding: 0 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-family: inherit; font-size: 15px; font-weight: 600; }
+.stv:disabled { opacity: 1; cursor: default; }
+.stv.chg { background: var(--pv-bg, #fff4d6); border-color: var(--pv-bd, #c98a00); color: var(--warn); }
+.stnote { grid-column: 2 / 5; font-size: 11.5px; color: var(--muted); margin-top: -4px; }
+.sted { grid-column: 2 / 5; display: flex; gap: 6px; align-items: center; }
+.sted select, .sted input { height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); font-family: inherit; font-size: 15px; padding: 0 8px; }
+.sted input { flex: 1 1 auto; min-width: 0; border: 2px solid var(--accent); }
+.sted .sm { height: 44px; min-height: 44px; padding: 0 14px; }
+details.wi { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+details.wi summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 12px; cursor: pointer; list-style: none; font-size: 14px; }
+details.wi summary::-webkit-details-marker { display: none; }
+details.wi summary span { flex: 1 1 auto; color: var(--muted); font-size: 13px; }
+details.wi summary::after { content: '›'; color: var(--muted); transition: transform .15s; }
+details.wi[open] summary::after { transform: rotate(90deg); }
+.wibody { padding: 0 12px 12px; } .wibody .stg2:first-child { margin-top: 0; }
+.imp { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.imph { padding: 8px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); background: var(--bg); }
+.impr { display: grid; grid-template-columns: 6.6em 1fr auto; gap: 8px; align-items: baseline; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.impr > span:first-child { color: var(--muted); } .impr b.good { color: var(--ok); } .impr b.bad { color: var(--bad, #9a2d12); } .impr > b { white-space: nowrap; }
+.curve { width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+.curve .cg { stroke: var(--line); stroke-width: 1; } .curve .c0 { stroke: var(--bad, #9a2d12); stroke-width: 1; stroke-dasharray: 3 3; }
+.curve .ct { font-size: 9px; fill: var(--muted); } .curve .ty { text-anchor: end; } .curve .tx { text-anchor: middle; }
+.curve .ca { stroke: var(--muted); stroke-width: 1; } .curve .cv { stroke: var(--ok); stroke-width: 1; stroke-dasharray: 4 3; } .curve .cv.orig { stroke: var(--muted); } .curve .cv.pv { stroke: var(--accent); }
+.curve .cl.orig { fill: var(--muted); } .curve .cl.bad { fill: var(--bad); } .curve .cx { fill: var(--bad); }
+.curve .cb { fill: none; stroke: var(--ok); stroke-width: 2.5; } .curve .cb.dash { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.curve .cp { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.curve .cm { fill: var(--ok); } .curve .cm.pv { fill: var(--accent); }
+.curve .cl { font-size: 10px; font-weight: 600; fill: var(--ok); } .curve .cl.pv { fill: var(--accent); }
+.clg { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.clg .lg { display: inline-block; width: 16px; border-top: 2px solid var(--ok); margin-right: 4px; vertical-align: middle; }
+.clg .lg.dash { border-top: 2px dashed var(--muted); } .clg .lg.pv { border-top-color: var(--accent); }
+.wsum { font-size: 15px; } .wsum b { font-size: 20px; }
+.wgrid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 8px; font-size: 13.5px; }
+.wgrid span:nth-child(odd) { color: var(--muted); } .wgrid span:nth-child(even) { text-align: right; }
+.wgrid b { border-top: 1px solid var(--line); padding-top: 4px; } .wgrid b:last-child { text-align: right; }
+details.prec > summary { display: flex; flex-direction: column; cursor: pointer; list-style: none; }
+details.prec > summary::-webkit-details-marker { display: none; }
+details.prec > summary h2 { margin: 0; } details.prec > summary span { font-size: 12.5px; color: var(--muted); }
+details.prec > summary::after { content: '展開 ›'; font-size: 13px; color: var(--accent); margin-top: 4px; }
+details.prec[open] > summary::after { content: '收起'; }
+.gaprow { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.gaph { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; }
+.gaph .linkbtn { min-height: 36px; padding: 0 4px; font-weight: 400; color: var(--muted); }
+.gaprow select { box-sizing: border-box; width: 100%; height: 44px; margin-top: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: var(--card); color: var(--text); font-family: inherit; font-size: 15px; }
+.gapym { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.gapym input { box-sizing: border-box; width: 72px; height: 44px; border: 1px solid var(--line); border-radius: 8px; text-align: center; font-family: inherit; font-size: 15px; background: var(--card); color: var(--text); }
+.gapadd { margin-top: 10px; width: 100%; min-height: 44px; border: 1px dashed var(--line); border-radius: 10px; background: var(--card); color: var(--accent); font-family: inherit; font-size: 14px; font-weight: 600; }
+.gaptot { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13.5px; } .gaptot span { color: var(--muted); }
+.twin { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.twin button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-family: inherit; text-align: left; }
+.twin button b { font-size: 15px; } .twin button span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.twin button[aria-expanded="true"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+.twin button[aria-expanded="true"] b { color: var(--accent); }
+.tpanel { margin-top: 8px; }
+.pvbar { flex-wrap: wrap; }
+.pvbar > b { flex: 1 1 auto; font-size: 13.5px; }
+.pvbar button { min-height: 40px; }
+.pvbar button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.cmpcard { margin-top: 10px; }
+.cmp-at { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cmp-at label { flex: 0 0 auto; font-size: 13px; font-weight: 600; }
+.cmp-at select { flex: 1 1 auto; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--card); color: var(--text); font-family: inherit; font-size: 14.5px; font-weight: 600; }
+.cr { display: grid; grid-template-columns: 5.4em 1fr 1fr; align-items: start; border-top: 1px solid var(--line); font-size: 13px; }
+.cr .cl { padding: 9px 0; color: var(--muted); } .cr .co, .cr .ca { padding: 8px 8px; } .cr .ca { background: var(--accent-bg); }
+.cr .co small, .cr .ca small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.cr.hd { border-top: 0; font-size: 12.5px; font-weight: 600; } .cr.hd .co { color: var(--muted); } .cr.hd .ca { color: var(--accent); border-radius: 10px 10px 0 0; }
+.cr.sec .cl { grid-column: 1 / 3; padding: 6px 0 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; } .cr.sec .co { display: none; } .cr.sec .ca { padding: 0; }
+.cr.sub { border-top: 0; } .cr.sub .cl { grid-column: 1 / 3; padding: 4px 0 0; font-size: 11.5px; } .cr.sub .co { display: none; } .cr.sub .ca { padding: 0; }
+.cr.cond .ca { color: var(--warn); font-weight: 600; }
+.cr.more .linkbtn { grid-column: 1 / 3; min-height: 40px; padding: 0; text-align: left; font-size: 13px; font-weight: 600; } .cr.more .co { display: none; } .cr.more .ca { padding: 0; }
+.cr .big { font-size: 18px; } .cr .co .big { color: var(--text); } .cr .co .big.warn { color: var(--bad); } .cr .ca .big { color: var(--accent); }
+.cr .cd { display: block; font-size: 12px; font-weight: 700; color: var(--muted); } .cr .cd.good { color: var(--ok); } .cr .cd.bad { color: var(--bad); }
+.cr.last { border-top: 2px solid var(--line); } .cr.last .cl { font-weight: 600; } .cr.last .ca { border-radius: 0 0 10px 10px; }
+.mtabs { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+.mtabs button { flex: 1 1 0; min-height: 40px; border: 0; border-radius: 0; background: var(--card); color: var(--muted); font-family: inherit; font-size: 13.5px; }
+.mtabs button + button { border-left: 1px solid var(--line); }
+.mtabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.assume { display: block; width: 100%; margin-top: 12px; padding: 10px 0 0; min-height: 36px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: var(--muted); font-family: inherit; font-size: 12.5px; text-align: left; }
+.twin .oldtag { font-style: normal; color: var(--warn); font-weight: 600; }
+.tpanel .holdhint { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
+#adjCard .hook { margin-top: 0; }
+.adjh { font-size: 14px; margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.strow { grid-template-columns: 5.6em 44px 1fr 44px 2.8em !important; }
+.stb-sp { display: block; width: 44px; height: 44px; }
+.strst { height: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--accent); font-family: inherit; font-size: 13px; font-weight: 600; }
+.stnote { grid-column: 2 / 6 !important; }
+.sted { grid-column: 2 / 6 !important; }
+.rmc { float: right; min-height: 28px; margin: -4px -4px 0 4px; padding: 0 2px; border: 0; background: none; color: var(--accent); font-family: inherit; font-size: 12.5px; font-weight: 600; }
+.stv small.stym { display: block; font-size: 11px; font-weight: 400; color: var(--muted); line-height: 1.2; }
+.cr.fill .ca { color: var(--text); font-weight: 400; } .cr.fill .ca b { color: var(--accent); }
+.fillb { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; } .fillb .linkbtn { min-height: 36px; padding: 0; font-weight: 600; font-size: 13px; }
+.fill65 { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-bg); color: var(--accent); font-size: 13.5px; }
+.hsm { font-size: 11.5px; opacity: .8; margin-top: 2px; }
+.pmin { background: var(--card); }
+.ppanel .yc { background: var(--card); }
+.ppanel .yc.neg { background: var(--bad-bg); }
+.pg { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ph b { font-size: 15px; }
+.ph .ps { font-size: 12.5px; color: var(--muted); margin-left: 6px; }
+.ph .pr { font-size: 12.5px; color: var(--muted); }
+.pm { font-size: 13.5px; margin-top: 2px; }
+.pe { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 8px 0 0; font-size: 14px; }
+.pt { font-weight: 600; }
+.pa { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 13.5px; line-height: 1.35; }
+.pa small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.pa.ret { color: var(--ok); }
+.up { color: var(--accent); font-size: 13px; }
+.dn { color: var(--ok); font-size: 13px; }
+.dn2 { color: var(--muted); font-size: 13px; }
+.pmin { margin-top: 8px; font-size: 12.5px; background: var(--calc); border-radius: 6px; padding: 5px 8px; }
+.scbar { margin-top: 10px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 10px; }
+.scbar.dirty { border-color: var(--warn); background: var(--warn-bg); }
+.scpick { flex: 1 1 auto; min-width: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 16px; font-weight: 600; text-align: left; }
+.scpick .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scpick .ct { font-size: 12px; font-weight: 400; color: var(--muted); flex: 0 0 auto; }
+.scbar .dn { font-size: 12px; color: var(--warn); font-weight: 600; }
+.scsave { height: 44px; padding: 0 16px; flex: 0 0 auto; }
+.scrow { border-top: 1px solid var(--line); padding: 12px 0; }
+.scrow:first-of-type { border-top: 0; }
+.scrow .h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.scrow .h b { font-size: 16px; }
+.cur { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--accent); color: var(--on-accent); }
+.scrow .sum { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.acts2 { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.acts2 button { min-height: 38px; font-size: 13px; }
+.danger { color: var(--bad); border-color: var(--bad); }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+.mbox { background: var(--card); color: var(--text); border-radius: 14px; padding: 16px; width: 100%; max-width: 420px; }
+.mbox h2 { font-size: 17px; margin: 0 0 8px; }
+.mbtns { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.mbtns button { min-height: 46px; font-size: 15px; }
+.toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--card); padding: 9px 14px; border-radius: 8px; font-size: 13.5px; z-index: 30; max-width: 90%; }
+.ctab { margin-top: 10px; display: grid; gap: 0; font-size: 12.5px; }
+.ctab .c { padding: 7px 5px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; line-height: 1.45; }
+.ctab .lbl { color: var(--muted); }
+.ctab .hd { font-weight: 700; font-size: 13px; border-bottom: 2px solid var(--line); }
+.ctab .hd button { display: block; margin-top: 4px; min-height: 32px; padding: 2px 6px; font-size: 11.5px; }
+.ctab .diff { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.ctab .base { background: var(--calc); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+.seg button { flex: 1 1 0; min-width: 0; border: 0; border-radius: 0; min-height: 42px; padding: 4px 2px; background: var(--card); color: var(--muted); font-size: 13px; line-height: 1.3; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.er { width: 100%; display: grid; grid-template-columns: 92px minmax(0, 1fr) 16px; grid-template-areas: "a g c" "a x c"; column-gap: 8px; text-align: left; padding: 9px 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.er .ea { grid-area: a; font-weight: 700; font-size: 14px; align-self: center; line-height: 1.35; }
+.er .eg { grid-area: g; font-size: 14px; font-weight: 600; color: var(--warn); }
+.er .ex { grid-area: x; font-size: 12.5px; color: var(--muted); }
+.er .ex.no { font-style: normal; color: var(--bad); }
+.er .ec { grid-area: c; color: var(--muted); align-self: center; }
+.er.ok { background: var(--ok-bg); }
+.er.ok .eg, .er.ok .ea { color: var(--ok); }
+.er[aria-expanded="true"] { background: var(--accent-bg); }
+.bl { margin: 0; padding-left: 1.2em; font-size: 13.5px; line-height: 1.7; }
+.applied { margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--ok); background: var(--ok-bg); border-radius: 8px; padding: 8px 10px; }
+.hook { margin-top: 12px; border-radius: 10px; background: var(--accent-bg); color: var(--accent); padding: 10px 12px; font-size: 14px; line-height: 1.6; }
+.hook .hk { font-weight: 600; }
+.lvl { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+.linkbtn.inl { padding: 0 2px; min-height: 0; font-size: 13px; font-weight: 600; }
+.why { font-size: 14px; line-height: 1.75; }
+.why p { margin: 0 0 6px; }
+.pick { margin-top: 10px; font-size: 15px; font-weight: 600; background: var(--accent-bg); color: var(--accent); border-radius: 10px; padding: 10px 12px; line-height: 1.6; }
+.grid5 { display: grid; grid-template-columns: 40px minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: center; }
+.th { font-size: 12px; color: var(--muted); font-weight: 500; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+.th span:nth-child(n+3), .tr span:nth-child(n+3) { text-align: right; }
+.tr { width: 100%; font-size: 13px; padding: 10px 4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; text-align: left; background: transparent; font-variant-numeric: tabular-nums; }
+.tr.ok { color: var(--ok); }
+.tr.first { background: var(--ok-bg); font-weight: 600; }
+.tr[aria-expanded="true"] { background: var(--accent-bg); color: var(--accent); }
+.tag { font-size: 11.5px; padding: 1px 6px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); justify-self: start; }
+.tr.ok .tag { background: var(--ok-bg); color: var(--ok); }
+.det { background: var(--calc); border-radius: 10px; margin: 8px 0 10px; padding: 12px; }
+.det h3 { font-size: 15px; margin: 0 0 6px; }
+.linkbtn { border: 0; background: transparent; color: var(--accent); padding: 8px 2px; font-size: 13.5px; min-height: 40px; }
+.yc { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; margin-top: 6px; background: var(--card); font-size: 12.5px; }
+.yc.neg { background: var(--bad-bg); }
+.yc .h { display: flex; justify-content: space-between; font-weight: 600; font-size: 13.5px; }
+.yc .s { color: var(--muted); margin-top: 2px; }
+.yc.neg .h b { color: var(--bad); }
+.yc.ph { border-left: 3px solid var(--ok); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { min-height: 40px; padding: 4px 13px; border-radius: 20px; font-size: 13.5px; background: var(--card); }
+.chip[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.wf { margin-top: 10px; border-radius: 10px; padding: 10px 12px; background: var(--accent-bg); color: var(--accent); font-size: 14px; font-weight: 600; }
+.stress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+details.card > summary { cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "›"; color: var(--muted); font-size: 18px; transition: transform .15s; }
+details.card[open] > summary::after { transform: rotate(90deg); }
+.prec .row { margin-top: 12px; }
+.disc { background: var(--calc); color: var(--muted); font-size: 12px; border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-top: 12px; }
+.brand { padding: 4px 0 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.brand .bz { font-size: 15px; font-weight: 700; letter-spacing: .02em; color: var(--text); }
+.brand .be { font-size: 11px; color: var(--muted); letter-spacing: .03em; }
+.top { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { details.card > summary::after { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="brand"><div class="bz">退休生命週期決策平台</div><div class="be">Retirement Lifecycle Decision Platform</div></header>
+
+<section id="quick">
+  <h1>你最早幾歲可以退休？</h1>
+  <div class="lead">不用準備資料。先回答幾個現在就知道的數字，約 2 分鐘看到第一版結果。金額一律用「萬」。</div>
+
+  <div class="card">
+    <div class="sechead"><div class="num">1</div><h2>基本狀況</h2></div>
+    <div class="qf"><label class="qlab" for="birth">出生年月</label>
+      <input id="birth" type="text" inputmode="numeric" data-k="birth" placeholder="例如 1974-11" value="1974-11">
+      <div class="qhint ok" id="ageText"></div></div>
+    <div class="qf"><label class="qlab" for="workStart">幾歲開始工作（有勞保）</label>
+      <div class="qin"><input id="workStart" type="text" inputmode="numeric" data-k="workStart" placeholder="例如 24" value="25"><span class="u">歲</span></div>
+      <div class="qhint">用來估算勞保、勞退。中間有中斷沒關係，結果出來後可以再調。</div></div>
+    <div class="qf"><label class="qlab" for="asset">名下可自由動用的錢</label>
+      <div class="qin"><input id="asset" type="text" inputmode="decimal" data-k="asset" placeholder="例如 450" value="450"><span class="u">萬</span></div>
+      <div class="qhint">存款、股票、基金都算；自住房、勞退專戶不算。試算不算投資：假設這筆錢都放銀行一年期定存，會被通膨慢慢吃掉。</div></div>
+    <div class="qf"><label class="qlab" for="inc">每月實際入帳</label>
+      <div class="qin"><input id="inc" type="text" inputmode="decimal" data-k="inc" placeholder="例如 10.5" value="10.5"><span class="u">萬</span></div>
+      <div class="qhint">稅後、已扣勞退自提；年終獎金平均攤進來。</div></div>
+    <div class="qf"><label class="qlab" for="spend">每月基本生活費</label>
+      <div class="qin"><input id="spend" type="text" inputmode="decimal" data-k="spend" placeholder="例如 4" value="4"><span class="u">萬</span></div>
+      <div class="qhint">只算<b>你自己拿出來的部分</b>，不含房貸、車貸、子女、孝親（下一步另外問）。</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sechead"><div class="num">2</div><h2>哪些支出以後會結束？</h2></div>
+    <div class="qhint" style="margin-top: 6px">這很重要。房貸繳完、小孩畢業之後，你需要的退休金可能差很多。有的點一下。</div>
+    <div class="tiles">
+      <button type="button" class="tile" data-chip="house" aria-pressed="false"><span class="ic">🏠</span><b>房貸</b></button>
+      <button type="button" class="tile" data-chip="car" aria-pressed="false"><span class="ic">🚗</span><b>車貸</b></button>
+      <button type="button" class="tile" data-chip="kidsOn" aria-pressed="false"><span class="ic">🎓</span><b>子女</b></button>
+      <button type="button" class="tile" data-chip="parOn" aria-pressed="false"><span class="ic">🧓</span><b>孝親</b></button>
+    </div>
+
+    <div class="sub" id="sec-house" hidden>
+      <div class="t">房貸（你負責繳的）</div>
+      <div class="g2">
+        <div><label class="f" for="housePay">每月繳幾萬</label><input id="housePay" type="text" inputmode="decimal" data-k="housePay" placeholder="例如 2.3"></div>
+        <div><label class="f" for="houseYrs">還剩幾年</label><input id="houseYrs" type="text" inputmode="numeric" data-k="houseYrs" placeholder="例如 7"></div>
+      </div>
+      <label class="check" style="margin-top: 12px"><input type="checkbox" id="housePre"><span>打算提前一次還清</span></label>
+      <div id="sec-housePre" hidden style="margin-top: 8px">
+        <div class="g2">
+          <div><label class="f" for="housePreAge">幾歲還清</label><input id="housePreAge" type="text" inputmode="numeric" data-k="housePreAge" placeholder="例如 60"></div>
+          <div><label class="f" for="houseRate">房貸年利率（%）</label><input id="houseRate" type="text" inputmode="decimal" data-k="houseRate" placeholder="例如 2.2"></div>
+        </div>
+        <div class="qhint" id="preEst" style="font-size: 12.5px">利率用來估算到時候還剩多少本金，銀行 App 或繳款單上查得到。</div>
+      </div>
+    </div>
+
+    <div class="sub" id="sec-car" hidden>
+      <div class="t">車貸（你負責繳的）</div>
+      <div class="g2">
+        <div><label class="f" for="carPay">每月繳幾萬</label><input id="carPay" type="text" inputmode="decimal" data-k="carPay" placeholder="例如 1.2"></div>
+        <div><label class="f" for="carYrs">還剩幾年</label><input id="carYrs" type="text" inputmode="numeric" data-k="carYrs" placeholder="例如 3"></div>
+      </div>
+    </div>
+    <div class="sub" id="sec-kidsOn" hidden>
+      <div class="t">還沒獨立的子女</div>
+      <div class="qhint" style="margin-top: 0; font-size: 12px">填出生年月和打算讀到哪裡，系統列出還沒讀完的階段，每段填每年大概花幾萬（你負擔的部分，含學費、補習、生活）。第二個孩子起先帶入第一個孩子的金額。</div>
+      <div id="kids"></div>
+      <button type="button" class="add" id="addKid">＋ 再加一個孩子</button>
+    </div>
+    <div class="sub" id="sec-parOn" hidden>
+      <label class="t" for="par" style="display: block">每月孝親費（你負擔的部分）</label>
+      <div class="qin"><input id="par" type="text" inputmode="decimal" data-k="par" placeholder="例如 1"><span class="u">萬</span></div>
+      <div class="radios" role="radiogroup" aria-label="孝親費要算多久">
+        <label class="check"><input type="radio" name="parMode" value="keep" checked><span>一直算下去（比較保守）</span></label>
+        <label class="check"><input type="radio" name="parMode" value="yrs"><span>大約再</span><input id="parYrs" type="text" inputmode="numeric" data-k="parYrs" placeholder="例如 10" class="mini" aria-label="大約再幾年"><span>年</span></label>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="accum" id="accum"><span>依目前填寫，你現在每月約可累積</span><b id="accumV"></b></div>
+  <div class="err" id="err" role="alert" hidden></div>
+  <button type="button" class="primary big" id="go">看我的退休年齡</button>
+  <div class="qhint" style="text-align: center">依固定假設推估的門檻，不是對未來的預測，也不構成投資建議。</div>
+</section>
+
+<section id="result" hidden></section>
+<section id="list" hidden></section>
+<section id="cmp" hidden></section>
+<div id="modal" class="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><h2 id="mTitle"></h2><div id="mBody"></div><div id="mBtns" class="mbtns"></div></div></div>
+<div id="toast" class="toast" role="status" hidden></div>
+</div>
+
+<script src="data.generated.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  /* ================= state ================= */
+  var S = { birth: '1974-11', workStart: '25', asset: '450', inc: '10.5', spend: '4',
+    house: false, car: false, kidsOn: false, parOn: false,
+    housePay: '', houseYrs: '', housePre: false, housePreAge: '', houseRate: '', parMode: 'keep', parYrs: '', carPay: '', carYrs: '', par: '', oHire: '', oYrs: '', oWage: '',
+    kids: [{ bym: '', path: 'grad', costs: {} }],
+    open: null, ledger: false, whatif: null, stress: false,
+    pre: { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', liClaim: '', self: '0', endAge: '', nhiDep: false, inf: '', dep: '', oldOn: false, oHire: '', oYrs: '', oWage: '', gaps: [] } };
+  var $ = function (id) { return document.getElementById(id); };
+  /* 引擎：全專案唯一的一份，綁定同一個輸入物件 S（S 的輸入欄位變了，引擎讀到的就是新的） */
+  var EN = SP5Engine.create(S);
+  var EN0 = EN;
+  var num = EN.num, W = EN.W, fmtW = EN.fmtW, esc = EN.esc, mi = EN.mi, ymStr = EN.ymStr, durStr = EN.durStr, parseYM = EN.parseYM, age = EN.age, kidStages = EN.kidStages, kidGroups = EN.kidGroups, kidEndIdx = EN.kidEndIdx, parentAgeAt = EN.parentAgeAt, kidMonthlyNow = EN.kidMonthlyNow, profile = EN.profile, pensions = EN.pensions, lsBalNowEst = EN.lsBalNowEst, oldLump = EN.oldLump, ledger = EN.ledger, evalR = EN.evalR, solve = EN.solve, earliest = EN.earliest, validate = EN.validate, yearsMonthsUntil = EN.yearsMonthsUntil, phases = EN.phases, impactEvents = EN.impactEvents, bridgeInfo = EN.bridgeInfo, estList = EN.estList;
+  /* 預覽：暫時把引擎函式切到情境引擎，畫完再切回 EN0 */
+  function bindEngine(en) {
+    EN = en; profile = en.profile; pensions = en.pensions; lsBalNowEst = en.lsBalNowEst; oldLump = en.oldLump; ledger = en.ledger; evalR = en.evalR;
+    solve = en.solve; earliest = en.earliest; validate = en.validate; yearsMonthsUntil = en.yearsMonthsUntil; phases = en.phases; impactEvents = en.impactEvents;
+    bridgeInfo = en.bridgeInfo; estList = en.estList;
+  }
+
+
+
+
+  function paintAge() { var a = age(); $('ageText').textContent = a === null ? '格式：1974-11' : '今年 ' + a + ' 歲'; }
+  function paintPrepay() {
+    var box = $('preEst'); if (!box) return;
+    var A0 = age(), at = num(S.housePreAge), yrs = num(S.houseYrs), pay = W(S.housePay), rt = num(S.houseRate);
+    var base = '利率用來估算到時候還剩多少本金，銀行 App 或繳款單上查得到。';
+    if (A0 === null || !isFinite(at) || !isFinite(yrs) || !isFinite(pay) || !isFinite(rt)) { box.textContent = base; box.className = 'qhint'; return; }
+    var tAt = EN.tOfAge(at), left = Math.round(yrs * 12) - tAt;
+    if (!(tAt > 0) || !(left > 0)) { box.textContent = '還清年齡要在 ' + (A0 + 1) + ' 到 ' + Math.max(A0 + 1, Math.ceil(A0 + yrs) - 1) + ' 歲之間。'; box.className = 'qhint bad'; return; }
+    box.innerHTML = '到 ' + at + ' 歲（' + ymText(at, true) + '）大約要一次還 <b>' + fmtW(SP5Engine.loanBalance(pay, left, rt / 100)) + '</b>（當時的金額），之後不用再繳。';
+    box.className = 'qhint ok';
+  }
+  function paintAccum() {
+    var v = W(S.inc) - W(S.spend) - (S.house ? W(S.housePay) || 0 : 0) - (S.car ? W(S.carPay) || 0 : 0) - (S.parOn ? W(S.par) || 0 : 0) - kidMonthlyNow();
+    var box = $('accum');
+    if (!isFinite(v)) { box.hidden = true; return; }
+    box.hidden = false;
+    if (v < 0) { box.className = 'accum neg'; box.firstElementChild.textContent = '⚠️ 目前填的固定支出高於收入，請確認金額有沒有重複計算'; $('accumV').textContent = fmtW(v); }
+    else { box.className = 'accum'; box.firstElementChild.textContent = '依目前填寫，你現在每月約可累積'; $('accumV').textContent = fmtW(v); }
+  }
+  function kidHtml(i) {
+    var k = S.kids[i], st = kidStages(k.bym, k.path);
+    if (!st) return { note: '填了出生年月，會列出還沒讀完的階段', on: false, html: '' };
+    var gs = kidGroups(st);
+    if (!gs.length) return { note: '已經畢業，不用計入', on: false, html: '' };
+    var cur = st.filter(function (t) { return t.started && t.live; })[0];
+    var src = S.kids[0] ? S.kids[0].costs : {};
+    var html = gs.map(function (g, j) {
+      var id = 'k' + i + g.g;
+      if (i > 0 && k.costs[g.g] === undefined && src[g.g] !== undefined && src[g.g] !== '') { k.costs[g.g] = src[g.g]; k.copied = k.copied || {}; k.copied[g.g] = true; }
+      var when = g.started ? '到 ' + ymStr(g.end) + '・還剩 ' + durStr(g.rem) : ymStr(g.start) + ' 起・共 ' + g.years + ' 年';
+      var same = j > 0 ? '<button type="button" class="same" data-same="' + i + ':' + g.g + ':' + gs[j - 1].g + '">同上</button>' : '';
+      return '<div class="stg"><label for="' + id + '">' + g.label + '<br><span>' + when + '</span></label>' +
+        '<div class="stgin"><input id="' + id + '" type="text" inputmode="decimal" data-kid="' + i + '" data-group="' + g.g + '" placeholder="每年幾萬" value="' + esc(k.costs[g.g] || '') + '">' + same + '</div>' +
+        (k.copied && k.copied[g.g] ? '<span class="cp">沿用第 1 個孩子</span>' : '') + '</div>';
+    }).join('');
+    var note = !cur ? '還沒出生' : cur.pre ? '現在是學齡前' : '現在讀' + cur.label + ' ' + cur.grade + ' 年級';
+    return { note: note, on: true, html: html };
+  }
+  function paintKid(i) {
+    var r = kidHtml(i), box = document.querySelector('[data-kidbox="' + i + '"]');
+    if (!box) return;
+    var n = box.querySelector('.knote'); n.textContent = r.note; n.className = 'knote' + (r.on ? ' on' : '');
+    box.querySelector('.kst').innerHTML = r.html;
+  }
+  function paintKids() {
+    $('kids').innerHTML = S.kids.map(function (k, i) {
+      return '<div class="kid" data-kidbox="' + i + '"><div class="kidtop">' +
+        '<div><label class="f" for="kby' + i + '">第 ' + (i + 1) + ' 個・出生年月</label><input id="kby' + i + '" type="text" inputmode="numeric" data-kidby="' + i + '" placeholder="例如 2012-05" value="' + esc(k.bym) + '"></div>' +
+        '<div><label class="f" for="kp' + i + '">打算讀到</label><select id="kp' + i + '" data-kidpath="' + i + '">' +
+        SP5Engine.PATHS.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === k.path ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+        '<button type="button" data-delkid="' + i + '" aria-label="刪除第 ' + (i + 1) + ' 個孩子">刪除</button></div>' +
+        '<div class="knote"></div><div class="kst"></div></div>';
+    }).join('');
+    S.kids.forEach(function (_, i) { paintKid(i); });
+  }
+  function showErr(m) { $('err').textContent = m; $('err').hidden = !m; }
+
+  /* ================= result ================= */
+  /* 年齡顯示：57.25 → 57 歲 3 個月；ymText → 西元年月 */
+  var ageText = EN.ageText;
+  function ymText(R, short) { var d = EN.ymOf(R); return short ? d.y + '/' + ('0' + d.m).slice(-2) : d.y + ' 年 ' + d.m + ' 月'; }
+  function same(a, b) { return a !== null && b !== null && Math.abs(a - b) < 1e-6; }
+  function monthsBetween(a, b) { return Math.round((b - a) * 12); }
+  function impactText(e) {
+    if (e.d === 'lump') return '<span class="up">這個月一次收入 ' + fmtW(e.v) + '</span>';
+    if (e.d === 'lumpout') return '<span class="dn2">這個月一次付出 ' + fmtW(e.v) + (e.nom ? '（今天的購買力；當時的金額約 ' + fmtW(e.nom) + '）' : '') + '</span>';
+    var word = e.d === 'out' ? '支出少' : e.d === 'out+' ? '支出多' : e.d === 'in' ? '收入多' : '收入少', cls = e.d === 'out' ? 'dn' : e.d === 'in' ? 'up' : 'dn2';
+    return '<span class="' + cls + '">' + ymText(e.from != null ? e.from : e.a, true) + ' 起，每年' + word + ' ' + fmtW(e.v) + '</span>';
+  }
+  /* 照這個退休時點走，資產第一次付不出當月支出的年齡；撐得到最後就回傳 null */
+  function exhaustAge(P, R) { return ledger(P, R).exhaust; }
+  function ageCell(a, cls) { return '<span class="pa' + (cls || '') + '">' + ageText(a) + '<small>' + ymText(a, true) + '</small></span>'; }
+  function timelineHtml(P, R, Q) {
+    var ph = phases(P, R, Q), ev = impactEvents(P, R, Q), led = ledger(P, R), ex = led.exhaust;
+    if (ex !== null) {
+      ev.forEach(function (e) { if (e.ret) e.t = '退休（資產撐不到 ' + EN.E() + ' 歲）'; });
+      ev.push({ a: ex, t: '資產用完', bad: true });
+      ev.sort(function (x, y) { return x.a - y.a || (x.bad ? 1 : 0) - (y.bad ? 1 : 0); });
+    }
+    var inPh = function (a, p) { return a >= p.f - 1e-9 && (a < p.t - 1e-9 || (p === ph[ph.length - 1] && a <= p.t + 1e-9)); };
+    if (S.phase == null || S.phase >= ph.length) {
+      S.phase = 0;
+      for (var q = 0; q < ph.length; q++) if (ex !== null ? inPh(ex, ph[q]) : same(ph[q].f, R)) { S.phase = q; break; }
+    }
+    var min = null; led.forEach(function (r) { if (r.a >= Math.floor(R) && (min === null || r.end < min.end)) min = r; });
+    var bar = '<div class="phbar" role="tablist" aria-label="現金流階段">' + ph.map(function (x, i) {
+      var on = i === S.phase;
+      return '<button type="button" role="tab" class="phc' + (x.name === '工作期' ? ' work' : '') + (ex !== null && inPh(ex, x) ? ' bad' : '') + '" data-phase="' + i + '" aria-selected="' + on + '"><b>' + x.name + '</b><span>' + durStr(monthsBetween(x.f, x.t)) + '</span><span class="rg">' + ymText(x.f, true) + '<br>–' + ymText(x.t - 1 / 12, true) + '</span></button>';
+    }).join('') + '</div>';
+    var x = ph[S.phase], net = 0;
+    for (var t = Math.max(0, EN.tOfAge(x.f)); t < EN.tOfAge(x.t); t++) net += EN.netM(P, Q, t);
+    var money;
+    if (x.name === '工作期') {
+      var a0 = W(S.asset), proj = evalR(P, R).proj, er = a0 + net - proj;
+      money = '<div class="wsum">退休時你會有 <b>' + fmtW(proj) + '</b></div><div class="wgrid">' +
+        '<span>現有</span><span>' + fmtW(a0) + '</span>' +
+        '<span>＋ 這段存下</span><span>' + fmtW(net) + '</span>' +
+        (Math.abs(er) >= 5000 ? '<span>' + (er > 0 ? '－ 通膨讓存款縮水' : '＋ 存款利息') + '</span><span>' + fmtW(Math.abs(er)) + '</span>' : '') +
+        '<b>退休時</b><b>' + fmtW(proj) + '</b></div>';
+    } else money = net < 0 ? '這段要從資產拿出 <b>' + fmtW(-net) + '</b>' : '這段收入大於支出，共多 <b>' + fmtW(net) + '</b>';
+    if (ex !== null && inPh(ex, x)) money += '<br><span class="bad">但資產到 ' + ageText(ex) + '（' + ymText(ex, true) + '）就用完了</span>';
+    var evs = ev.filter(function (e) { return inPh(e.a, x); }).map(function (e) {
+      if (e.bad) return '<div class="pe">' + ageCell(e.a, ' bad') + '<div><div class="pt bad">資產用完</div><span class="bad">從這個月起，收入付不出支出；還差的錢就是上面說的缺口</span></div></div>';
+      return '<div class="pe">' + ageCell(e.a, e.ret ? (ex !== null ? ' warnc' : ' ret') : '') + '<div><div class="pt">' + e.t + '</div>' + impactText(e) + '</div></div>';
+    }).join('') || '<div class="muted" style="margin-top:6px">這段期間收支沒有大變化。</div>';
+    var lo = !(min && min.a >= Math.floor(x.f) && min.a < Math.ceil(x.t)) ? '' : min.a === EN.E() - 1 ? '<div class="pmin">' + EN.E() + ' 歲時還剩 ' + fmtW(min.end) + '，資產一路撐到最後</div>' : '<div class="pmin">資產最低點：' + (min.end < 0 ? '不足 ' + fmtW(-min.end) : fmtW(min.end)) + '（' + min.a + ' 歲那一年）</div>';
+    var panel = '<div class="ppanel" role="tabpanel"><div class="ph"><div><b>' + x.name + '</b><span class="ps">' + x.src + '</span></div><span class="pr">' + ageText(x.f) + '–' + ageText(x.t) + '・' + durStr(monthsBetween(x.f, x.t)) + '<br>' + ymText(x.f) + '–' + ymText(x.t - 1 / 12) + '</span></div>' +
+      '<div class="pm">' + money + '</div>' + evs + lo +
+      '<button type="button" class="linkbtn" id="ledgerBtn" aria-expanded="' + !!S.ledger + '">' + (S.ledger ? '收起逐月明細' : '看這段每一年、每個月 ›') + '</button>' +
+      (S.ledger ? yearsHtml(P, R, x) : '') + '</div>';
+    return bar + '<div class="muted" style="margin:6px 0 0">點上面的階段看細節。寬度不代表時間長短，金額都是今天的購買力。</div>' + panel;
+  }
+  /* 逐年逐月：這個階段涵蓋的日曆年，五年一頁；點某一年列出 1–12 月發生的事 */
+  var YPAGE = 5;
+  function monthSummary(f) {
+    var a = [], b = [];
+    if (f.work) a.push('薪水 ' + fmtW(f.work)); if (f.ls) a.push('勞退 ' + fmtW(f.ls)); if (f.li) a.push('勞保 ' + fmtW(f.li)); if (f.np) a.push('國保 ' + fmtW(f.np));
+    b.push('生活 ' + fmtW(f.living)); if (f.loan) b.push('貸款 ' + fmtW(f.loan)); if (f.kid) b.push('子女 ' + fmtW(f.kid)); if (f.par) b.push('孝親 ' + fmtW(f.par)); if (f.npPrem) b.push('國保費 ' + fmtW(f.npPrem)); if (f.nhiPrem) b.push('健保費 ' + fmtW(f.nhiPrem));
+    return '每月收入：' + (a.join('、') || '無') + '<br>每月支出：' + b.join('、');
+  }
+  function yearsHtml(P, R, x) {
+    var mon = EN.monthly(P, R), Q = mon.Q, bI = EN.tOfAge(0) + EN.NOWI;   /* bI：出生那個月 */
+    var tF = Math.max(0, EN.tOfAge(x.f)), tT = Math.min(P.tE, EN.tOfAge(x.t)) - 1;
+    if (tT < tF) return '';
+    var y0 = Math.floor((EN.NOWI + tF) / 12), y1 = Math.floor((EN.NOWI + tT) / 12), years = [];
+    for (var y = y0; y <= y1; y++) years.push(y);
+    var hasEv = function (y) { for (var m = 0; m < 12; m++) { var t = y * 12 + m - EN.NOWI; if (t >= 0 && t < P.tE && (EN.eventsAt(P, Q, t).length || t === mon.exhaustT)) return true; } return false; };
+    var pool = (S.ypage != null && S.ypage >= 0) ? years.slice(S.ypage * YPAGE, S.ypage * YPAGE + YPAGE) : years;
+    if (!pool.length) pool = years;
+    if (S.year == null || years.indexOf(S.year) < 0) { S.year = pool[0]; for (var i = 0; i < pool.length; i++) if (hasEv(pool[i])) { S.year = pool[i]; break; } }
+    var pages = Math.ceil(years.length / YPAGE), pg = Math.floor(years.indexOf(S.year) / YPAGE);
+    if (S.ypage != null && S.ypage >= 0 && S.ypage < pages) pg = S.ypage;
+    var shown = years.slice(pg * YPAGE, pg * YPAGE + YPAGE);
+    var ages = function (y) { return Math.floor((y * 12 - bI) / 12) + '–' + Math.floor((y * 12 + 11 - bI) / 12) + ' 歲'; };
+    var btns = '<div class="ygrid" role="tablist" aria-label="年份">' + shown.map(function (y) {
+      return '<button type="button" role="tab" class="yb' + (hasEv(y) ? ' ev' : '') + '" data-year="' + y + '" aria-selected="' + (y === S.year) + '"><b>' + y + '</b><span>' + ages(y) + '</span></button>';
+    }).join('') + '</div>' + '<div class="ylegend"><b>●</b> 這一年有事情發生（退休、年金開始、繳完貸款、孩子升學…）</div>';
+    var pager = pages > 1 ? '<div class="ypager"><button type="button" data-ypage="' + (pg - 1) + '"' + (pg === 0 ? ' disabled' : '') + '>‹ 上一頁</button><span class="muted">' + years[pg * YPAGE] + '–' + shown[shown.length - 1] + '・' + (pg + 1) + '／' + pages + '</span><button type="button" data-ypage="' + (pg + 1) + '"' + (pg === pages - 1 ? ' disabled' : '') + '>下一頁 ›</button></div>' : '';
+    /* 該年 12 個月：事件月份才寫字，連續沒事的月份合併成「同上」 */
+    var rows = [], run = null, first = true, Y = S.year;
+    var flush = function () {
+      if (!run) return;
+      rows.push('<div class="mr"><span class="mm">' + (run.a === run.b ? run.a + ' 月' : run.a + '–' + run.b + ' 月') + '</span><span class="mt muted">同上</span><span class="me">' + run.b + ' 月底 ' + fmtW(run.end) + '</span></div>');
+      run = null;
+    };
+    for (var m = 1; m <= 12; m++) {
+      var t = Y * 12 + m - 1 - EN.NOWI;
+      if (t < 0) { if (m === 12 || Y * 12 + m - EN.NOWI >= 0) rows.push('<div class="mr past"><span class="mm">' + (m === 1 ? '1' : '1–' + m) + ' 月</span><span class="mt muted">已經過去</span><span class="me"></span></div>'); continue; }
+      if (t >= P.tE) { flush(); rows.push('<div class="mr past"><span class="mm">' + m + ' 月起</span><span class="mt muted">試算到 ' + EN.E() + ' 歲為止</span><span class="me"></span></div>'); break; }
+      var ev = EN.eventsAt(P, Q, t), mo = mon[t], bad = t === mon.exhaustT;
+      if (!ev.length && !bad && !first) { if (run) { run.b = m; run.end = mo.end; } else run = { a: m, b: m, end: mo.end }; continue; }
+      flush();
+      var txt = ev.map(function (e) { return '<div class="mev ' + e.k + '">● ' + e.text + '</div>'; }).join('');
+      if (bad) txt += '<div class="mev bad">● 資產用完：從這個月起，收入付不出支出</div>';
+      if (first) txt += '<div class="msum">' + monthSummary(mo.f) + '</div>';
+      first = false;
+      rows.push('<div class="mr' + (ev.length || bad ? ' hit' : '') + '"><span class="mm">' + m + ' 月</span><span class="mt">' + txt + '</span><span class="me' + (mo.end < 0 ? ' neg' : '') + '">月底 ' + (mo.end < 0 ? '不足 ' + fmtW(-mo.end) : fmtW(mo.end)) + '</span></div>');
+    }
+    flush();
+    return pager + btns + '<div class="mlist"><div class="mhd">' + Y + ' 年（' + ages(Y) + '）</div>' + rows.join('') + '</div>' +
+      '<div class="muted" style="margin-top:6px">金額都是今天的購買力。「同上」表示收支項目沒有變化。</div>';
+  }
+
+  /* ================= 調調看＋萬一……＋整頁預覽（v0.6.0） =================
+     調整都只存在 S.adj，不改輸入；有調整時另建一份情境引擎（SP5Engine.scenario），整頁換成那個版本，
+     頂端標示「你正在看」，按「回到原本」清掉。主結果（EN0）永遠不變。 */
+  function pct(x) { return (Math.round(x * 1000) / 10).toString().replace(/\.0$/, '') + '%'; }
+  var STEP_MONEY = 2000, ADJ_MAX = 80;
+  /* 萬一……：每項都是加減按鈕 [key, 標籤, 每格, 最小, 最大, 說明] */
+  var WI_STEPS = [
+    ['gap', '收入中斷多久', 1, 0, 3, '從明年起，每格 1 年。期間沒有薪水，要自己繳國保、健保'],
+    ['cut', '收入減少多少', 10, 0, 30, '從現在到退休，每格 10%'],
+    ['spend', '晚年每月多花多少', 1, 0, 3, '從 75 歲起，每格 1 萬，例如醫療、長照'],
+    ['inf', '通膨', 1, 0, 3, '每格 1%'],
+    ['li', '勞保只領到', 10, 50, 100, '每格 10%，不是預測勞保會砍']
+  ];
+  var WI_GROUPS = WI_STEPS.map(function (x) { return [x[0], x[1]]; });
+  var WI_NEUTRAL = { gap: 0, cut: 0, spend: 0, inf: 0, li: 100 };   /* 順序跟面板一致 */
+  function adjState() { if (!S.adj) S.adj = { ret: null, more: 0, save: 0, end: null, wi: Object.assign({}, WI_NEUTRAL) }; return S.adj; }
+  function adjReset() { S.adj = null; S.adjEdit = null; S.phase = null; S.ledger = false; S.year = null; S.ypage = null; }
+  function adjChanged() { S.phase = null; S.ledger = false; S.year = null; S.ypage = null; }
+  function infBase() { return Math.round(EN0.rates().inf * 1000) / 10; }
+
+  function wiLabel(k, v) { return ({ li: '勞保只領 ' + v + '%', inf: '通膨 ' + (Math.round((infBase() + v) * 10) / 10) + '%', gap: '收入中斷 ' + v + ' 年', cut: '收入少 ' + v + '%', spend: '晚年每月多花 ' + v + ' 萬' })[k]; }
+  /* 萬一……每一項現在的顯示值 */
+  function wiVal(k, v) {
+    if (k === 'li') return v === 100 ? '不打折' : v + '%';
+    if (k === 'inf') return (Math.round((infBase() + v) * 10) / 10) + '%' + (v === 0 ? '（設定）' : '');
+    if (v === 0) return '不會';
+    return k === 'gap' ? v + ' 年' : k === 'cut' ? '少 ' + v + '%' : '多 ' + v + ' 萬';
+  }
+  function wiOn(a) { return Object.keys(WI_NEUTRAL).filter(function (k) { return a.wi[k] !== WI_NEUTRAL[k]; }); }
+  function adjActive() { var a = adjState(); return a.ret !== null || a.more !== 0 || a.save !== 0 || a.end !== null || wiOn(a).length > 0; }
+  function adjOther() { var a = adjState(); return a.more !== 0 || a.save !== 0 || a.end !== null || wiOn(a).length > 0; }
+  function yuan(n) { return Math.abs(Math.round(n)).toLocaleString('en-US'); }
+  function adjLabels() {
+    var a = adjState(), l = [];
+    if (a.ret !== null) l.push('想在 ' + ageText(a.ret) + '退休');
+    if (a.more) l.push((a.more < 0 ? '每月少花 ' : '每月多花 ') + yuan(a.more));
+    if (a.save) l.push((a.save > 0 ? '每月多存 ' : '每月少存 ') + yuan(a.save));
+    if (a.end !== null) l.push('活到 ' + a.end + ' 歲');
+    wiOn(a).forEach(function (k) { l.push('萬一' + wiLabel(k, a.wi[k])); });
+    return l;
+  }
+  function adjSel() { var a = adjState(), w = a.wi; return { li: w.li, inf: w.inf, gap: w.gap, cut: w.cut, spend: w.spend, more: a.more, save: a.save, end: a.end }; }
+  function gapText(ev) { return ev.preExhaust !== null ? '退休前就用完' : ev.gap <= 0 ? '多出 ' + fmtW(-ev.gap) : '還差 ' + fmtW(ev.gap); }
+  function bridgeText(e) { return e !== null && e < 60 - 1e-9 ? '60 歲以前退休，要靠存款撐 ' + durStr(monthsBetween(e, 60)) + '，勞退 60 歲才能領。' : ''; }
+
+  /* 想在幾歲退休：按 + 或 − 對齊整歲（滿幾歲的生日） */
+  function retSnap(cur, d) { var whole = Math.abs(cur - Math.round(cur)) < 1e-6; return d < 0 ? (whole ? Math.round(cur) - 1 : Math.floor(cur)) : (whole ? Math.round(cur) + 1 : Math.ceil(cur)); }
+  function stepper(key, label, val, note, changed, canDec, canInc) {
+    if (canDec === undefined) canDec = true; if (canInc === undefined) canInc = true;
+    var a = adjState(), ed = S.adjEdit === key, mid;
+    if (ed) {
+      if (key === 'more' || key === 'save') {
+        var neg = key === 'more' ? a.more <= 0 : a.save < 0, opts = key === 'more' ? [['-1', '少花'], ['1', '多花']] : [['1', '多存'], ['-1', '少存']];
+        var cur = key === 'more' ? (a.more <= 0 ? '-1' : '1') : (a.save < 0 ? '-1' : '1');
+        mid = '<div class="sted"><select id="ed-dir" aria-label="' + label + '的方向">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+          '<input id="ed-val" type="text" inputmode="numeric" aria-label="每月幾元" value="' + (a[key] ? Math.abs(a[key]) : '') + '" placeholder="例如 2500"><span>元</span>' +
+          '<button type="button" class="primary sm" data-editok="' + key + '">好</button></div>';
+      } else if (key === 'ret') {
+        var ry = EN0.ymOf(a.ret !== null ? a.ret : S._Radj);
+        mid = '<div class="sted"><input id="ed-y" type="text" inputmode="numeric" aria-label="退休的年" value="' + ry.y + '" style="flex:0 0 4.2em"><span>年</span><input id="ed-m" type="text" inputmode="numeric" aria-label="退休的月" value="' + ry.m + '" style="flex:0 0 3em"><span>月</span><button type="button" class="primary sm" data-editok="ret">好</button></div>';
+      } else mid = '<div class="sted"><input id="ed-val" type="text" inputmode="numeric" aria-label="' + label + '" value="' + (a.end !== null ? a.end : EN0.E()) + '"><span>歲</span><button type="button" class="primary sm" data-editok="end">好</button></div>';
+      return '<div class="strow"><span class="stlab">' + label + '</span>' + mid + '</div>';
+    }
+    var editable = key === 'more' || key === 'save' || key === 'end' || key === 'ret';
+    return '<div class="strow"><span class="stlab">' + label + '</span>' +
+      (canDec ? '<button type="button" class="stb" data-step="' + key + ':-1" aria-label="' + label + '減少">−</button>' : '<span class="stb-sp" aria-hidden="true"></span>') +
+      '<button type="button" class="stv' + (changed ? ' chg' : '') + '"' + (editable ? ' data-edit="' + key + '"' : ' disabled') + '>' + val + '</button>' +
+      (canInc ? '<button type="button" class="stb" data-step="' + key + ':1" aria-label="' + label + '增加">+</button>' : '<span class="stb-sp" aria-hidden="true"></span>') +
+      (changed ? '<button type="button" class="strst" data-rst="' + key + '" aria-label="' + label + '回復">回復</button>' : '<span class="strst-sp"></span>') +
+      (note ? '<div class="stnote">' + note + '</div>' : '') + '</div>';
+  }
+  function adjCardHtml(c) {
+    var a = adjState(), base = W(S.spend), inc = W(S.inc), endV = a.end !== null ? a.end : EN0.E();
+    var moreV = a.more === 0 ? '不變' : (a.more < 0 ? '少 ' : '多 ') + yuan(a.more), saveV = a.save === 0 ? '不變' : (a.save > 0 ? '多存 ' : '少存 ') + yuan(a.save);
+    var retV = a.ret === null ? '最快（' + ageText(c.Radj) + '）' : ageText(a.ret) + '<small class="stym">' + ymText(a.ret, true) + '</small>', retCur = a.ret !== null ? a.ret : c.Radj, from = EN0.fromAge();
+    var wi = WI_STEPS.map(function (x) {
+      var v = a.wi[x[0]];
+      return stepper('wi.' + x[0], x[1], wiVal(x[0], v), x[5], v !== WI_NEUTRAL[x[0]], v - x[2] >= x[3], v + x[2] <= x[4]);
+    }).join('');
+    return '<div id="adjCard">' +
+      '<div class="muted">按一下就會重算，結果放在上面「調整後」那欄，原始不變。改過的項目可以單獨「回復」。</div>' +
+      '<h3 class="adjh">你可以決定的</h3>' +
+      stepper('ret', '想在幾歲退休', retV, '每格 1 歲（滿幾歲的生日）；點中間可以輸入年月', a.ret !== null, retSnap(retCur, -1) >= from - 1e-9, retSnap(retCur, 1) <= ADJ_MAX + 1e-9) +
+      stepper('more', '每月花費', moreV, '每格 2,000，點中間可以直接輸入', a.more !== 0, a.more - STEP_MONEY >= -base, true) +
+      stepper('save', '每月多存', saveV, '每格 2,000，點中間可以直接輸入', a.save !== 0, a.save - STEP_MONEY >= -inc, true) +
+      '<h3 class="adjh">萬一……</h3><div class="muted">你控制不了，但可能發生的事</div>' +
+      stepper('end', '活到', endV + ' 歲', '每格 1 歲，點中間可以直接輸入', a.end !== null, endV > 66, endV < 105) +
+      wi + '</div>';
+  }
+  /* ================= 原始 vs 調整後 對照（v0.6.2） =================
+     調調看（如果……）與提高準確度還沒套用的實際資料，都放在「調整後」那欄；原始那欄永遠不動 */
+  function condRows() {
+    var a = adjState(), fact = [], what = [];
+    pendingKeys().forEach(function (k) { fact.push([PRE_LABEL[k], preVal(k, S.pre[k]), preVal(k, S.preDraft[k]), 'pre.' + k]); });
+    if (a.ret !== null) what.push(['想在幾歲退休', '最快', ageText(a.ret), 'ret']);
+    if (a.more) what.push(['每月花費', fmtW(W(S.spend)), fmtW(W(S.spend) + a.more) + '<small>' + (a.more < 0 ? '少 ' : '多 ') + yuan(a.more) + '</small>', 'more']);
+    if (a.save) what.push(['每月多存', '—', (a.save > 0 ? '多存 ' : '少存 ') + yuan(a.save), 'save']);
+    if (a.end !== null) what.push(['活到', EN0.E() + ' 歲', a.end + ' 歲', 'end']);
+    wiOn(a).forEach(function (k) {
+      var g = WI_STEPS.filter(function (x) { return x[0] === k; })[0];
+      what.push([g[1], wiVal(k, WI_NEUTRAL[k]).replace('（設定）', ''), wiVal(k, a.wi[k]), 'wi.' + k]);
+    });
+    return { fact: fact, what: what };
+  }
+  /* 要補上：在目前所有調整之上，每月再多存或再少花多少，才剛好夠（引擎的 solve 會取代同一項，所以求總量再減掉現有的） */
+  function fillGap(pv, R) {
+    var adj = pv.adj, inc = W(S.inc), base = W(S.spend);
+    var tx = pv.en.solve(R, 'extra', inc * 12 + (adj.extra || 0), adj), tc = pv.en.solve(R, 'cut', base * 12, adj);
+    var x = tx !== null ? Math.ceil((tx - (adj.extra || 0)) / 12 / 100) * 100 : null, y = tc !== null ? Math.ceil((tc - (adj.cut || 0)) / 12 / 100) * 100 : null;
+    if (x !== null && x <= 0) x = null; if (y !== null && y <= 0) y = null;
+    if (x === null && y === null) return '單靠多存或少花補不上';
+    return (x !== null ? '每月再多存 <b>' + fmtW(x) + '</b>' : '') + (x !== null && y !== null ? '<br>或' : '') + (y !== null ? '每月再少花 <b>' + fmtW(y) + '</b>' : '') +
+      '<span class="fillb">' + (x !== null ? '<button type="button" class="linkbtn" data-fill="save:' + x + '">套用多存</button>' : '') + (y !== null ? '<button type="button" class="linkbtn" data-fill="more:-' + y + '">套用少花</button>' : '') + '</span>';
+  }
+  function compareHtml(c) {
+    var pv = c.pv, cr = condRows(), ret = adjState().ret;
+    var G = function (lab, o, a, cls, d, dcls) { return '<div class="cr' + (cls ? ' ' + cls : '') + '"><span class="cl">' + lab + '</span><div class="co">' + o + '</div><div class="ca">' + a + (d ? '<span class="cd ' + (dcls || '') + '">' + d + '</span>' : '') + '</div></div>'; };
+    var sec = function (t) { return '<div class="cr sec"><span class="cl">' + t + '</span><div class="co"></div><div class="ca"></div></div>'; };
+    var html = '<div class="cr hd"><span class="cl"></span><div class="co">原始</div><div class="ca">調整後</div></div>';
+    /* 條件 */
+    var all = (cr.fact.length && cr.what.length) ? [['實際資料', cr.fact], ['如果……', cr.what]] : [[null, cr.fact.concat(cr.what)]];
+    var total = cr.fact.length + cr.what.length, shown = 0, cap = S.condAll ? 999 : 3;
+    html += sec('條件');
+    all.forEach(function (grp) {
+      if (!grp[1].length) return;
+      if (grp[0] && shown < cap) html += '<div class="cr sub"><span class="cl">' + grp[0] + '</span><div class="co"></div><div class="ca"></div></div>';
+      grp[1].forEach(function (r) { if (shown++ < cap) html += G(r[0], r[1], r[2] + '<button type="button" class="rmc" data-rst="' + r[3] + '" aria-label="回復：' + r[0].replace(/<[^>]+>/g, '') + '">回復</button>', 'cond'); });
+    });
+    if (total > 3) html += '<div class="cr more"><button type="button" class="linkbtn" id="condAll">' + (S.condAll ? '收起' : '還有 ' + (total - 3) + ' 項 ›') + '</button><div class="co"></div><div class="ca"></div></div>';
+    /* 結果：調整後那欄的退休時間 = 你選的年紀，沒選就是它自己的最快 */
+    html += sec('結果');
+    var e = c.e, ea = pv.ea, Ro = c.Rshow, Ra = c.Radj;
+    var t0 = e === null ? '65 歲還不夠' : ageText(e) + '<small>' + ymText(e, true) + '（最快）</small>';
+    var dt = function (x, y) { var dm = monthsBetween(y, x); return dm === 0 ? ['不變', ''] : dm > 0 ? ['↑ 早 ' + durStr(dm), 'good'] : ['↓ 晚 ' + durStr(-dm), 'bad']; };
+    if (ret !== null) {
+      var d0 = e !== null ? dt(e, ret) : ['', ''];
+      d0 = [d0[0].replace(/^[↑↓] /, ''), ''];   /* 退休年紀是你自己選的，早晚都不算好壞，用中性色 */
+      html += G('退休時間', '<b class="big' + (e === null ? ' warn' : '') + '">' + t0 + '</b>', '<b class="big">' + ageText(ret) + '<small>' + ymText(ret, true) + '（你選的）</small></b>', 'first', d0[0], d0[1]);
+      if (adjOther()) {
+        var t1 = ea === null ? ADJ_MAX + ' 歲還不夠' : ageText(ea), d1 = e !== null && ea !== null ? dt(e, ea) : ['', ''];
+        html += G('最快可以', e === null ? '65 歲還不夠' : ageText(e), t1, '', d1[0], d1[1]);
+      }
+    } else {
+      var t1b = ea === null ? ADJ_MAX + ' 歲還不夠' : ageText(ea) + '<small>' + ymText(ea, true) + (ea > 65 + 1e-9 ? '・超過 65 歲' : '') + '</small>';
+      var d1b = e !== null && ea !== null ? dt(e, ea) : e === null && ea !== null ? ['↑ 變成算得出來', 'good'] : ['', ''];
+      html += G('最快退休', '<b class="big' + (e === null ? ' warn' : '') + '">' + t0 + '</b>', '<b class="big">' + t1b + '</b>', 'first', d1b[0], d1b[1]);
+    }
+    var g0 = evalR(c.P, Ro), g1o = ret !== null ? pv.en.evalR(pv.Pa, Ra) : pv.en.evalR(pv.Pa, Ro);
+    var pa = ret !== null ? g1o.proj : (ea !== null ? pv.en.evalR(pv.Pa, ea).proj : null);
+    html += G('退休時會有', e !== null || ret !== null ? fmtW(g0.proj) : '—', pa !== null ? fmtW(pa) : '—');
+    html += G('夠用到', EN0.E() + ' 歲', pv.en.E() + ' 歲');
+    var Rb = ret !== null ? ret : ea;
+    html += G('橋接期', e !== null && e < 60 - 1e-9 ? durStr(monthsBetween(e, 60)) : '沒有', Rb !== null && Rb < 60 - 1e-9 ? durStr(monthsBetween(Rb, 60)) : '沒有');
+    var dg = (-g1o.gap) - (-g0.gap), lab = ret !== null ? '錢夠不夠' : '在 ' + ageText(Ro) + '退休';
+    var need = g1o.gap > 0 && g1o.preExhaust === null ? fillGap(pv, ret !== null ? Ra : Ro) : null;
+    html += G(lab, gapText(g0), gapText(g1o), need ? '' : 'last', Math.abs(dg) < 5000 ? '不變' : (dg > 0 ? '↑ 多 ' : '↓ 少 ') + fmtW(Math.abs(dg)), Math.abs(dg) < 5000 ? '' : dg > 0 ? 'good' : 'bad');
+    if (need) html += G('要補上', '', need, 'last fill');
+    return html;
+  }
+  /* 你的錢會怎麼走：每年年底資產（今天的購買力）；有座標軸、退休時間的垂直線（原始灰、調整後藍）、用完的地方標紅 */
+  function curveHtml(c) {
+    var base = ledger(c.P, c.Rshow), pv = c.pv ? c.pv.en.ledger(c.pv.Pa, c.Rdisp) : null;
+    var all = base.concat(pv || []);
+    var a0 = base.length ? base[0].a : 0, a1 = Math.max(base.length ? base[base.length - 1].a + 1 : 90, pv && pv.length ? pv[pv.length - 1].a + 1 : 0);
+    var vmax = Math.max.apply(null, all.map(function (r) { return r.end; }).concat([1])), vmin = Math.min.apply(null, all.map(function (r) { return r.end; }).concat([0]));
+    var L = 44, Rr = 8, T = 14, H = 170, Wd = 330, B = 22, w = Wd - L - Rr, top = vmax * 1.1, rng = top - vmin || 1;
+    var X = function (age) { return L + ((age - a0) / Math.max(1, a1 - a0)) * w; }, Y = function (v) { return T + H - ((v - vmin) / rng) * H; };
+    var line = function (rows) { return rows.map(function (r) { return X(r.a + 1).toFixed(1) + ',' + Y(r.end).toFixed(1); }).join(' '); };
+    var g = '', step = Math.pow(10, Math.floor(Math.log10(Math.max(1, top / 3))));
+    step = Math.ceil(top / 3 / step) * step;
+    for (var v = 0; v <= top; v += step) g += '<line x1="' + L + '" x2="' + (L + w) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" class="cg"></line><text x="' + (L - 4) + '" y="' + (Y(v) + 3).toFixed(1) + '" class="ct ty">' + fmtW(v).replace(' 萬', '') + '</text>';
+    for (var ag = Math.ceil(a0 / 10) * 10; ag <= a1; ag += 10) g += '<line x1="' + X(ag).toFixed(1) + '" x2="' + X(ag).toFixed(1) + '" y1="' + (T + H) + '" y2="' + (T + H + 4) + '" class="ca"></line><text x="' + X(ag).toFixed(1) + '" y="' + (T + H + 15) + '" class="ct tx">' + ag + '</text>';
+    /* 座標軸 */
+    g += '<line x1="' + L + '" x2="' + L + '" y1="' + T + '" y2="' + (T + H) + '" class="ca"></line><line x1="' + L + '" x2="' + (L + w) + '" y1="' + Y(Math.max(0, vmin)).toFixed(1) + '" y2="' + Y(Math.max(0, vmin)).toFixed(1) + '" class="ca"></line>';
+    if (vmin < 0) g += '<line x1="' + L + '" x2="' + (L + w) + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '" class="c0"></line>';
+    g += '<text x="' + (L + w) + '" y="' + (T + H + B + 6) + '" class="ct tx" text-anchor="end">年齡</text><text x="2" y="' + (T - 4) + '" class="ct">萬</text>';
+    /* 退休時間：垂直虛線 */
+    var vline = function (R, cls, lab, dy) { return '<line x1="' + X(R).toFixed(1) + '" x2="' + X(R).toFixed(1) + '" y1="' + T + '" y2="' + (T + H) + '" class="cv ' + cls + '"></line><text x="' + Math.min(X(R) + 4, L + w - 70).toFixed(1) + '" y="' + (T + 10 + dy) + '" class="cl ' + cls + '">' + lab + '</text>'; };
+    var marks = vline(c.Rshow, c.pv ? 'orig' : '', (c.pv ? '原始 ' : '') + ageText(c.Rshow) + '退休', 0);
+    if (c.pv && !same(c.Rdisp, c.Rshow)) marks += vline(c.Rdisp, 'pv', '調整後 ' + ageText(c.Rdisp) + '退休', 14);
+    /* 資產用完 */
+    var exr = function (rows, cls) { var r = rows.filter(function (x) { return x.end < 0; })[0]; return r ? '<circle cx="' + X(r.a + 1).toFixed(1) + '" cy="' + Y(r.end).toFixed(1) + '" r="4" class="cx"></circle><text x="' + Math.min(X(r.a + 1) + 5, L + w - 50).toFixed(1) + '" y="' + (Y(r.end) - 6).toFixed(1) + '" class="cl bad">' + (cls ? cls + ' ' : '') + (r.a + 1) + ' 歲用完</text>' : ''; };
+    var lines = pv ? '<polyline points="' + line(base) + '" class="cb dash"></polyline><polyline points="' + line(pv) + '" class="cp"></polyline>' + exr(base, '原始') + exr(pv, '調整後')
+      : '<polyline points="' + line(base) + '" class="cb"></polyline>' + exr(base, '');
+    var svg = '<svg viewBox="0 0 ' + Wd + ' ' + (T + H + B + 10) + '" class="curve" role="img" aria-label="資產隨年齡變化"><title>資產隨年齡變化（每年年底，今天的購買力）</title>' + g + marks + lines + '</svg>';
+    return '<div class="card" id="curveCard"><h2>你的錢會怎麼走</h2><div class="muted" style="margin-top:2px">每年年底的資產，今天的購買力</div>' + svg +
+      '<div class="clg">' + (pv ? '<span><i class="lg dash"></i>原始</span><span><i class="lg pv"></i>調整後</span>' : '<span><i class="lg"></i>你的資產</span>') + '</div></div>';
+  }
+
+
+  /* 提高準確度：哪些欄位改了但還沒套用 */
+  var PRE_LABEL = { inf: '通膨', dep: '存款利率', liClaim: '請領年齡', liYears: '勞保年資', w60: '平均月投保薪資', lsBal: '專戶餘額', lsWage: '月提繳工資', lsYears: '提繳年資', self: '自提', oldOn: '勞退舊制', oHire: '到職年', oYrs: '舊制年資', oWage: '平均工資', gaps: '工作空窗', nhiDep: '健保', endAge: '算到幾歲' };
+  var PRE_GROUP = { base: ['inf', 'dep'], li: ['liClaim', 'liYears', 'w60'], ls: ['lsBal', 'lsWage', 'lsYears', 'self'], old: ['oldOn', 'oHire', 'oYrs', 'oWage'], gap: ['gaps'], nhi: ['nhiDep'] };
+  function gapNorm(list) { return (list || []).map(function (g) { return { sit: g.sit, y: +g.y || 0, m: +g.m || 0 }; }).filter(function (g) { return g.y || g.m; }); }
+  function gapStatus(list) { var n = gapNorm(list), mo = n.reduce(function (t, g) { return t + g.y * 12 + g.m; }, 0); return n.length ? n.length + ' 段・共 ' + durStr(mo) : '沒有'; }
+  function preNorm(k, v) { if (k === 'gaps') return JSON.stringify(gapNorm(v)); if (k === 'nhiDep' || k === 'oldOn') return v ? '1' : ''; if (k === 'self') return String(v === '' || v == null ? 0 : +v); return v == null ? '' : String(v).trim(); }
+  function preChanged(k) { return !!S.preDraft && preNorm(k, S.preDraft[k]) !== preNorm(k, S.pre[k]); }
+  function pendingKeys() { return Object.keys(PRE_LABEL).filter(preChanged); }
+  /* 顯示「原本 → 改成」：沒填的寫估算值（S.preEst 在畫面產生時記下） */
+  function preVal(k, v) {
+    var E = S.preEst || {}, empty = v === '' || v == null;
+    switch (k) {
+      case 'inf': return (empty ? 2 : +v) + '%';
+      case 'dep': return (empty ? E.dep : +v) + '%';
+      case 'liClaim': return (empty ? E.legal : +v) + ' 歲';
+      case 'liYears': case 'lsYears': return empty ? '估算 ' + E[k] + ' 年' : v + ' 年';
+      case 'w60': case 'lsBal': case 'lsWage': return empty ? '估算 ' + E[k] + ' 萬' : v + ' 萬';
+      case 'self': return (empty ? 0 : +v) + '%';
+      case 'nhiDep': return v ? '依附眷屬' : '第六類自付';
+      case 'oldOn': return v ? '有' : '沒有';
+      case 'gaps': return gapStatus(v);
+      case 'oHire': return empty ? '—' : v + ' 年';
+      case 'oYrs': return empty ? '—' : v + ' 年';
+      case 'oWage': return empty ? '—' : v + ' 萬';
+      case 'endAge': return (empty ? E.endAge : +v) + ' 歲';
+    }
+    return String(v);
+  }
+  function preDiff(k) { return PRE_LABEL[k] + ' ' + preVal(k, S.pre[k]) + ' → ' + preVal(k, S.preDraft[k]); }
+  /* 欄位離開（change）時才重畫，讓「調整後」那欄更新；重畫後把焦點放回原本的欄位 */
+  function repaintKeep() {
+    var y = window.scrollY, f = document.activeElement && document.activeElement.id;
+    S.phase = null; paintResult();
+    if (f && $(f)) $(f).focus();
+    try { window.scrollTo(0, y); } catch (e) {}
+  }
+  /* 打字時只更新標記，不重畫整個畫面（避免游標跳掉） */
+  function refreshPending() {
+    if (!$('precBox')) return;
+    var all = pendingKeys();
+    Object.keys(PRE_GROUP).forEach(function (g) {
+      var el = document.querySelector('[data-chg="' + g + '"]'); if (!el) return;
+      var ks = PRE_GROUP[g].filter(preChanged);
+      el.innerHTML = ks.map(function (k) { return '<em class="chg">' + esc(preDiff(k)) + '</em>'; }).join('');
+      el.hidden = !ks.length;
+    });
+    var bar = $('pendBar'); if (bar) { bar.hidden = !all.length; var n = bar.querySelector('b'); if (n) n.textContent = all.length; }
+    var ap = $('applyPre'); if (ap) { ap.disabled = !all.length; ap.textContent = all.length ? '設為新的原始（' + all.length + ' 項）' : '沒有要套用的變更'; }
+  }
+  function gapHtml(list) {
+    var sits = SP5Engine.GAP_SITS;
+    var rows = list.map(function (g, i) {
+      return '<div class="gaprow"><div class="gaph"><label for="gs' + i + '">第 ' + (i + 1) + ' 段</label><button type="button" class="linkbtn" data-gapdel="' + i + '" aria-label="刪除第 ' + (i + 1) + ' 段">刪除</button></div>' +
+        '<select id="gs' + i + '" data-gapsit="' + i + '">' + sits.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === g.sit ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+        '<div class="gapym"><input type="text" inputmode="numeric" id="gy' + i + '" data-gapy="' + i + '" aria-label="第 ' + (i + 1) + ' 段幾年" value="' + esc(g.y) + '" placeholder="0"><span>年</span>' +
+        '<input type="text" inputmode="numeric" id="gm' + i + '" data-gapm="' + i + '" aria-label="第 ' + (i + 1) + ' 段幾個月" value="' + esc(g.m) + '" placeholder="0"><span>個月</span></div></div>';
+    }).join('');
+    return '<div class="muted">從開始工作到今天，中間有沒有停下來過？選當時的情況、填大概多久，系統會自己調整估算。</div>' + rows +
+      '<button type="button" class="gapadd" id="gapAdd">＋ ' + (list.length ? '再加一段' : '加一段空窗') + '</button>' +
+      (list.length ? '<div class="gaptot"><span>合計</span><b>' + gapStatus(list) + '</b></div>' : '');
+  }
+  function precHtml(P) {
+    var depDef = Math.round(EN.rates().depDefault * 1000) / 10;
+    var paGroup = function (key, label, opts, cur, sub) { return '<div class="stg2"><div class="stl">' + label + '</div>' + (sub ? '<div class="sts">' + sub + '</div>' : '') + '<div class="chips" style="margin-top:4px">' + opts.map(function (o) { return '<button type="button" class="chip" data-pa="' + key + ':' + o[0] + '" aria-pressed="' + (o[0] === cur) + '">' + o[1] + '</button>'; }).join('') + '</div></div>'; };
+    var fold = function (key, title, status, inner) {
+      var open = S.preErr || (S.pf && S.pf[key]);
+      return '<details class="pfold" data-pf="' + key + '"' + (open ? ' open' : '') + '><summary><b>' + title + '</b><span>' + status + '</span><div class="chgs" data-chg="' + key + '" hidden></div></summary><div class="pfin">' + inner + '</div></details>';
+    };
+    var dv = function (k) { return S.pre[k] !== '' && S.pre[k] != null; };
+    var liN = (dv('liYears') ? 0 : 1) + (dv('w60') ? 0 : 1), lsN = (dv('lsBal') ? 0 : 1) + (dv('lsWage') ? 0 : 1) + (dv('lsYears') ? 0 : 1);
+    S.preEst = { legal: EN.legal(), dep: Math.round(EN.rates().depDefault * 1000) / 10, endAge: EN.E_DEF,
+      liYears: Math.round(P.liYearsNow), w60: (P.w60 / 10000).toFixed(2), lsBal: Math.round(lsBalNowEst(P) / 10000), lsWage: (P.lsWage / 10000).toFixed(2),
+      lsYears: Math.round(Math.max(0, Math.min(P.worked, (EN.NOWI - (2005 * 12 + 6)) / 12))) };
+    /* 標題的狀態一律是「目前生效的值」（S.pre）；準備要改的值在旁邊的標記顯示 */
+    var lgA = EN.legal(), cl = S.pre.liClaim;
+    var claimTxt = cl === '' || cl == null ? lgA + ' 歲領（法定）' : cl + ' 歲領（' + (+cl < lgA ? '減給 ' + (lgA - cl) * 4 + '%' : +cl > lgA ? '加給 ' + (cl - lgA) * 4 + '%' : '法定') + '）';
+    var d = S.preDraft, l = estList(P), TOTAL = 5, lvl = l.length === TOTAL ? '基本' : l.length ? '部分用實際資料' : '已用實際資料';
+    var f = function (id, key, label, ph) { return '<div><label class="f" for="' + id + '">' + label + '</label><input id="' + id + '" type="text" inputmode="decimal" data-pre="' + key + '" placeholder="' + ph + '" value="' + esc(d[key]) + '"></div>'; };
+    var lg = EN.legal(), opts = '<option value=""' + (d.liClaim === '' ? ' selected' : '') + '>法定年齡（' + lg + ' 歲）</option>';
+    for (var a = lg - 5; a <= lg + 5; a++) if (a !== lg) opts += '<option value="' + a + '"' + (String(d.liClaim) === String(a) ? ' selected' : '') + '>' + a + ' 歲（' + (a < lg ? '減給 ' + (lg - a) * 4 + '%' : '加給 ' + (a - lg) * 4 + '%') + '）</option>';
+    return '<div class="prec" id="precBox"><div class="pm">目前精度：<b>' + lvl + '</b></div>' +
+
+      (S.preErr ? '<div class="err" style="margin-top:8px">' + esc(S.preErr) + '</div>' : '') +
+      '<h3 class="ph3">基本假設</h3><div class="chgs" data-chg="base" hidden></div><div class="muted">這兩個會改變上面的主結果。</div>' +
+      paGroup('inf', '通膨（每年）', [['2', '2%（預設）'], ['2.5', '2.5%'], ['3', '3%']], d.inf === '' || d.inf == null ? '2' : String(d.inf)) +
+      paGroup('dep', '存款利率（每年）', [['0.8', '0.8% 活存'], [String(depDef), depDef + '% 一年定存（預設）'], ['2', '2.0% 優利定存']], d.dep === '' || d.dep == null ? String(depDef) : String(d.dep),
+        '本平台不算投資：名下可自由動用的錢，假設都放在銀行。預設是臺灣銀行一年期定存牌告。') +
+      (function () { var i = (d.inf === '' || d.inf == null ? 2 : +d.inf) / 100, r = (d.dep === '' || d.dep == null ? depDef : +d.dep) / 100, real = (1 + r) / (1 + i) - 1;
+        return '<div class="realr ' + (real < 0 ? 'neg' : 'pos') + '"><span>扣掉通膨後，你的錢每年</span><b>' + (real < 0 ? '-' + pct(-real) + '（慢慢縮水）' : '+' + pct(real)) + '</b></div>'; })() +
+      '<h3 class="ph3">你的實際資料</h3><div class="muted">登入勞保局 e 化服務系統查得到。沒填的用估算值（灰字）。</div>' +
+      fold('gap', '工作空窗', gapStatus(S.pre.gaps), gapHtml(d.gaps || [])) +
+      fold('li', '勞保老年年金', (liN ? liN + ' 項估算' : '已填') + '・' + claimTxt,
+            '<div class="row"><label class="f" for="pLc">幾歲開始領（可以提早到 ' + (lg - 5) + ' 歲）</label><select id="pLc" data-pre="liClaim">' + opts + '</select>' +
+      '<div class="muted" style="margin-top:4px">要先離職退保才能領，所以不會早於你退休的時間。早領每年少 4%（按月計），但可以縮短只靠資產的那段。</div></div>' +
+      '<div class="g2 row">' + f('pLy', 'liYears', '勞保年資（年）', '估算 ' + Math.round(P.liYearsNow)) + f('pW', 'w60', '平均月投保薪資（萬）', '估算 ' + (P.w60 / 10000).toFixed(2)) + '</div>') +
+      fold('ls', '勞退新制', lsN ? lsN + ' 項估算' : '已填',
+      '<div class="g2 row">' + f('pB', 'lsBal', '專戶目前餘額（萬）', '估算 ' + Math.round(lsBalNowEst(P) / 10000)) + f('pLw', 'lsWage', '月提繳工資（萬）', '估算 ' + (P.lsWage / 10000).toFixed(2)) + '</div>' +
+      '<div class="g2 row">' + f('pLs', 'lsYears', '實際提繳年資（年）', '估算 ' + Math.round(Math.max(0, Math.min(P.worked, (EN.NOWI - (2005 * 12 + 6)) / 12)))) +
+      '<div><label class="f" for="pS">自提</label><select id="pS" data-pre="self">' + [0, 1, 2, 3, 4, 5, 6].map(function (v) { return '<option value="' + v + '"' + (String(v) === String(d.self) ? ' selected' : '') + '>' + v + '%</option>'; }).join('') + '</select></div></div>' +
+      '<div class="muted" style="margin-top:4px">實際提繳滿 15 年才能月領，不到 15 年只能一次領（勞工退休金條例第 24 條）。換過工作、中斷過的年資會合併計算。</div>') +
+      fold('old', '勞退舊制', S.pre.oldOn ? S.pre.oYrs + ' 年・平均工資 ' + S.pre.oWage + ' 萬' : '沒有',
+        '<label class="check row"><input type="checkbox" data-pre="oldOn"' + (d.oldOn ? ' checked' : '') + '><span>2005 年 7 月以前就在現在這家公司，有保留勞退舊制年資</span></label>' +
+        '<div class="g3 row">' + f('pOh', 'oHire', '到職年', '例如 1999') + f('pOy', 'oYrs', '舊制年資（年）', '例如 6') + f('pOw', 'oWage', '退休時月平均工資（萬）', '例如 8') + '</div>' +
+        '<div class="muted" style="margin-top:4px">勾了才會算。年資可以填小數（4 年 6 個月填 4.5）；平均工資是退休前 6 個月、含經常性津貼的平均，用今天的物價估。符合自請退休條件時由公司一次發給，沒符合就是 0。</div>') +
+      fold('nhi', '健保', S.pre.nhiDep ? '依附眷屬' : '第六類自付',
+      '<label class="check row"><input type="checkbox" data-pre="nhiDep"' + (d.nhiDep ? ' checked' : '') + '><span>退休後可以依附在職的配偶或子女，當健保眷屬</span></label>' +
+      '<div class="muted" style="margin-top:4px">沒勾：退休後以第六類自付，每月 ' + EN.T.NHI_SELF.toLocaleString('en-US') + ' 元。勾了：不用自己繳。</div>') +
+'<div class="muted" style="margin-top:14px">改了的項目會先放在上面「調整後」那欄對照，確定了再設為新的原始。</div>' +
+      '<div class="g2 row" style="margin-top:6px"><button type="button" class="primary" id="applyPre" style="height:44px">套用並重新計算</button><button type="button" id="clearPre" style="height:44px">清除，改回估算</button></div>' +
+      '</div>';
+  }
+  function paintResult() {
+    if (!S.preDraft) S.preDraft = JSON.parse(JSON.stringify(S.pre));
+    bindEngine(EN0); EN.sync();
+    var P = profile(), e = earliest(), from = EN.fromAge(), Rshow = e === null ? 65 : e, ev0 = evalR(P, Rshow);
+    var a = adjState(), pv = null, pend = pendingKeys(), adjOn = adjActive(), draftErr = '';
+    if (adjOn || pend.length) {
+      var inp = getInputs();   /* 只選了退休年紀也走這裡：調整後那欄＝原始條件、在你選的年紀退休 */
+      if (pend.length) { inp = JSON.parse(JSON.stringify(inp)); inp.pre = JSON.parse(JSON.stringify(S.preDraft)); draftErr = SP5Engine.create(inp).validate(); }
+      if (!draftErr) {
+        var sc = SP5Engine.scenario(inp, adjSel(), { now: { y: EN0.NOW, m: EN0.NOWI % 12 + 1 }, maxAge: ADJ_MAX });
+        pv = { en: sc.en, Pa: sc.en.profile(sc.adj), ea: sc.e, adj: sc.adj };
+      }
+    }
+    /* 調整後那欄的退休時間：你選的年紀，沒選就是它自己的最快；原始那欄永遠是原始的最快 */
+    var tab = pv ? (S.mapTab || 'adj') : 'orig';
+    var Rorig = Rshow, Radj = a.ret !== null ? a.ret : pv ? (pv.ea !== null ? pv.ea : Rshow) : Rshow;
+    S._Radj = Radj;
+    var Rdisp = tab === 'adj' ? Radj : Rorig;
+    var c = { e: e, P: P, from: from, Rshow: Rorig, pv: pv, Rdisp: Radj, Radj: Radj, Rm: Rorig };
+
+    /* ---- 答案：時間＋錢 ---- */
+    var head, eH = e, enH = EN0, PH = P, capH = 65;
+    var evH = eH !== null ? enH.evalR(PH, eH) : enH.evalR(PH, Math.min(capH, 65));
+    var lab = '照現在這樣，最快約';
+    if (e === null && ev0.preExhaust !== null) head = '<div class="rl">照現在這樣</div><div class="age warn">還沒退休錢就用完</div><div class="rs">照目前的收支，資產會在 <b>' + ageText(ev0.preExhaust) + '（' + ymText(ev0.preExhaust, true) + '）</b>用完，那時候還沒退休。要先讓每個月的收入大於支出，退休才算得下去。</div>';
+    else if (eH === null) head = '<div class="rl">照現在這樣</div><div class="age warn">' + capH + ' 歲還不夠</div><div class="rs">' + ('65 歲退休還差約 ' + fmtW(ev0.gap) + (exhaustAge(P, 65) !== null ? '，資產會在 ' + ageText(exhaustAge(P, 65)) + '（' + ymText(exhaustAge(P, 65), true) + '）用完' : '') + '。往下看怎麼補。') + '</div>';
+    else {
+      var m = yearsMonthsUntil(eH);
+      head = '<div class="rl">' + lab + '</div><div class="age">' + ageText(eH) + '<span class="agey">' + ymText(eH) + '</span>' + (eH > 65 + 1e-9 ? '<em class="over">超過 65 歲</em>' : '') + '</div>' +
+        '<div class="rs">' + (m > 0 ? '約 <b>' + durStr(m) + '</b>後' : '你現在就已經達到退休門檻') + (m > 0 && eH < 65 - 1e-9 ? '，比 65 歲早 ' + durStr(monthsBetween(eH, 65)) + '。' : '。') + '</div>' +
+        '<div class="rs2">那時候退休，你會有 <b>' + fmtW(evH.proj) + '</b>，夠用到 ' + enH.E() + ' 歲。</div>' +
+        (bridgeText(eH) ? '<div class="hbr">' + bridgeText(eH) + '</div>' : '');
+    }
+    if (S.delta) {
+      var db = S.delta.before, da = S.delta.after, dl;
+      if (db === da) dl = ['same', '跟剛才一樣'];
+      else if (db !== null && da !== null) { var dm = monthsBetween(da, db); dl = dm > 0 ? ['ok', '↑ 比剛才早 ' + durStr(dm) + '（剛才是 ' + ageText(db) + '）'] : ['short', '↓ 比剛才晚 ' + durStr(-dm) + '（剛才是 ' + ageText(db) + '）']; }
+      else if (da === null) dl = ['short', '↓ 變成 65 歲還不夠（剛才是 ' + ageText(db) + '）'];
+      else dl = ['ok', '↑ 變成可以在 ' + ageText(da) + '退休（剛才是 65 歲還不夠）'];
+      head += '<div class="hdelta ' + dl[0] + '">' + dl[1] + '</div>';
+      if (S.delta.Rb != null) { var gB = S.delta.gb, gA = evalR(P, S.delta.Rb); head += '<div class="hdelta same">在 ' + ageText(S.delta.Rb) + '退休：' + gB + ' → ' + gapText(gA) + '</div>'; }
+    }
+    var l = estList(P), rt = EN0.rates();
+    /* 假設：結果卡底下一行灰字，點了打開提高準確度（最上面就是基本假設） */
+    var note = '<div class="assume">不靠投資・存款 ' + pct(rt.dep) + '・通膨 ' + pct(rt.inf) + '・算到 ' + EN0.E() + ' 歲</div>';
+    var oldHint = EN0.mayHaveOld() && !S.pre.oldOn;
+
+    /* ---- 唯一的色塊：想再早一年（可一鍵套用） ---- */
+    var hook = '';
+    {
+      var tR = e === null ? 65 : e - 1;
+      if (tR >= from - 1e-9) {
+        var evt = evalR(P, tR), X = Math.round((tR - P.A0y) * 12) > 0 ? solve(tR, 'extra') : null, Y = solve(tR, 'cut', P.base * 12);
+        var xm = X !== null ? Math.ceil(X / 12 / 100) * 100 : null, ym = Y !== null ? Math.ceil(Y / 12 / 100) * 100 : null;
+        var xOk = xm !== null && xm <= P.inc, yOk = ym !== null;
+        hook = '<div class="hook"><div class="hk">' + (e === null ? '要在 65 歲退休' : '想再早一年，' + ageText(tR) + '（' + ymText(tR, true) + '）退休') + '，原始還差 <b>' + fmtW(evt.gap) + '</b></div>' +
+          '<div>' + (xOk ? '每月多存 <b>' + fmtW(xm) + '</b>' : '') + (xOk && yOk ? '，或' : '') + (yOk ? '每月少花 <b>' + fmtW(ym) + '</b>' : '') + (!xOk && !yOk ? '單靠多存或少花都補不上' : '') + '</div>' +
+          '<div class="hkbtns">' + (xOk ? '<button type="button" class="linkbtn" data-apply="save:' + xm + '">套用看看：多存 ' + fmtW(xm) + '</button>' : '') +
+          (yOk ? '<button type="button" class="linkbtn" data-apply="more:-' + ym + '">套用看看：少花 ' + fmtW(ym) + '</button>' : '') + '</div></div>';
+      } else hook = '<div class="hook"><div class="hk">現在就退休，到 ' + EN0.E() + ' 歲還多出 <b>' + fmtW(-ev0.gap) + '</b></div></div>';
+    }
+    var pvbar = '';
+    if (adjOn || pend.length) {
+      var mode = adjOn && pend.length ? 'mix' : adjOn ? 'adj' : 'fact';
+      var lab2 = mode === 'mix' ? '實際資料還沒套用・調調看中' : mode === 'adj' ? '調調看中' : '實際資料還沒套用';
+      var btns = mode === 'fact' ? '<button type="button" id="precCancel">取消</button><button type="button" class="primary" id="applyPre3">設為新的原始</button>'
+        : '<button type="button" id="cmpReset">回到原始</button><button type="button" class="primary" id="saveNew">存成新方案</button>';
+      pvbar = '<div class="pvbar" role="status"><b>' + lab2 + '</b>' + btns + '</div>' + (draftErr ? '<div class="err" style="margin-top:6px">還不能比較：' + esc(draftErr) + '</div>' : '');
+    }
+
+    /* ---- 地圖：跟著調整一起變（預覽時切到情境引擎畫） ---- */
+    var mapBody;
+    if (pv && tab === 'adj') { bindEngine(pv.en); mapBody = timelineHtml(pv.Pa, Rdisp, pv.en.evalR(pv.Pa, Rdisp).Q); bindEngine(EN0); }
+    else mapBody = timelineHtml(P, Rdisp, evalR(P, Rdisp).Q);
+    var mtabs = pv ? '<div class="mtabs" role="tablist" aria-label="地圖版本"><button type="button" role="tab" data-mtab="orig" aria-selected="' + (tab === 'orig') + '">原始</button><button type="button" role="tab" data-mtab="adj" aria-selected="' + (tab === 'adj') + '">調整後</button></div>' : '';
+
+    /* 詳細說明（收起）：想再早一年、假設、舊制提醒；下面已有調調看與提高準確度，手機上省空間 */
+    c.hook = hook;
+    if (!pv && e === null && ev0.preExhaust === null) {
+      var X65 = solve(65, 'extra'), Y65 = solve(65, 'cut', P.base * 12);
+      var x65 = X65 !== null ? Math.ceil(X65 / 12 / 100) * 100 : null, y65 = Y65 !== null ? Math.ceil(Y65 / 12 / 100) * 100 : null;
+      if (x65 !== null && x65 > P.inc) x65 = null;
+      head += '<div class="fill65">要在 65 歲退休：' + (x65 !== null ? '每月多存 <b>' + fmtW(x65) + '</b>' : '') + (x65 !== null && y65 !== null ? '，或' : '') + (y65 !== null ? '每月少花 <b>' + fmtW(y65) + '</b>' : '') + (x65 === null && y65 === null ? '單靠多存或少花補不上' : '') +
+        '<span class="fillb">' + (x65 !== null ? '<button type="button" class="linkbtn" data-apply="save:' + x65 + '">套用多存</button>' : '') + (y65 !== null ? '<button type="button" class="linkbtn" data-apply="more:-' + y65 + '">套用少花</button>' : '') + '</span></div>';
+    }
+    /* 調調看、提高準確度：並排兩個按鈕，一次打開一個 */
+    var est = l.length;
+    var twin = '<div class="twin">' +
+      '<button type="button" id="tgAdj" aria-expanded="' + (S.panel === 'adj') + '" aria-controls="panelAdj"><b>調調看</b><span>' + (adjOn ? '已調整' : '如果多存、少花、活多久') + '</span></button>' +
+      '<button type="button" id="tgPrec" aria-expanded="' + (S.panel === 'prec') + '" aria-controls="panelPrec"><b>提高準確度</b><span>' + (pendingKeys().length ? pendingKeys().length + ' 項還沒套用' : (est ? est + ' 項是估算的' : '補上實際資料') + (oldHint ? '・<em class="oldtag">可能有勞退舊制</em>' : '')) + '</span></button></div>';
+    var oldBox = oldHint ? '<div class="holdhint">你 2005 年 7 月以前就在工作，如果到現在都沒換過公司，可能有勞退舊制年資。<button type="button" class="linkbtn inl" id="goOld">填寫 ›</button></div>' : '';
+    var panel = S.panel === 'adj' ? '<div class="card tpanel" id="panelAdj">' + adjCardHtml(c) + '</div>' : S.panel === 'prec' ? '<div class="card tpanel" id="panelPrec">' + oldBox + precHtml(P) + '</div>' : '';
+    $('result').innerHTML =
+      '<div class="top"><button type="button" class="linkbtn" id="back">‹ 修改答案</button><span class="muted">v' + EN0.VERSION + '</span></div>' + scBarHtml() + pvbar +
+      (pv ? '<div class="card cmpcard">' + compareHtml(c) + note + '</div>' : '<div class="card hero">' + head + note + '</div>') +
+      twin + panel + curveHtml(c) +
+      '<div class="card" id="mapCard"><h2>每個階段的收支</h2>' + mtabs + '<div class="muted" style="margin-top:6px">' + (pv ? (tab === 'adj' ? '調整後：' : '原始：') : '') + '以 ' + ageText(Rdisp) + '（' + ymText(Rdisp, true) + '）退休來看，你的錢在每個階段從哪裡來</div>' + mapBody + '</div>' +
+
+      '<div class="disc">假設：通膨 ' + pct(rt.inf) + '；不算投資，名下可自由動用的錢放銀行（年利率 ' + pct(rt.dep) + '）；勞退基金 3%；算到 ' + EN0.E() + ' 歲，金額都是今天的購買力；薪資和生活費隨通膨調整，薪資實質成長 0%。時間按月計算。勞保預設在法定年齡請領（可自選）、勞退在 60 歲或退休時請領；國保保費與年金已計入。健保：退休後依第六類自付每月 ' + EN0.T.NHI_SELF.toLocaleString('en-US') + ' 元（可改為依附眷屬）；二代健保補充保費未計入。工作空窗只問多久，假設都發生在勞退新制期間。本結果是門檻估計，不代表實際退休所需金額，並假設配偶持續負擔其目前的家用份額。</div>';
+    refreshPending();
+    if (S.adjEdit) { var ev = $('ed-val'); if (ev) ev.focus(); }
+  }
+
+  /* ================= 方案（照 SP2 §1.8；存在這台裝置） ================= */
+  var KEY = 'sp5:data', MAX = 10, CMP_MAX = 3;
+  var IN_KEYS = ['birth', 'workStart', 'asset', 'inc', 'spend', 'house', 'car', 'kidsOn', 'parOn', 'housePay', 'houseYrs', 'housePre', 'housePreAge', 'houseRate', 'carPay', 'carYrs', 'par', 'parMode', 'parYrs', 'kids', 'pre'];
+  var DB = { v: 1, active: null, list: [], cmp: null, showAll: false };
+  /* 舊格式的輸入轉成新格式：子女費用三組 → 每個階段；勞退舊制從最上層搬到 pre */
+  function migrateInputs(o) {
+    if (!o) return o;
+    if (o.kids) o.kids.forEach(function (k) { SP5Engine.migrateKid(k); delete k.copied; });
+    o.pre = o.pre || {};
+    if (o.pre.oldOn === undefined) {
+      o.pre.oldOn = !!o.oldOn; o.pre.oHire = o.oHire || ''; o.pre.oYrs = o.oYrs || ''; o.pre.oWage = o.oWage || '';
+    }
+    delete o.oldOn; delete o.oHire; delete o.oYrs; delete o.oWage;
+    if (!Array.isArray(o.pre.gaps)) o.pre.gaps = [];
+    return o;
+  }
+  function loadDB() { try { var d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && d.v === 1 && Array.isArray(d.list)) { d.list.forEach(function (x) { migrateInputs(x.saved); }); DB = d; } } catch (e) {} }
+  function saveDB() { try { localStorage.setItem(KEY, JSON.stringify(DB)); return true; } catch (e) { toast('這台裝置沒辦法存檔（可能是無痕模式）'); return false; } }
+  function getInputs() { var o = {}; IN_KEYS.forEach(function (k) { o[k] = S[k]; }); return JSON.parse(JSON.stringify(o)); }
+  function setInputs(o) { o = migrateInputs(JSON.parse(JSON.stringify(o))); IN_KEYS.forEach(function (k) { if (o[k] !== undefined) S[k] = o[k]; }); S.preDraft = null; S.preMsg = ''; S.delta = null; syncForm(); }
+  function active() { return DB.list.filter(function (x) { return x.id === DB.active; })[0] || null; }
+  function isDirty() { var a = active(); return !!a && JSON.stringify(getInputs()) !== JSON.stringify(a.saved); }
+  function nowStr() { var d = new Date(), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  /* 把目前的調整寫進一個新方案：每月花費、每月多存（視為入帳增加）、活到、還沒套用的實際資料；萬一……是假設的意外，不存 */
+  function saveAsNew() {
+    if (DB.list.length >= MAX) { modal('最多 ' + MAX + ' 個方案', '<div class="muted">請先刪除一個不要的方案。</div>', [{ label: '去刪除方案', cls: 'primary', fn: function () { paintList(); } }, { label: '取消', fn: function () {} }]); return; }
+    var a = adjState(), inp = JSON.parse(JSON.stringify(getInputs())), lab = adjLabels().filter(function (x) { return x.indexOf('萬一') !== 0; });
+    inp.pre = JSON.parse(JSON.stringify(S.preDraft));
+    var r1 = function (x) { return String(Math.round(x * 100) / 100); };
+    if (a.more) inp.spend = r1((W(S.spend) + a.more) / 10000);
+    if (a.save) inp.inc = r1((W(S.inc) + a.save) / 10000);
+    if (a.end !== null) inp.pre.endAge = String(a.end);
+    var skipped = wiOn(a).length + (a.ret !== null ? 1 : 0), cur = active(), base = cur ? cur.name : '方案';
+    lab = lab.filter(function (x) { return x.indexOf('想在') !== 0; });
+    var tag = lab.length ? lab[0].replace('每月', '') + (lab.length > 1 ? '等' : '') : pendingKeys().length ? '實際資料' : '調整';
+    var nid = newId(), name = uniqName(base.slice(0, 10) + '（' + tag + '）');
+    guard(function () {
+      DB.list.push({ id: nid, name: name, saved: inp, updated: nowStr() });
+      DB.active = nid; saveDB(); adjReset(); S.preDraft = null; switchTo(nid);
+      toast('已存成新方案「' + name + '」' + (skipped ? '；想在幾歲退休、萬一……沒有存進去' : ''));
+    });
+  }
+  function newId() { return 's' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+  function uniqName(base) { var n = base.slice(0, 20), i = 2; while (DB.list.some(function (x) { return x.name === n; })) n = (base.slice(0, 17) + ' ' + i++); return n; }
+  function toast(m) { var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(function () { t.hidden = true; }, 2600); }
+  function modal(title, bodyHtml, buttons) {
+    $('mTitle').textContent = title; $('mBody').innerHTML = bodyHtml;
+    $('mBtns').innerHTML = buttons.map(function (b, i) { return '<button type="button" data-mb="' + i + '" class="' + (b.cls || '') + '">' + b.label + '</button>'; }).join('');
+    modal.cb = buttons; $('modal').hidden = false;
+    var f = $('mBody').querySelector('input') || $('mBtns').querySelector('button'); if (f) f.focus();
+  }
+  function closeModal() { $('modal').hidden = true; modal.cb = null; }
+  function guard(next) {
+    if (!isDirty()) return next();
+    modal('目前的方案有未存檔的修改', '<div class="muted">「' + esc(active().name) + '」改過的地方還沒存。</div>', [
+      { label: '存檔後繼續', cls: 'primary', fn: function () { doSave(); next(); } },
+      { label: '不存檔直接繼續', fn: function () { next(); } },
+      { label: '取消', fn: function () {} }
+    ]);
+  }
+  function doSave() { var a = active(); if (!a) return; a.saved = getInputs(); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name); }
+  function syncForm() {
+    document.querySelectorAll('#quick input[data-k]').forEach(function (el) { el.value = S[el.dataset.k] == null ? '' : S[el.dataset.k]; });
+    ['house', 'car', 'kidsOn', 'parOn'].forEach(function (k) { var b = document.querySelector('[data-chip="' + k + '"]'); if (b) b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; });
+    $('housePre').checked = !!S.housePre; $('sec-housePre').hidden = !S.housePre; paintPrepay();
+    document.querySelectorAll('[name=parMode]').forEach(function (r) { r.checked = r.value === (S.parMode || 'keep'); });
+    if (!S.kids || !S.kids.length) S.kids = [{ bym: '', path: 'grad', costs: {} }];
+    paintKids(); paintAge(); paintAccum(); showErr('');
+  }
+  function show(view) { ['quick', 'result', 'list', 'cmp'].forEach(function (v) { $(v).hidden = v !== view; }); window.scrollTo(0, 0); }
+  function scBarHtml() {
+    var a = active(); if (!a) return '';
+    var d = isDirty();
+    return '<div class="scbar' + (d ? ' dirty' : '') + '"><button type="button" class="scpick" id="openList"><span class="nm">' + esc(a.name) + '</span><span class="ct">' + DB.list.length + '／' + MAX + ' ▾</span></button>' +
+      '<button type="button" class="scsave' + (d ? ' primary' : '') + '" id="saveBtn"' + (d ? '' : ' disabled') + '>' + (d ? '存檔' : '已存檔') + '</button></div>' +
+      (d ? '<div class="muted" style="color:var(--warn);margin-top:4px">有未存檔的修改，這台裝置上的「' + esc(a.name) + '」還是舊的。</div>' : '');
+  }
+  function sumLine(inp) {
+    var t = ['資產 ' + fmtW(W(inp.asset)), '入帳 ' + fmtW(W(inp.inc)) + '／月', '負擔 ' + fmtW(W(inp.spend)) + '／月'];
+    if (inp.house) t.push('房貸'); if (inp.car) t.push('車貸'); if (inp.kidsOn) t.push('子女 ' + inp.kids.length); if (inp.parOn) t.push('孝親');
+    return t.join('・');
+  }
+  function paintList() {
+    var a = active(), n = DB.list.length;
+    var src = n > 1 ? '<label class="f" for="cpSrc" style="margin-top:10px">從哪一個複製</label><select id="cpSrc">' + DB.list.map(function (x) { return '<option value="' + x.id + '"' + (x.id === DB.active ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>' : '';
+    $('list').innerHTML = '<div class="top"><button type="button" class="linkbtn" id="listBack">‹ 回到結果</button><span class="muted">存在這台裝置</span></div>' +
+      '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2>我的方案（' + n + '／' + MAX + '）</h2>' + (n >= 2 ? '<button type="button" id="openCmp">參數總表</button>' : '') + '</div>' +
+      DB.list.map(function (x) {
+        var cur = x.id === DB.active;
+        return '<div class="scrow"><div class="h"><b>' + esc(x.name) + '</b>' + (cur ? '<span class="cur">目前</span>' : '') + (cur && isDirty() ? '<span class="muted" style="color:var(--warn)">有未存檔的修改</span>' : '') + '</div>' +
+          '<div class="sum">' + sumLine(x.saved) + '</div><div class="sum">存檔：' + x.updated + '</div>' +
+          '<div class="acts2">' + (cur ? '' : '<button type="button" class="primary" data-sw="' + x.id + '">切換到這個</button>') +
+          '<button type="button" data-rn="' + x.id + '">改名</button>' +
+          (cur ? '' : '<button type="button" data-vs="' + x.id + '">跟目前比</button>') +
+          '<button type="button" class="danger" data-del="' + x.id + '"' + (n <= 1 ? ' disabled title="只剩一個方案不能刪"' : '') + '>刪除</button></div></div>';
+      }).join('') + '</div>' +
+      '<div class="card"><h2>新增方案</h2><div class="muted" style="margin-top:4px">新方案一律從現有方案複製，複製的是存檔過的版本。' + (n === 1 ? '會從「' + esc(DB.list[0].name) + '」複製。' : '') + '</div>' + src +
+      '<button type="button" class="primary" id="newSc" style="width:100%;height:46px;margin-top:10px">＋ 複製成新方案</button></div>' +
+      '<div class="card"><h2>這台裝置的資料</h2><div class="muted" style="margin-top:4px">方案只存在這台裝置的瀏覽器，系統擁有者看不到。換裝置或清除瀏覽器資料會不見。</div>' +
+      '<button type="button" class="danger" id="wipe" style="width:100%;height:44px;margin-top:10px">清除這台裝置上的所有資料</button></div>';
+  }
+  /* 參數總表 */
+  var PL = {}; SP5Engine.PATHS.forEach(function (p) { PL[p[0]] = p[1]; });
+  var CMP_ROWS = [
+    ['幾歲開始工作', function (i) { return i.workStart + ' 歲'; }],
+    ['名下資產', function (i) { return fmtW(W(i.asset)); }],
+    ['每月實際入帳', function (i) { return fmtW(W(i.inc)); }],
+    ['每月基本生活費', function (i) { return fmtW(W(i.spend)); }],
+    ['房貸', function (i) { return i.house ? fmtW(W(i.housePay)) + '／月・' + i.houseYrs + ' 年' + (i.housePre ? '・' + i.housePreAge + ' 歲還清' : '') : '無'; }],
+    ['車貸', function (i) { return i.car ? fmtW(W(i.carPay)) + '／月・' + i.carYrs + ' 年' : '無'; }],
+    ['子女', function (i) { return i.kidsOn ? i.kids.map(function (k) { return k.bym + ' 生・' + (PL[k.path] || ''); }).join('；') : '無'; }],
+    ['子女每年費用', function (i) { return i.kidsOn ? i.kids.map(function (k) { var c = SP5Engine.migrateKid(JSON.parse(JSON.stringify(k))).costs; return Object.keys(SP5Engine.STAGE_LABEL).filter(function (g) { return c[g] !== undefined && c[g] !== ''; }).map(function (g) { return SP5Engine.STAGE_LABEL[g].replace(/（.*）/, '') + ' ' + c[g] + ' 萬'; }).join('、') || '—'; }).join('；') : '無'; }],
+    ['孝親費', function (i) { return i.parOn ? fmtW(W(i.par)) + '／月・' + (i.parMode === 'yrs' ? '再 ' + i.parYrs + ' 年' : '一直算') : '無'; }],
+    ['勞退舊制', function (i) { var o = migrateInputs(JSON.parse(JSON.stringify(i))).pre; return o.oldOn ? o.oHire + ' 到職・' + o.oYrs + ' 年・平均工資 ' + o.oWage + ' 萬' : '無'; }],
+    ['勞保年資', function (i) { return i.pre.liYears !== '' ? i.pre.liYears + ' 年' : '估算'; }],
+    ['平均月投保薪資', function (i) { return i.pre.w60 !== '' ? i.pre.w60 + ' 萬' : '估算'; }],
+    ['勞退專戶餘額', function (i) { return i.pre.lsBal !== '' ? i.pre.lsBal + ' 萬' : '估算'; }],
+    ['勞退提繳工資', function (i) { return i.pre.lsWage !== '' ? i.pre.lsWage + ' 萬' : '估算'; }],
+    ['勞退自提', function (i) { return (i.pre.self || 0) + '%'; }],
+    ['勞退提繳年資', function (i) { return i.pre.lsYears ? i.pre.lsYears + ' 年' : '估算'; }],
+    ['勞保請領年齡', function (i) { return i.pre.liClaim ? i.pre.liClaim + ' 歲' : '法定年齡'; }],
+    ['工作空窗', function (i) { return gapStatus(i.pre && i.pre.gaps); }],
+    ['健保', function (i) { return i.pre.nhiDep ? '依附眷屬' : '第六類自付'; }],
+    ['通膨', function (i) { return (i.pre.inf || 2) + '%'; }],
+    ['存款利率', function (i) { return i.pre.dep ? i.pre.dep + '%' : '一年定存（預設）'; }],
+    ['算到幾歲', function (i) { return (i.pre.endAge || EN.E_DEF) + ' 歲'; }]
+  ];
+  function cmpSel() {
+    var ids = DB.list.map(function (x) { return x.id; });
+    var sel = (DB.cmp || []).filter(function (id) { return ids.indexOf(id) >= 0; });
+    if (!sel.length) {
+      sel = [DB.active].concat(DB.list.filter(function (x) { return x.id !== DB.active; }).sort(function (a, b) { return a.updated < b.updated ? 1 : -1; }).slice(0, CMP_MAX - 1).map(function (x) { return x.id; }));
+      DB.cmp = sel;
+    }
+    return sel;
+  }
+  function paintCmp(msg) {
+    var sel = cmpSel(), cols = DB.list.filter(function (x) { return sel.indexOf(x.id) >= 0; });
+    cols.sort(function (a, b) { return (a.id === DB.active ? -1 : 0) - (b.id === DB.active ? -1 : 0); });
+    var base = cols[0], rows = '', nd = 0;
+    var births = cols.map(function (c) { return c.saved.birth; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var g = 'grid-template-columns: 84px repeat(' + cols.length + ', minmax(0, 1fr))';
+    var head = '<div class="c lbl hd"></div>' + cols.map(function (c) {
+      var cur = c.id === DB.active;
+      return '<div class="c hd' + (c === base ? ' base' : '') + '">' + esc(c.name) + (cur ? '<div class="muted" style="font-weight:400">目前' + (isDirty() ? '・表上是存檔版' : '') + '</div>' : '<button type="button" data-sw="' + c.id + '">切換到這個</button>') + '</div>';
+    }).join('');
+    CMP_ROWS.forEach(function (r) {
+      var vals = cols.map(function (c) { return r[1](c.saved); }), diff = vals.some(function (v) { return v !== vals[0]; });
+      if (diff) nd++;
+      if (!diff && !DB.showAll) return;
+      rows += '<div class="c lbl">' + r[0] + '</div>' + vals.map(function (v, i) { return '<div class="c' + (i === 0 ? ' base' : v !== vals[0] ? ' diff' : '') + '">' + esc(v) + '</div>'; }).join('');
+    });
+    var table = cols.length < 2 ? '<div class="muted" style="margin-top:10px">至少選兩個方案。</div>' :
+      (!nd && !DB.showAll ? '<div class="pm" style="margin-top:10px">選的方案參數完全一樣。</div>' : '<div class="ctab" style="' + g + '">' + head + rows + '</div>');
+    $('cmp').innerHTML = '<div class="top"><button type="button" class="linkbtn" id="cmpBack">‹ 回到方案清單</button><span class="muted">只比輸入，不比結果</span></div>' +
+      '<div class="card"><h2>參數總表</h2><div class="muted" style="margin-top:4px">任選最多 ' + CMP_MAX + ' 個。以最左邊那欄為基準，跟它不一樣的格子會標色。</div>' +
+      '<div class="chips">' + DB.list.map(function (x) { return '<button type="button" class="chip" data-cs="' + x.id + '" aria-pressed="' + (sel.indexOf(x.id) >= 0) + '">' + esc(x.name) + '</button>'; }).join('') + '</div>' +
+      (msg ? '<div class="wf">' + msg + '</div>' : '') +
+      (births.length > 1 ? '<div class="err" style="margin-top:10px">這幾個方案的出生年月不一樣（' + births.map(esc).join('、') + '），通常是改錯了。</div>' : '') +
+      '<div class="seg" role="tablist" aria-label="顯示範圍"><button type="button" role="tab" data-sa="0" aria-selected="' + !DB.showAll + '">只看有差異（' + nd + '）</button><button type="button" role="tab" data-sa="1" aria-selected="' + !!DB.showAll + '">顯示全部（' + CMP_ROWS.length + '）</button></div>' +
+      table + '</div>';
+  }
+  function switchTo(id) { DB.active = id; saveDB(); setInputs(active().saved); S.open = null; S.ledger = false; S.whatif = null; S.phase = null; adjReset(); if (validate()) { show('quick'); showErr(validate()); } else { paintResult(); show('result'); } }
+
+  /* ================= events ================= */
+  document.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (t.dataset.pre) { if (t.type !== 'checkbox') S.preDraft[t.dataset.pre] = t.value; refreshPending(); return; }
+    if (t.dataset.gapy != null) { S.preDraft.gaps[+t.dataset.gapy].y = t.value; refreshPending(); return; }
+    if (t.dataset.gapm != null) { S.preDraft.gaps[+t.dataset.gapm].m = t.value; refreshPending(); return; }
+    if (t.dataset.k) { S[t.dataset.k] = t.value; if (t.dataset.k === 'birth') paintAge(); showErr(''); paintAccum(); if (/^house/.test(t.dataset.k) || t.dataset.k === 'birth') paintPrepay(); }
+    else if (t.dataset.kidby != null) { var i = +t.dataset.kidby; S.kids[i].bym = t.value; paintKid(i); showErr(''); paintAccum(); }
+    else if (t.dataset.group) { var kk = S.kids[+t.dataset.kid]; kk.costs[t.dataset.group] = t.value; if (kk.copied) delete kk.copied[t.dataset.group]; var cp = t.parentNode.parentNode.querySelector('.cp'); if (cp) cp.remove(); showErr(''); paintAccum(); }
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.dataset.kidpath != null) { var i = +t.dataset.kidpath; S.kids[i].path = t.value; paintKid(i); paintAccum(); }
+    else if (t.name === 'parMode') { S.parMode = t.value; showErr(''); if (t.value === 'yrs') $('parYrs').focus(); }
+    else if (t.id === 'housePre') { S.housePre = t.checked; $('sec-housePre').hidden = !t.checked; showErr(''); paintPrepay(); }
+    else if (t.dataset.pre) { S.preDraft[t.dataset.pre] = t.type === 'checkbox' ? t.checked : t.value; repaintKeep(); }
+    else if (t.dataset.gapsit != null) { S.preDraft.gaps[+t.dataset.gapsit].sit = t.value; repaintKeep(); }
+    else if (t.dataset.gapy != null || t.dataset.gapm != null) { repaintKeep(); }
+    else if (t.matches && t.matches('#panelPrec input[type=text]')) { repaintKeep(); }
+  });
+  document.addEventListener('toggle', function (ev) {
+    var k = ev.target.dataset && ev.target.dataset.pf; if (k) { S.pf = S.pf || {}; S.pf[k] = ev.target.open; }
+  }, true);
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.dataset.chip) { var k = b.dataset.chip; S[k] = !S[k]; b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; showErr(''); paintAccum(); }
+    else if (b.dataset.same) {
+      var sp = b.dataset.same.split(':'), kd = S.kids[+sp[0]], v = kd.costs[sp[2]] || '';
+      kd.costs[sp[1]] = v; if (kd.copied) delete kd.copied[sp[1]];
+      var inp = $('k' + sp[0] + sp[1]); if (inp) { inp.value = v; var cp0 = inp.parentNode.parentNode.querySelector('.cp'); if (cp0) cp0.remove(); }
+      showErr(''); paintAccum();
+    }
+    else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); paintKids(); $('kby' + (S.kids.length - 1)).focus(); } }
+    else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintAccum(); }
+    else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } S.open = null; S.ledger = false; S.whatif = null; S.phase = null; S.preMsg = ''; S.delta = null; adjReset(); S.panel = null;
+      if (!DB.list.length) { var id = newId(); DB.list.push({ id: id, name: '我的第一個方案', saved: getInputs(), updated: nowStr() }); DB.active = id; if (saveDB()) toast('已建立「我的第一個方案」，存在這台裝置'); }
+      paintResult(); show('result'); }
+    else if (b.id === 'back') { show('quick'); }
+    else if (b.dataset.phase != null) { S.phase = +b.dataset.phase; S.year = null; S.ypage = null; paintResult(); }
+    else if (b.dataset.year) { S.year = +b.dataset.year; paintResult(); }
+    else if (b.dataset.ypage != null) { S.ypage = +b.dataset.ypage; S.year = null; paintResult(); }
+    else if (b.dataset.mb != null) { var cb = modal.cb && modal.cb[+b.dataset.mb]; var keep = cb && cb.fn && cb.fn() === false; if (!keep) closeModal(); }
+    else if (b.id === 'saveBtn') { doSave(); paintResult(); }
+    else if (b.id === 'openList') { paintList(); show('list'); }
+    else if (b.id === 'listBack') { paintResult(); show('result'); }
+    else if (b.id === 'openCmp') { DB.cmp = null; paintCmp(); show('cmp'); }
+    else if (b.id === 'cmpBack') { paintList(); show('list'); }
+    else if (b.dataset.vs) { DB.cmp = [DB.active, b.dataset.vs]; saveDB(); paintCmp(); show('cmp'); }
+    else if (b.dataset.sa != null) { DB.showAll = b.dataset.sa === '1'; saveDB(); paintCmp(); }
+    else if (b.dataset.cs) {
+      var sel = cmpSel(), id = b.dataset.cs, ix = sel.indexOf(id);
+      if (ix >= 0) sel.splice(ix, 1); else if (sel.length >= CMP_MAX) { paintCmp('最多比 ' + CMP_MAX + ' 個，先取消一個。'); return; } else sel.push(id);
+      DB.cmp = sel.length ? sel : null; saveDB(); paintCmp();
+    }
+    else if (b.dataset.sw) { var to = b.dataset.sw; guard(function () { switchTo(to); }); }
+    else if (b.id === 'newSc') {
+      if (DB.list.length >= MAX) { modal('最多 ' + MAX + ' 個方案', '<div class="muted">請先刪除一個不要的方案。</div>', [{ label: '去刪除方案', cls: 'primary', fn: function () { paintList(); } }, { label: '取消', fn: function () {} }]); return; }
+      var srcId = $('cpSrc') ? $('cpSrc').value : DB.list[0].id;
+      guard(function () {
+        var src = DB.list.filter(function (x) { return x.id === srcId; })[0], nid = newId();
+        DB.list.push({ id: nid, name: uniqName(src.name + ' 的複本'), saved: JSON.parse(JSON.stringify(src.saved)), updated: nowStr() });
+        DB.active = nid; saveDB(); toast('已新增並切換到「' + active().name + '」'); switchTo(nid);
+      });
+    }
+    else if (b.dataset.rn) {
+      var t = DB.list.filter(function (x) { return x.id === b.dataset.rn; })[0];
+      modal('改名', '<label class="f" for="rnIn">方案名稱（1–20 字）</label><input id="rnIn" type="text" maxlength="20" value="' + esc(t.name) + '"><div class="err" id="rnErr" hidden></div>', [
+        { label: '儲存名稱', cls: 'primary', fn: function () {
+          var v = $('rnIn').value.trim(), err = !v ? '名稱不能空白。' : v.length > 20 ? '最多 20 個字。' : DB.list.some(function (x) { return x.id !== t.id && x.name === v; }) ? '已經有同名的方案。' : '';
+          if (err) { $('rnErr').textContent = err; $('rnErr').hidden = false; return false; }
+          t.name = v; saveDB(); paintList(); if (!$('result').hidden) paintResult(); toast('已改名為「' + v + '」');
+        } },
+        { label: '取消', fn: function () {} }
+      ]);
+    }
+    else if (b.dataset.del) {
+      var dv = DB.list.filter(function (x) { return x.id === b.dataset.del; })[0];
+      modal('刪除「' + dv.name + '」？', '<div class="muted">刪除後無法復原。</div>', [
+        { label: '刪除', cls: 'danger', fn: function () {
+          DB.list = DB.list.filter(function (x) { return x.id !== dv.id; });
+          if (DB.cmp) DB.cmp = DB.cmp.filter(function (id) { return id !== dv.id; });
+          var wasActive = DB.active === dv.id;
+          if (wasActive) { DB.active = DB.list[0].id; setInputs(DB.list[0].saved); }
+          saveDB(); paintList(); toast('已刪除「' + dv.name + '」' + (wasActive ? '，切換到「' + DB.list[0].name + '」' : ''));
+        } },
+        { label: '取消', fn: function () {} }
+      ]);
+    }
+    else if (b.id === 'wipe') {
+      modal('清除這台裝置上的所有資料？', '<div class="muted">會刪掉這台裝置上全部 ' + DB.list.length + ' 個方案，無法復原。已匯出的備份檔、分享過的連結不會被刪除。</div>', [
+        { label: '全部清除', cls: 'danger', fn: function () {
+          try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sp5:') === 0) localStorage.removeItem(k); }); } catch (e) {}
+          DB = { v: 1, active: null, list: [], cmp: null, showAll: false };
+          setInputs(DEFAULTS); show('quick'); toast('這台裝置上的資料已全部清除');
+        } },
+        { label: '取消', fn: function () {} }
+      ]);
+    }
+    else if (b.id === 'gapAdd') { S.preDraft.gaps = (S.preDraft.gaps || []).concat([{ sit: 'job', y: '', m: '' }]); S.pf = S.pf || {}; S.pf.gap = true; paintResult(); }
+    else if (b.dataset.gapdel != null) { S.preDraft.gaps.splice(+b.dataset.gapdel, 1); paintResult(); }
+    else if (b.dataset.step) {
+      var sp = b.dataset.step.split(':'), k = sp[0], d = +sp[1], aj = adjState();
+      if (k === 'ret') { var rc = aj.ret !== null ? aj.ret : S._Radj, rn = retSnap(rc, d); if (rn >= EN0.fromAge() - 1e-9 && rn <= ADJ_MAX + 1e-9) aj.ret = rn; }
+      else if (k === 'more') aj.more = Math.max(-W(S.spend), aj.more + d * STEP_MONEY);
+      else if (k === 'save') aj.save = Math.max(-W(S.inc), aj.save + d * STEP_MONEY);
+      else if (k === 'end') { var ce = aj.end !== null ? aj.end : EN0.E(), ne = Math.max(66, Math.min(105, ce + d)); aj.end = ne === EN0.E() ? null : ne; }
+      else if (k.indexOf('wi.') === 0) { var wk = k.slice(3), ws = WI_STEPS.filter(function (x) { return x[0] === wk; })[0]; aj.wi[wk] = Math.max(ws[3], Math.min(ws[4], aj.wi[wk] + d * ws[2])); }
+      S.adjEdit = null; adjChanged(); paintResult();
+    }
+    else if (b.dataset.edit) { S.adjEdit = b.dataset.edit; paintResult(); }
+    else if (b.dataset.editok) {
+      var ek = b.dataset.editok, aj2 = adjState(), vv = Math.abs(num(($('ed-val') || {}).value));
+      if (ek === 'ret') {
+        var yy = Math.round(num(($('ed-y') || {}).value)), mm = Math.round(num(($('ed-m') || {}).value));
+        if (yy > 1900 && mm >= 1 && mm <= 12) { var ra = EN0.ageOfT(EN0.mi(yy, mm) - EN0.NOWI); if (ra >= EN0.fromAge() - 1e-9 && ra <= ADJ_MAX + 1e-9) aj2.ret = ra; else { toast('要在現在到 ' + ADJ_MAX + ' 歲之間'); return; } }
+        else { toast('請輸入正確的年和月'); return; }
+      }
+      else if (ek === 'end') { if (vv >= 66 && vv <= 105) aj2.end = Math.round(vv) === EN0.E() ? null : Math.round(vv); }
+      else if (isFinite(vv)) { var dir = +($('ed-dir') || {}).value || 1, val = Math.round(vv) * dir; aj2[ek] = ek === 'more' ? Math.max(-W(S.spend), val) : Math.max(-W(S.inc), val); }
+      S.adjEdit = null; adjChanged(); paintResult();
+    }
+    else if (b.dataset.rst) {
+      var rk = b.dataset.rst, aj3 = adjState();
+      if (rk === 'more' || rk === 'save') aj3[rk] = 0;
+      else if (rk === 'ret') aj3.ret = null;
+      else if (rk === 'end') aj3.end = null;
+      else if (rk.indexOf('wi.') === 0) aj3.wi[rk.slice(3)] = WI_NEUTRAL[rk.slice(3)];
+      else if (rk.indexOf('pre.') === 0) { var pk = rk.slice(4); S.preDraft[pk] = JSON.parse(JSON.stringify(S.pre[pk] === undefined ? '' : S.pre[pk])); }
+      S.adjEdit = null; adjChanged(); paintResult();
+    }
+    else if (b.dataset.fill) { var fl = b.dataset.fill.split(':'), aj4 = adjState(); aj4[fl[0]] += +fl[1]; adjChanged(); paintResult(); }
+    else if (b.dataset.apply) { var ap = b.dataset.apply.split(':'); adjReset(); adjState()[ap[0]] = +ap[1]; S.panel = 'adj'; paintResult(); window.scrollTo(0, 0); }
+    else if (b.id === 'adjReset' || b.id === 'cmpReset') { adjReset(); S.preDraft = JSON.parse(JSON.stringify(S.pre)); S.preErr = ''; paintResult(); window.scrollTo(0, 0); }
+    else if (b.id === 'precCancel') { S.preDraft = JSON.parse(JSON.stringify(S.pre)); S.preErr = ''; paintResult(); }
+    else if (b.id === 'condAll') { S.condAll = !S.condAll; paintResult(); }
+    else if (b.dataset.mtab) { S.mapTab = b.dataset.mtab; S.phase = null; S.ledger = false; paintResult(); }
+    else if (b.id === 'saveNew') { saveAsNew(); }
+    else if (b.id === 'goOld') { S.panel = 'prec'; S.pf = S.pf || {}; S.pf.old = true; paintResult(); $('panelPrec').scrollIntoView({ block: 'start' }); }
+    else if (b.id === 'goPrec') { S.panel = 'prec'; paintResult(); $('panelPrec').scrollIntoView({ block: 'start' }); }
+    else if (b.id === 'tgAdj' || b.id === 'tgPrec') { var want = b.id === 'tgAdj' ? 'adj' : 'prec'; S.panel = S.panel === want ? null : want; S.adjEdit = null; paintResult(); }
+    else if (b.dataset.pa) { var pv = b.dataset.pa.split(':'); S.preDraft[pv[0]] = pv[1]; paintResult(); }
+    else if (b.id === 'applyPre' || b.id === 'applyPre3' || b.id === 'clearPre') {
+      var before = earliest(), Rb = before === null ? 65 : before, gb = gapText(evalR(profile(), Rb));
+      var prevPre = S.pre;
+      S.pre = b.id === 'clearPre' ? { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', liClaim: '', self: '0', endAge: S.pre.endAge || '', nhiDep: false, inf: '', dep: '', oldOn: S.pre.oldOn, oHire: S.pre.oHire, oYrs: S.pre.oYrs, oWage: S.pre.oWage, gaps: S.pre.gaps || [] } : JSON.parse(JSON.stringify(S.preDraft));
+      var perr = validate(); if (perr) { S.pre = prevPre; S.preErr = perr; S.panel = 'prec'; paintResult(); return; }
+      S.preErr = '';
+      EN.sync();
+      S.preDraft = JSON.parse(JSON.stringify(S.pre));
+      var after = earliest(), lab = function (x) { return x === null ? '65 歲還不夠' : ageText(x); };
+      S.delta = { before: before, after: after, Rb: Rb, gb: gb }; S.preMsg = ''; adjReset();
+      toast((b.id === 'clearPre' ? '已改回估算' : '已套用') + '：最快 ' + lab(after));
+      S.panel = null; S.open = null; S.ledger = false; S.phase = null; paintResult(); window.scrollTo(0, 0);
+    }
+    else if (b.id === 'ledgerBtn') { S.ledger = !S.ledger; paintResult(); }
+    else if (b.dataset.wf) { S.whatif = S.whatif === b.dataset.wf ? null : b.dataset.wf; paintResult(); }
+  });
+
+  var DEFAULTS = getInputs();
+  window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+  $('modal').addEventListener('click', function (e) { if (e.target.id === 'modal') closeModal(); });
+  loadDB();
+  if (active()) { setInputs(active().saved); if (!validate()) { paintResult(); show('result'); } else syncForm(); }
+  else { paintAge(); paintKids(); paintAccum(); }
+})();
+</script>
+</body>
+</html>
