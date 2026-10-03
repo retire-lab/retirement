@@ -913,7 +913,8 @@ details.card[open] > summary::after { transform: rotate(90deg); }
     return (x !== null ? '每月再多存 <b>' + fmtW(x) + '</b>' : '') + (x !== null && y !== null ? '<br>或' : '') + (y !== null ? '每月再少花 <b>' + fmtW(y) + '</b>' : '') +
       '<span class="fillb">' + (x !== null ? '<button type="button" class="linkbtn" data-fill="save:' + x + '">套用多存</button>' : '') + (y !== null ? '<button type="button" class="linkbtn" data-fill="more:-' + y + '">套用少花</button>' : '') + '</span>';
   }
-  function htmlLines(h) { return String(h == null ? '' : h).replace(/<button[\s\S]*?<\/button>/g, '').replace(/<br\s*\/?>/g, '\n').replace(/<\/(div|small|span|b)>/g, '\n').replace(/<[^>]+>/g, '').split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
+  /* 格子轉文字：大字與下面的小字分行（<small> 前後斷開）、<br>、段落斷開；粗體只是強調，不斷開 */
+  function htmlLines(h) { return String(h == null ? '' : h).replace(/<button[\s\S]*?<\/button>/g, '').replace(/<small/g, '\n<small').replace(/<\/small>/g, '\n').replace(/<br\s*\/?>/g, '\n').replace(/<\/div>/g, '\n').replace(/<[^>]+>/g, '').split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
   /* 段落轉文字：只在 div、br 斷開（句子裡的粗體不斷開） */
   function htmlBlocks(h) { return String(h == null ? '' : h).replace(/<button[\s\S]*?<\/button>/g, '').replace(/<br\s*\/?>/g, '\n').replace(/<\/div>/g, '\n').replace(/<[^>]+>/g, '').split('\n').map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean); }
   function compareHtml(c, sink) {
@@ -1337,7 +1338,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
     var bAge = ageOfYM(I.birth);
     var g1 = { title: '基本資料', rows: [row('出生年月', String(I.birth).replace('-', '/'), null, { anonLabel: '年齡', anonO: bAge + ' 歲', anonA: bAge + ' 歲' })] };
     [['幾歲開始工作', '幾歲開始工作'], ['名下資產', '名下可自由動用的錢'], ['每月實際入帳', '每月實際入帳'], ['每月基本生活費', '每月基本生活費']].forEach(function (x) { g1.rows.push(row(x[1], fx[x[0]](I))); });
-    var kidsAnon = I.kidsOn ? I.kids.map(function (k) { return ageOfYM(k.bym) + ' 歲・' + (PL[k.path] || ''); }).join('；') : '無';
+    var kidsAnon = I.kidsOn ? I.kids.map(function (k, n) { return (I.kids.length > 1 ? '孩子 ' + (n + 1) + '：' : '') + ageOfYM(k.bym) + ' 歲・' + (PL[k.path] || ''); }).join('；') : '無';
     var g2 = { title: '以後會結束的支出', rows: [row('房貸', fx['房貸'](I)), row('車貸', fx['車貸'](I)), row('孩子', fx['子女'](I), null, { anonO: kidsAnon, anonA: kidsAnon }), row('孩子每年的費用', fx['子女每年費用'](I)), row('孝親費', fx['孝親費'](I))] };
     var g3 = { title: cmp ? '實際資料（提高準確度）' : '勞保、勞退、健保', rows: [] };
     RPT_PRE.forEach(function (x) {
@@ -1395,8 +1396,9 @@ details.card[open] > summary::after { transform: rotate(90deg); }
         { label: '夠用到', v: [EN0.E() + ' 歲'] }, { label: '橋接期', v: [e !== null && e < 60 - 1e-9 ? durStr(monthsBetween(e, 60)) : '沒有'] }, { label: '錢夠不夠', v: [gapText(ev)] }],
         notes: htmlBlocks(S._heroHtml).filter(function (l) { return /。$/.test(l); }) };
     }
-    M.curve = { orig: ledger(P, X.Rorig).map(function (r) { return [r.a + 1, Math.round(r.end)]; }), Ro: X.Rorig, RoText: ageText(X.Rorig) };
-    if (cmp) { M.curve.adj = pv.en.ledger(pv.Pa, X.Radj).map(function (r) { return [r.a + 1, Math.round(r.end)]; }); M.curve.Ra = X.Radj; M.curve.RaText = ageText(X.Radj); }
+    var lo = ledger(P, X.Rorig);
+    M.curve = { orig: lo.map(function (r) { return [r.a + 1, Math.round(r.end)]; }), Ro: X.Rorig, RoText: ageText(X.Rorig), exO: lo.exhaust, exOText: lo.exhaust != null ? ageText(lo.exhaust) : '' };
+    if (cmp) { var la = pv.en.ledger(pv.Pa, X.Radj); M.curve.adj = la.map(function (r) { return [r.a + 1, Math.round(r.end)]; }); M.curve.Ra = X.Radj; M.curve.RaText = ageText(X.Radj); M.curve.exA = la.exhaust; M.curve.exAText = la.exhaust != null ? pv.en.ageText(la.exhaust) : ''; }
     M.phases = { orig: phasesForReport(EN0, P, X.Rorig), origSub: '以 ' + ageText(X.Rorig) + '退休' };
     if (cmp) { M.phases.adj = phasesForReport(pv.en, pv.Pa, X.Radj); M.phases.adjSub = '以 ' + ageText(X.Radj) + '退休'; }
     M.li = liModel(eff);
@@ -1601,6 +1603,14 @@ details.card[open] > summary::after { transform: rotate(90deg); }
   }
   /* 參數總表 */
   var PL = {}; SP5Engine.PATHS.forEach(function (p) { PL[p[0]] = p[1]; });
+  /* 出生年月一律寫成 YYYY/MM（使用者可能輸入 201206、2012-6 等） */
+  function fmtBym(bym) { var p = EN0 ? EN0.parseYM(bym, 1900, 2100) : null; return p ? p.y + '/' + ('0' + p.mo).slice(-2) : String(bym || ''); }
+  /* 每年費用：只列這個孩子的學制會讀到的階段（複製第一個孩子時，可能帶到用不到的階段） */
+  function kidCostText(k) {
+    var c = SP5Engine.migrateKid(JSON.parse(JSON.stringify(k))).costs, st = EN0 ? EN0.kidStages(k.bym, k.path) : null, ok = {};
+    if (st) st.forEach(function (x) { ok[x.key] = 1; }); else Object.keys(c).forEach(function (g) { ok[g] = 1; });
+    return Object.keys(SP5Engine.STAGE_LABEL).filter(function (g) { return ok[g] && c[g] !== undefined && c[g] !== ''; }).map(function (g) { return SP5Engine.STAGE_LABEL[g].replace(/（.*）/, '') + ' ' + c[g] + ' 萬'; }).join('、') || '—';
+  }
   var CMP_ROWS = [
     ['幾歲開始工作', function (i) { return i.workStart + ' 歲'; }],
     ['名下資產', function (i) { return fmtW(W(i.asset)); }],
@@ -1608,8 +1618,8 @@ details.card[open] > summary::after { transform: rotate(90deg); }
     ['每月基本生活費', function (i) { return fmtW(W(i.spend)); }],
     ['房貸', function (i) { return i.house ? fmtW(W(i.housePay)) + '／月・' + i.houseYrs + ' 年' + (i.housePre ? '・' + i.housePreAge + ' 歲還清' : '') : '無'; }],
     ['車貸', function (i) { return i.car ? fmtW(W(i.carPay)) + '／月・' + i.carYrs + ' 年' : '無'; }],
-    ['子女', function (i) { return i.kidsOn ? i.kids.map(function (k) { return k.bym + ' 生・' + (PL[k.path] || ''); }).join('；') : '無'; }],
-    ['子女每年費用', function (i) { return i.kidsOn ? i.kids.map(function (k) { var c = SP5Engine.migrateKid(JSON.parse(JSON.stringify(k))).costs; return Object.keys(SP5Engine.STAGE_LABEL).filter(function (g) { return c[g] !== undefined && c[g] !== ''; }).map(function (g) { return SP5Engine.STAGE_LABEL[g].replace(/（.*）/, '') + ' ' + c[g] + ' 萬'; }).join('、') || '—'; }).join('；') : '無'; }],
+    ['子女', function (i) { return i.kidsOn ? i.kids.map(function (k, n) { return (i.kids.length > 1 ? '孩子 ' + (n + 1) + '：' : '') + fmtBym(k.bym) + ' 生・' + (PL[k.path] || ''); }).join('；') : '無'; }],
+    ['子女每年費用', function (i) { return i.kidsOn ? i.kids.map(function (k, n) { return (i.kids.length > 1 ? '孩子 ' + (n + 1) + '：' : '') + kidCostText(k); }).join('；') : '無'; }],
     ['孝親費', function (i) { return i.parOn ? fmtW(W(i.par)) + '／月・' + (i.parMode === 'yrs' ? '再 ' + i.parYrs + ' 年' : '一直算') : '無'; }],
     ['勞退舊制', function (i) { var o = migrateInputs(JSON.parse(JSON.stringify(i))).pre; return o.oldOn ? o.oHire + ' 到職・' + o.oYrs + ' 年・平均工資 ' + o.oWage + ' 萬' : '無'; }],
     ['勞保年資', function (i) { return i.pre.liYears !== '' ? i.pre.liYears + ' 年' : '估算'; }],

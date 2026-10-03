@@ -29,11 +29,15 @@
     };
     var c = [], tocCh = 0;
     var NUM = ['一', '二', '三', '四', '五', '六'];
-    var chapter = function (title, sub) {
-      c.push({ text: NUM[tocCh++] + '、' + tx(title), style: 'ch', tocItem: true, tocStyle: 'tocItem', tocMargin: [0, 4, 0, 4] });
-      c.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.4, lineColor: C.ink }], margin: [0, 2, 0, 4] });
-      if (sub) c.push({ text: tx(sub), style: 'sub' });
+    /* 章節標題一定跟該章的第一個內容在同一頁：標題＋底線＋說明＋第一個內容包成「不可拆開」的區塊，
+       這一頁放不下就整塊移到下一頁（這一頁留白），標題不會單獨留在頁尾 */
+    var chapter = function (title, sub, first) {
+      var head = [{ text: NUM[tocCh++] + '、' + tx(title), style: 'ch', tocItem: true, tocStyle: 'tocItem', tocMargin: [0, 4, 0, 4] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.4, lineColor: C.ink }], margin: [0, 2, 0, 4] }];
+      if (sub) head.push({ text: tx(sub), style: 'sub' });
+      c.push({ stack: head.concat(first ? [first] : []), unbreakable: true, keepTogether: true });
     };
+    var subhead = function (t, first) { c.push({ stack: [{ text: tx(t), style: 'h3' }, first], unbreakable: true }); };
     var band = function (t, cols, color) { return [{ text: tx(t), style: 'band', colSpan: cols, fillColor: C.band, color: color || C.ink }].concat(new Array(cols - 1).fill({})); };
     var lines = function (arr, adj, big) {
       arr = (arr || []).map(tx).filter(Boolean);
@@ -69,21 +73,24 @@
     c.push({ text: '', pageBreak: 'after' });
 
     /* ===== 一、條件 ===== */
-    chapter(cmp ? '條件：原始 vs 調整後' : '條件', cmp ? '每一項都列出來；沒改的寫「同左」，改過的用藍色。' : '算這份結果用的所有條件。標「估算」的，是還沒填實際資料、由系統依收入估算的。');
-    var body = cmp ? [[{ text: '' }, { text: '原始', color: C.mut }, { text: '調整後', color: C.acc, fillColor: C.accbg }]] : [];
-    M.conditions.forEach(function (g) {
-      body.push(band(g.title, cmp ? 3 : 2));
+    var condTitle = [cmp ? '條件：原始 vs 調整後' : '條件', cmp ? '每一項都列出來；沒改的寫「同左」，改過的用藍色。' : '算這份結果用的所有條件。標「估算」的，是還沒填實際資料、由系統依收入估算的。'];
+    /* 條件：每一組各自一張不拆頁的小表（組標題不會單獨留在頁尾）；對照時每組都附「原始／調整後」欄名。分號分開的值（例如每個孩子）一項一行 */
+    var nl = function (v) { return tx(v).replace(/；/g, '\n'); };
+    M.conditions.forEach(function (g, gi) {
+      var body = [cmp ? [{ text: tx(g.title), style: 'band', fillColor: C.band }, { text: '原始', color: C.mut, fillColor: C.band, fontSize: 9, margin: [0, 5, 0, 0] }, { text: '調整後', color: C.acc, fillColor: C.band, fontSize: 9, margin: [0, 5, 0, 0] }]
+                        : band(g.title, 2)];
       g.rows.forEach(function (r) {
         var o = anon && r.anonO != null ? r.anonO : r.o, a = anon && r.anonA != null ? r.anonA : r.a;
         var lab = anon && r.anonLabel ? r.anonLabel : r.label;
-        if (cmp) body.push([{ text: tx(lab), color: C.mut }, { text: tx(o) }, r.changed ? { text: tx(a), color: C.acc, fillColor: C.accbg } : { text: '同左', color: C.mut, fillColor: C.accbg }]);
-        else body.push([{ text: tx(lab), color: C.mut }, { text: tx(o) }]);
+        if (cmp) body.push([{ text: tx(lab), color: C.mut }, { text: nl(o) }, r.changed ? { text: nl(a), color: C.acc, fillColor: C.accbg } : { text: '同左', color: C.mut, fillColor: C.accbg }]);
+        else body.push([{ text: tx(lab), color: C.mut }, { text: nl(o) }]);
       });
+      var tbl = { table: { headerRows: 1, widths: cmp ? [108, '*', '*'] : [120, '*'], body: body, dontBreakRows: true }, layout: tableLayout, fontSize: 10, unbreakable: true, margin: [0, 0, 0, 8] };
+      if (gi === 0) chapter(condTitle[0], condTitle[1], tbl); else c.push(tbl);
     });
-    c.push({ table: { headerRows: cmp ? 1 : 0, widths: cmp ? [108, '*', '*'] : [120, '*'], body: body }, layout: tableLayout, fontSize: 10 });
 
     /* ===== 二、結果 ===== */
-    chapter(cmp ? '結果：原始 vs 調整後' : '結果', '「需要有」：在那個時間退休，那天手上要有多少錢，才夠用到 ' + M.meta.E + ' 歲（今天的購買力）。');
+    var resTitle = [cmp ? '結果：原始 vs 調整後' : '結果', '「需要有」：在那個時間退休，那天手上要有多少錢，才夠用到 ' + M.meta.E + ' 歲（今天的購買力）。'];
     if (cmp) {
       var rb = [[{ text: '' }, { text: '原始', color: C.mut }, { text: '調整後', color: C.acc, fillColor: C.accbg }]];
       M.results.rows.forEach(function (r) {
@@ -91,19 +98,17 @@
         a.fillColor = C.accbg;
         rb.push([{ text: tx(r.label), color: C.mut }, lines(r.o, false, r.big), a]);
       });
-      c.push({ table: { headerRows: 1, widths: [92, '*', '*'], body: rb }, layout: tableLayout, fontSize: 10.5 });
+      chapter(resTitle[0], resTitle[1], { table: { headerRows: 1, widths: [92, '*', '*'], body: rb, dontBreakRows: true }, layout: tableLayout, fontSize: 10.5 });
     } else {
-      c.push({ table: { widths: [120, '*'], body: M.results.rows.map(function (r) { return [{ text: tx(r.label), color: C.mut }, lines(r.v, false, r.big)]; }) }, layout: tableLayout, fontSize: 10.5 });
-      if (M.results.notes.length) c.push({ text: M.results.notes.map(tx).join(''), style: 'note' });
+      chapter(resTitle[0], resTitle[1], { stack: [{ table: { widths: [120, '*'], body: M.results.rows.map(function (r) { return [{ text: tx(r.label), color: C.mut }, lines(r.v, false, r.big)]; }), dontBreakRows: true }, layout: tableLayout, fontSize: 10.5 }]
+        .concat(M.results.notes.length ? [{ text: M.results.notes.map(tx).join(''), style: 'note' }] : []) });
     }
 
     /* ===== 三、曲線 ===== */
-    chapter('你的錢會怎麼走', '每年年底的資產，今天的購買力。' + (cmp ? '灰色虛線是原始，藍色是調整後。' : ''));
-    c.push({ svg: curveSvg(M.curve, cmp, tx), width: 515 });
+    chapter('你的錢會怎麼走', '每年年底的資產，今天的購買力。' + (cmp ? '灰色虛線是原始，藍色是調整後。' : ''), { svg: curveSvg(M.curve, cmp, tx), width: 515, margin: [0, 4, 0, 0] });
 
     /* ===== 四、每個階段 ===== */
-    c.push({ text: '', pageBreak: 'before' });
-    chapter('每個階段的收支', (cmp ? '左右對照每一段的時間與金額，以及這段發生的事。' : '每一段的錢從哪裡來、要從資產拿出多少，以及這段發生的事。') + '金額都是今天的購買力。');
+    var phTitle = ['每個階段的收支', (cmp ? '左右對照每一段的時間與金額，以及這段發生的事。' : '每一段的錢從哪裡來、要從資產拿出多少，以及這段發生的事。') + '金額都是今天的購買力。'];
     var ORDER = ['工作期', '橋接期', '勞退期', '國保期', '雙年金期', '勞保期', '靠資產期'];
     var byName = function (list) { var o = {}; (list || []).forEach(function (x) { o[x.name] = x; }); return o; };
     var po = byName(M.phases.orig), pa = byName(M.phases.adj);
@@ -140,23 +145,20 @@
         var e1 = evCell(po[n], false), e2 = evCell(pa[n], true); e2.fillColor = C.accbg;
         mb.push([{ text: n, fontSize: 12 }, m1, m2]); eb.push([{ text: n, fontSize: 12 }, e1, e2]);
       });
-      c.push({ table: { headerRows: 1, widths: [62, '*', '*'], body: mb, dontBreakRows: true }, layout: tableLayout });
-      c.push({ text: '每個階段發生的事', style: 'h3' });
-      c.push({ table: { headerRows: 1, widths: [62, '*', '*'], body: eb, dontBreakRows: true }, layout: tableLayout });
+      chapter(phTitle[0], phTitle[1], { table: { headerRows: 1, keepWithHeaderRows: 1, widths: [62, '*', '*'], body: mb, dontBreakRows: true }, layout: tableLayout });
+      subhead('每個階段發生的事', { table: { headerRows: 1, keepWithHeaderRows: 1, widths: [62, '*', '*'], body: eb, dontBreakRows: true }, layout: tableLayout });
     } else {
       var sb = [[{ text: '' }, { text: '時間與金額', color: C.mut, fontSize: 9 }, { text: '這段發生的事', color: C.mut, fontSize: 9 }]];
       names.forEach(function (n) { sb.push([{ text: n, fontSize: 12 }, moneyCell(po[n], false), evCell(po[n], false)]); });
-      c.push({ table: { headerRows: 1, widths: [62, '*', '*'], body: sb, dontBreakRows: true }, layout: tableLayout });
+      chapter(phTitle[0], phTitle[1], { table: { headerRows: 1, keepWithHeaderRows: 1, widths: [62, '*', '*'], body: sb, dontBreakRows: true }, layout: tableLayout });
     }
 
     /* ===== 五、勞保（能選一次領才有） ===== */
     if (M.li) {
-      chapter('勞保：一次領和月領，累計各拿多少');
       var box = function (t, col, lines2) { return { stack: [{ text: t, color: col, fontSize: 11 }].concat(lines2.map(function (x, i) { return { text: tx(x), fontSize: i === 0 ? 12 : 8.5, color: i === 0 ? C.ink : C.mut }; })), margin: [6, 4, 6, 4] }; };
-      c.push({ table: { widths: ['*', '*'], body: [[box(M.li.lumpTitle, C.orange, M.li.lumpLines), box(M.li.monTitle, C.acc, M.li.monLines)]] },
-        layout: { hLineWidth: function () { return 1; }, vLineWidth: function () { return 1; }, hLineColor: function () { return C.line; }, vLineColor: function () { return C.line; } } });
-      c.push({ text: tx(M.li.sentence) + '（含國保；以實質存款利率折算到退休那個月。只呈現事實，不做建議。）', color: C.acc, margin: [0, 6, 0, 0] });
-      if (M.li.note) c.push({ text: tx(M.li.note), style: 'note' });
+      chapter('勞保：一次領和月領，累計各拿多少', null, { stack: [{ table: { widths: ['*', '*'], body: [[box(M.li.lumpTitle, C.orange, M.li.lumpLines), box(M.li.monTitle, C.acc, M.li.monLines)]] },
+        layout: { hLineWidth: function () { return 1; }, vLineWidth: function () { return 1; }, hLineColor: function () { return C.line; }, vLineColor: function () { return C.line; } } },
+        { text: tx(M.li.sentence) + '（含國保；以實質存款利率折算到退休那個月。只呈現事實，不做建議。）', color: C.acc, margin: [0, 6, 0, 0] }].concat(M.li.note ? [{ text: tx(M.li.note), style: 'note' }] : []) });
     }
 
     var foot = anon ? '去個資版：已移除出生年月與所有年月（只留年齡）、孩子的出生年月、工作空窗的原因、方案名稱。' : '完整版：含你填的個人資料，請妥善保管。';
@@ -191,7 +193,7 @@
     var vmax = Math.max.apply(null, vs) * 1.1, vmin = Math.min.apply(null, vs);
     var a0 = Math.min.apply(null, all.map(function (p) { return p[0]; })) - 1, a1 = Math.max.apply(null, all.map(function (p) { return p[0]; }));
     var X = function (a) { return L + (a - a0) / Math.max(1, a1 - a0) * (W - L - R); }, Y = function (v) { return T + (H - T - B) - (v - vmin) / ((vmax - vmin) || 1) * (H - T - B); };
-    var raw = (vmax - vmin) / 4, mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw)))), step = [1, 2, 5, 10].map(function (k) { return k * mag; }).filter(function (k) { return k >= raw; })[0] || raw;
+    var raw = (vmax - vmin) / 6, mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw)))), step = [1, 2, 5, 10].map(function (k) { return k * mag; }).filter(function (k) { return k >= raw; })[0] || raw;
     var g = '';
     for (var v = Math.ceil(vmin / step) * step; v <= vmax; v += step) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="#d9d7d0" stroke-width="0.5"/><text x="' + (L - 4) + '" y="' + (Y(v) + 3).toFixed(1) + '" font-size="8" fill="#5f5e5a" text-anchor="end">' + Math.round(v / 1e4) + '</text>';
     for (var a = Math.ceil(a0 / 10) * 10; a <= a1; a += 10) g += '<text x="' + X(a).toFixed(1) + '" y="' + (H - B + 13) + '" font-size="8" fill="#5f5e5a" text-anchor="middle">' + a + '</text>';
@@ -200,9 +202,10 @@
     g += '<text x="' + (W - R) + '" y="' + (H - 4) + '" font-size="8" fill="#5f5e5a" text-anchor="end">年齡</text><text x="4" y="' + (T - 8) + '" font-size="8" fill="#5f5e5a">萬</text>';
     var pl = function (pts, col, w, dash) { return '<polyline fill="none" stroke="' + col + '" stroke-width="' + w + '"' + (dash ? ' stroke-dasharray="4,3"' : '') + ' points="' + pts.map(function (p) { return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1); }).join(' ') + '"/>'; };
     var vline = function (R0, col, lab, dy) { return '<line x1="' + X(R0).toFixed(1) + '" x2="' + X(R0).toFixed(1) + '" y1="' + (T - 18 + dy) + '" y2="' + (H - B) + '" stroke="' + col + '" stroke-width="0.8" stroke-dasharray="3,2"/><text x="' + (X(R0) + 3).toFixed(1) + '" y="' + (T - 20 + dy) + '" font-size="8.5" fill="' + col + '">' + tx(lab) + '</text>'; };
-    var ex = function (pts, lab) { var p = pts.filter(function (x) { return x[1] < 0; })[0]; return p ? '<circle cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="3" fill="#9a2d12"/><text x="' + (X(p[0]) + 6).toFixed(1) + '" y="' + (Y(p[1]) - 5).toFixed(1) + '" font-size="8.5" fill="#9a2d12">' + tx(lab + ' ' + p[0] + ' 歲用完') + '</text>' : ''; };
-    var body = cmp ? pl(cv.orig, '#8a8880', 1.4, true) + pl(cv.adj, '#1a4f8f', 2) + vline(cv.Ro, '#8a8880', '原始 ' + cv.RoText + '退休', 0) + vline(cv.Ra, '#1a4f8f', '調整後 ' + cv.RaText + '退休', 13) + ex(cv.orig, '原始') + ex(cv.adj, '調整後')
-      : pl(cv.orig, '#2e6b1f', 2) + vline(cv.Ro, '#2e6b1f', cv.RoText + '退休', 13) + ex(cv.orig, '');
+    /* 資產用完：用精確的月份（跟第四章「資產到 X 就用完了」同一個數字），點畫在 0 的位置 */
+    var ex = function (age, txt, lab) { if (age == null) return ''; return '<circle cx="' + X(age).toFixed(1) + '" cy="' + Y(0).toFixed(1) + '" r="3" fill="#9a2d12"/><text x="' + (X(age) + 6).toFixed(1) + '" y="' + (Y(0) - 5).toFixed(1) + '" font-size="8.5" fill="#9a2d12">' + tx((lab ? lab + ' ' : '') + txt + '用完') + '</text>'; };
+    var body = cmp ? pl(cv.orig, '#8a8880', 1.4, true) + pl(cv.adj, '#1a4f8f', 2) + vline(cv.Ro, '#8a8880', '原始 ' + cv.RoText + '退休', 0) + vline(cv.Ra, '#1a4f8f', '調整後 ' + cv.RaText + '退休', 13) + ex(cv.exO, cv.exOText, '原始') + ex(cv.exA, cv.exAText, '調整後')
+      : pl(cv.orig, '#2e6b1f', 2) + vline(cv.Ro, '#2e6b1f', cv.RoText + '退休', 13) + ex(cv.exO, cv.exOText, '');
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Kai">' + g + body + '</svg>';
   }
 

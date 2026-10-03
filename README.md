@@ -35,7 +35,7 @@ docs/系統設計文件.md     架構、引擎、制度規則、畫面、測試�
 
 ## 開發
 
-需要 Node.js 18 以上。網頁本身沒有任何外部相依；開發與 build 用到 jsdom、pdfmake、pdf.js（devDependencies）。
+需要 Node.js 22 以上（jsdom 30 需要；GitHub Actions 也用 22）。網頁本身沒有任何外部相依；開發與 build 用到 jsdom、pdfmake、pdf.js（devDependencies）。
 
 ```bash
 npm install --omit=optional   # 第一次（略過 pdf.js 的選用原生模組 canvas，用不到）
@@ -93,6 +93,7 @@ npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 
 | 版本 | 重點 |
 | --- | --- |
+| v0.7.1 | PDF 版面：章節不拆頁、年月與金額不黏在一起、曲線用完年齡與第四章一致；孩子資料格式 |
 | v0.7.0 | 分享 PDF 報告（單一版本／對照、完整版／去個資版、AES-256 密碼、目錄、楷書）；填錯當場擋下；補上提高準確度數字欄位的驗證 |
 | v0.6.14 | 對照表段落標題放大 |
 | v0.6.13 | 修正工作期入不敷出的寫法 |

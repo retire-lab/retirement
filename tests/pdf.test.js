@@ -59,6 +59,9 @@ function complexCompare() {
   return A;
 }
 
+/* 只需要「有修改 → 對照版」時用這個：動一下調調看就好（最複雜的情境每次重建要 2.5 秒） */
+function quickCompare() { const A = app(COMPLEX); A.click(A.d.getElementById('tgAdj')); A.click(A.d.querySelector('[data-step="more:-1"]')); return A; }
+
 /* ---------- 產生 PDF、讀回文字 ---------- */
 function makePdf(M, opts) {
   return new Promise((res, rej) => {
@@ -104,9 +107,15 @@ function checkStructure(txt, chapters) {
   /* 目錄的頁碼＝實際頁碼 */
   const tocZ = Z(txt.pages[toc]);
   chapters.forEach((c, i) => { const m = tocZ.match(new RegExp(Z(c).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\D*?(\\d+)')); assert.ok(m, '目錄有 ' + c); assert.strictEqual(+m[1], pg[i], c + ' 的頁碼：目錄寫 ' + m[1] + '，實際在第 ' + pg[i] + ' 頁'); });
+  /* 章節標題不會單獨留在頁尾：標題那一頁一定也有該章的第一樣內容 */
+  const FIRST = { '一': ['基本資料'], '二': ['退休時間', '最快退休'], '三': ['年齡'], '四': ['工作期'], '五': ['一次領'] };
+  chapters.forEach((c, i) => { const pz = Z(txt.pages[pg[i] - 1]), after = pz.slice(pz.indexOf(Z(c)) + Z(c).length); assert.ok(FIRST[c[0]].some((m) => after.includes(m)), c + '：標題那一頁（第 ' + pg[i] + ' 頁）沒有該章的內容，標題被單獨留在頁尾'); });
   /* 每一頁都有內容（不是只有頁首頁尾） */
   txt.pages.forEach((p, i) => assert.ok(Z(p).replace(/退休生命週期決策平台|RetirementLifecycleDecisionPlatform|第\d+頁|\d{4}\/\d{2}\/\d{2}|v\d+\.\d+\.\d+|完整版|去個資版|・|對照/g, '').length > 60, '第 ' + (i + 1) + ' 頁不是空白頁'));
 }
+/* 文件定義裡往下層找（章節標題與第一個內容包在同一個區塊裡） */
+function findNodes(x, pred, out) { out = out || []; if (Array.isArray(x)) x.forEach((y) => findNodes(y, pred, out)); else if (x && typeof x === 'object') { if (pred(x)) out.push(x); ['stack', 'content'].forEach((k) => { if (x[k]) findNodes(x[k], pred, out); }); } return out; }
+const svgOf = (dd) => findNodes(dd.content, (x) => typeof x.svg === 'string')[0].svg;
 function allStrings(M) { const out = []; (function walk(x) { if (typeof x === 'string') out.push(x); else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') Object.values(x).forEach(walk); })(M); return out; }
 
 /* ========== 單一版本 ========== */
@@ -115,7 +124,7 @@ t('單一版本：章節、目錄頁碼、沒有空白頁', async () => checkStr
 t('單一版本：沒有勞保一次領資格（沒填年資）→ 沒有第五章', async () => { const { M, txt } = await pdfOf('single', getSingle); assert.strictEqual(M.li, null); assert.ok(!Z(txt.all).includes('五、')); });
 t('單一版本：前言寫「你目前的設定」；方案名稱在完整版裡', async () => { const z = Z((await pdfOf('single', getSingle)).txt.pages[0]); assert.ok(z.includes('這份報告是你目前的設定')); assert.ok(z.includes('我和小芸的退休計畫')); });
 t('單一版本：假設 10 點全部印出（與網頁同一份清單）', async () => { const { M, txt } = await pdfOf('single', getSingle); assert.strictEqual(M.assumptions.length, 10); M.assumptions.forEach((a) => assert.ok(Z(txt.pages[0]).includes(Z(a)), a)); });
-t('單一版本：條件每一列（標籤＋值）都在 PDF 裡', async () => { const { M, txt } = await pdfOf('single', getSingle); const z = Z(txt.all); M.conditions.forEach((g) => { assert.ok(z.includes(Z(g.title)), g.title); g.rows.forEach((r) => { assert.ok(z.includes(Z(r.label)), r.label); assert.ok(z.includes(Z(r.o)), r.label + '：' + r.o); }); }); });
+t('單一版本：條件每一列（標籤＋值）都在 PDF 裡', async () => { const { M, txt } = await pdfOf('single', getSingle); const z = Z(txt.all); M.conditions.forEach((g) => { assert.ok(z.includes(Z(g.title)), g.title); g.rows.forEach((r) => { assert.ok(z.includes(Z(r.label)), r.label); assert.ok(z.includes(Z(r.o).replace(/；/g, '')), r.label + '：' + r.o); }); }); });
 t('單一版本：結果的數字＝引擎直接算的（最快退休、需要有、會有）', async () => {
   const { M, txt } = await pdfOf('single', getSingle), en = SP5.create(COMPLEX, { now: { y: 2026, m: 10 } }); en.sync();
   const P = en.profile(), e = en.earliest(), ev = en.evalR(P, e), z = Z(txt.all);
@@ -136,7 +145,7 @@ t('對照版：章節（先條件、再結果）、目錄頁碼、沒有空白�
 t('對照版：條件四組，改過的項目調整後的值都在 PDF 裡', async () => {
   const { M, txt } = await pdfOf('cmp', getCmp), z = Z(txt.all);
   assert.deepStrictEqual(J(M.conditions.map((g) => g.title)), ['基本資料', '以後會結束的支出', '實際資料（提高準確度）', '如果……（調調看）']);
-  const ch = []; M.conditions.forEach((g) => g.rows.forEach((r) => { if (r.changed) { ch.push(r.label); assert.ok(z.includes(Z(r.a)), r.label + '：' + r.a); } }));
+  const ch = []; M.conditions.forEach((g) => g.rows.forEach((r) => { if (r.changed) { ch.push(r.label); assert.ok(z.includes(Z(r.a).replace(/；/g, '')), r.label + '：' + r.a); } }));
   ['勞保年資', '勞退專戶餘額', '工作空窗', '勞保怎麼領', '退保前 3 年平均月投保薪資', '想在幾歲退休', '每月花費', '收入中斷多久', '通膨'].forEach((l) => assert.ok(ch.includes(l), '標為已改：' + l));
   assert.ok(!ch.includes('出生年月') && !ch.includes('房貸'), '沒改的不標');
 });
@@ -156,7 +165,7 @@ t('對照版：每個階段兩個版本都有，金額與事件左右對照（�
   assert.ok(M.phases.adj.some((p) => p.events.some((e) => e.bad && e.t === '資產用完')), '調整後有資產用完的事件');
 });
 t('對照版：勞保一次領的事件金額＝4.2 萬 × 45 個月＝189 萬', async () => { const { M } = await pdfOf('cmp', getCmp); const ev = [].concat(...M.phases.adj.map((p) => p.events)).find((e) => e.t === '勞保一次領'); assert.ok(ev && /189 萬/.test(ev.text), ev && ev.text); });
-t('對照版：曲線兩條線（灰色虛線、藍色）與兩條退休時間線', async () => { const { dd } = await pdfOf('cmp', getCmp); const svg = dd.content.find((x) => x.svg).svg; assert.strictEqual((svg.match(/<polyline/g) || []).length, 2); assert.ok(/stroke-dasharray="4,3"/.test(svg) && /原始 .*退休/.test(svg) && /調整後 .*退休/.test(svg) && /歲用完/.test(svg)); });
+t('對照版：曲線兩條線（灰色虛線、藍色）與兩條退休時間線', async () => { const { dd } = await pdfOf('cmp', getCmp); const svg = svgOf(dd); assert.strictEqual((svg.match(/<polyline/g) || []).length, 2); assert.ok(/stroke-dasharray="4,3"/.test(svg) && /原始 .*退休/.test(svg) && /調整後 .*退休/.test(svg) && /用完/.test(svg)); });
 
 /* ========== 去個資版 ========== */
 const YMRE = /\d{4}\s*\/\s*\d{2}(?!\s*\/\s*\d{2})|\d{4}\s*年\s*\d{1,2}\s*月/g;   // 年月（不含頁首的產生日期 YYYY/MM/DD）
@@ -176,7 +185,7 @@ t('去個資版（對照）：工作空窗只寫幾段、多久，不寫原因�
   ['育嬰留職停薪', '待業、找工作'].forEach((x) => { assert.ok(!za.includes(Z(x)), '去個資版不該有：' + x); assert.ok(zf.includes(Z(x)), '完整版要有：' + x); });
   assert.ok(za.includes(Z('2 段・共 1 年 6 個月')));
 });
-t('完整版：保留出生年月、孩子生日、方案名稱', async () => { const z = Z((await pdfOf('cmp', getCmp)).txt.all); ['1978/05', '2012-09', '我和小芸的退休計畫'].forEach((x) => assert.ok(z.includes(Z(x)), x)); });
+t('完整版：保留出生年月、孩子生日、方案名稱', async () => { const z = Z((await pdfOf('cmp', getCmp)).txt.all); ['1978/05', '2012/09', '我和小芸的退休計畫'].forEach((x) => assert.ok(z.includes(Z(x)), x)); });
 
 /* ========== 加密 ========== */
 t('加密：AES-256（/V 5、/CFM /AESV3、256 位元；pdfkit 只支援 R5，所以密碼至少 8 個字），沒密碼打不開', async () => {
@@ -285,7 +294,7 @@ t('產生（不加密碼）：顯示「任何人都能打開」，文件沒有�
   A.click(mbtn(A, '產生 PDF')); await wait(80); assert.ok(A.W.__dd && !A.W.__dd.userPassword); assert.ok(!/密碼請自己記好/.test(A.d.getElementById('toast').textContent));
 });
 t('產生（去個資版＋對照）：檔名「去個資版_對照」，送出的內容沒有出生年月與方案名稱，下次預設去個資版', async () => {
-  const A = complexCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn'));
+  const A = quickCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn'));
   const an = A.d.querySelector('input[name="pdfv"][value="anon"]'); an.checked = true; an.dispatchEvent(new A.W.Event('change', { bubbles: true }));
   setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); await wait(80);
   assert.ok(/^退休試算_去個資版_對照_/.test(A.W.__dl), A.W.__dl);
@@ -294,7 +303,7 @@ t('產生（去個資版＋對照）：檔名「去個資版_對照」，送出�
 });
 t('產生中按取消 → 不會下載', async () => { const A = app(COMPLEX); stubPdf(A); A.click(A.d.getElementById('shareBtn')); setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); A.click(mbtn(A, '取消')); await wait(80); assert.strictEqual(A.W.__dl, null); });
 t('產生失敗 → 顯示原因，說明資料沒有上傳、沒有遺失', async () => { const A = app(COMPLEX); stubPdf(A, { fail: true }); A.click(A.d.getElementById('shareBtn')); setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); await wait(80); assert.strictEqual(modalTitle(A), '沒辦法產生 PDF'); assert.ok(/排版失敗（測試）/.test(T(A.d.getElementById('mBody').textContent)) && /沒有上傳/.test(T(A.d.getElementById('mBody').textContent))); });
-t('分享視窗的操作沒有執行錯誤', async () => { const A = complexCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn')); setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); await wait(80); assert.deepStrictEqual(J(A.errs), []); });
+t('分享視窗的操作沒有執行錯誤', async () => { const A = quickCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn')); setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); await wait(80); assert.deepStrictEqual(J(A.errs), []); });
 
 
 /* ========== 真的瀏覽器版 pdfmake：用 preview.html（程式庫與字型內嵌）在模擬瀏覽器裡產生，再讀回來 ========== */
@@ -312,6 +321,34 @@ t('瀏覽器版 pdfmake＋真的楷書字型：產生加密的對照版 PDF，�
   const txt = await readPdf(buf, 'abcd1234'), z = Z(txt.all);
   ['退休試算報告', '目錄', '一、條件：原始vs調整後', '二、結果：原始vs調整後', '四、每個階段的收支', '每月花費4萬3.8萬'].forEach((x) => assert.ok(z.includes(Z(x)), x));
   assert.ok(!txt.all.includes('□'), '沒有方塊字'); assert.deepStrictEqual(J(errs), []);
+});
+
+
+/* ========== 使用者回報的版面問題（v0.7.0 上線後的第一份 PDF） ========== */
+const REPORTED = mkIn({ birth: '1974-11', workStart: '25', asset: '450', inc: '9', spend: '4', house: true, housePay: '2', houseYrs: '4', kidsOn: true,
+  kids: [{ bym: '201206', path: 'grad', costs: { jun: '2', sen: '2', uni: '3', grad: '5' } }, { bym: '201803', path: 'uni', costs: { ele: '2', jun: '2', sen: '2', uni: '3', grad: '5' } }] });
+let A_REP;
+const getRep = () => { if (!A_REP) { A_REP = app(REPORTED, '我的第一個方案'); A_REP.click(A_REP.d.getElementById('tgAdj')); A_REP.click(A_REP.d.querySelector('.stv[data-edit="ret"]')); A_REP.d.getElementById('ed-y').value = '2029'; A_REP.d.getElementById('ed-m').value = '11'; A_REP.click(A_REP.d.querySelector('[data-editok="ret"]')); } return A_REP.model(); };
+t('回報情境：章節標題都跟內容在同一頁（「三、你的錢會怎麼走」不會留在頁尾、曲線在下一頁）', async () => checkStructure((await pdfOf('rep', getRep)).txt, CH_CMP));
+t('回報 1：結果表的年月獨立一行（不會「58 歲 2 個月2033/01」黏在一起）', async () => {
+  const M = getRep(); M.results.rows.forEach((r) => [r.o, r.a].forEach((cell) => { if (cell && cell[0]) assert.ok(!/\d{4}\/\d{2}/.test(cell[0]), r.label + ' 的大字裡有年月：' + cell[0]); }));
+  const r0 = M.results.rows[0]; assert.ok(/^\d{4}\/\d{2}/.test(r0.o[1]) && /^\d{4}\/\d{2}/.test(r0.a[1]), J(r0));
+});
+t('回報 7：「要補上」的說明和金額在同一行（不會「每月再少花」「0.86 萬」拆開）', async () => { const r = getRep().results.rows.find((x) => x.label === '要補上'); assert.ok(r && r.a.some((x) => /^(或)?每月再(多存|少花) [\d.]+ 萬$/.test(x)), J(r)); });
+t('回報 2：曲線上「用完」的年齡＝第四章的「資產用完」事件（同一個精確月份）', async () => {
+  const M = getRep(); const ev = [].concat(...M.phases.adj.map((p) => p.events)).find((e) => e.bad); assert.ok(ev, '有資產用完的事件');
+  assert.strictEqual(M.curve.exAText, ev.age); const { dd } = await pdfOf('rep', getRep); assert.ok(svgOf(dd).includes('調整後 ' + ev.age + '用完'));
+});
+t('回報 3：出生年月輸入「201206」→ 印成 2012/06', async () => { const z = Z((await pdfOf('rep', getRep)).txt.all); assert.ok(z.includes('孩子1：2012/06生') && z.includes('孩子2：2018/03生') && !z.includes('201206'), z.slice(z.indexOf('孩子'), z.indexOf('孩子') + 60)); });
+t('回報 4：兩個孩子的費用分開寫明；只讀到大學的孩子不列研究所', async () => {
+  const M = getRep(); const r = M.conditions[1].rows.find((x) => x.label === '孩子每年的費用');
+  assert.ok(/^孩子 1：.*研究所 5 萬；孩子 2：/.test(r.o), r.o); assert.ok(!/孩子 2：.*研究所/.test(r.o), '孩子 2 讀到大學，不列研究所：' + r.o);
+});
+t('回報 6：條件的每一組各自不拆頁，每組都附「原始／調整後」欄名', async () => { const { dd } = await pdfOf('rep', getRep); const tb = findNodes(dd.content, (x) => x.table && x.unbreakable && x.table.body[0][0].style === 'band'); assert.strictEqual(tb.length, 4); tb.forEach((x) => assert.ok(x.table.body[0][1].text === '原始' && x.table.body[0][2].text === '調整後')); });
+t('回報 8：曲線縱軸至少 4 個刻度，負的那一段也有', async () => { const { dd } = await pdfOf('rep', getRep); const svg = svgOf(dd); const ticks = (svg.match(/text-anchor="end">-?\d+</g) || []); assert.ok(ticks.length >= 4 && ticks.some((x) => />-\d/.test(x)), ticks.join(' ')); });
+t('章節標題與該章第一個內容包成不可拆開的區塊（放不下就整塊換頁）', async () => {
+  const dd = PDFDOC.build(getRep(), { coverage: COVER }); const blocks = dd.content.filter((x) => x.stack && x.stack[0] && x.stack[0].tocItem);
+  assert.strictEqual(blocks.length, 4); blocks.forEach((b) => { assert.strictEqual(b.unbreakable, true); assert.ok(b.stack.length >= 3, '標題、底線之外還有內容'); });
 });
 
 (async () => {
