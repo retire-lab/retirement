@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: 安裝測試與 PDF 需要的套件（jsdom、pdfmake、pdf.js）
         run: npm ci --omit=optional
