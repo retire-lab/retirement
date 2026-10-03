@@ -79,8 +79,9 @@ S.test('「入不敷出」：退休前就用完，最早退休是 null', () => {
   const en = engine(P['入不敷出（退休前就用完）']), ev = en.evalR(en.profile(), 65);
   assert.strictEqual(en.earliest(), null); assert.ok(ev.preExhaust !== null && ev.preExhaust < 65);
 });
-S.test('「59 歲、勞保未滿 15 年」：沒有勞保年金', () => {
-  const en = engine(P['59 歲、勞保未滿 15 年']), Q = en.pensions(en.profile(), 62); assert.strictEqual(Q.liMonthly, 0);
+S.test('「59 歲、勞保未滿 15 年」：62 歲退休，勞保 12 年＋國保 3 年＝15 年 → 65 歲月領（v0.6.11 起；舊版誤算成沒有勞保）', () => {
+  const en = engine(P['59 歲、勞保未滿 15 年']), Q = en.pensions(en.profile(), 62);
+  assert.strictEqual(Q.liMode, 'combined'); assert.ok(Q.liMonthly > 0); assert.ok(Math.abs(Q.liClaim - 65) < 1e-9);
 });
 S.test('「有勞退舊制」：1998 到職、55 歲時年資 ≥ 15 → 55 歲退休可一次領 7 年 × 2 × 7 萬 = 98 萬', () => {
   const en = engine(P['有勞退舊制']); assert.strictEqual(en.oldLump(en.profile(), 55), 980000);

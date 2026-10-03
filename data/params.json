@@ -1,17 +1,94 @@
 {
   "version": "115",
-  "ls_annuity_rate": { "value": 0.011473, "source": "勞保局 0018437：110–112 年新制勞退平均保證收益率" },
+  "ls_annuity_rate": {
+    "value": 0.011473,
+    "source": "勞保局 0018437：110–112 年新制勞退平均保證收益率"
+  },
   "li": {
     "min_years": 15,
-    "f1_rate": 0.00775, "f1_add": 3000, "f2_rate": 0.0155,
-    "adjust_per_year": 0.04, "adjust_max_years": 5, "adjust_partial_year": "按月比例（勞保局整合試算 0109187，2026-10-02 實測：61 歲 3 個月請領減給 15%）",
+    "f1_rate": 0.00775,
+    "f1_add": 3000,
+    "f2_rate": 0.0155,
+    "adjust_per_year": 0.04,
+    "adjust_max_years": 5,
+    "adjust_partial_year": "按月比例（勞保局整合試算 0109187，2026-10-02 實測：61 歲 3 個月請領減給 15%）",
     "source": "勞保局 0109187 整合試算說明；0019821 老年年金給付"
   },
-  "ls": { "employer_rate": 0.06, "min_contrib_years": 15, "claim_age": 60, "new_system_start": "2005-07",
+  "ls": {
+    "employer_rate": 0.06,
+    "min_contrib_years": 15,
+    "claim_age": 60,
+    "new_system_start": "2005-07",
     "accumulation": "每月月底提繳、按月複利（勞動部個人退休金試算表實測為月底提繳、年內單利、年底複利；10 年相差約 0.007%）",
-    "source": "勞工退休金條例第 24 條（工作年資以實際提繳退休金之年資為準）；勞保局 0005595" },
-  "np": { "b_rate": 0.013, "source": "勞保局 0014336；已領勞保老年年金者僅能依 B 式（衛福部社會保險司問答）" },
-  "old": { "half_year_rule": "未滿半年以半年計；滿半年以一年計", "units_first15": 2, "units_after15": 1, "max_units": 45,
-    "source": "勞動基準法第 53、55 條；勞工退休金條例第 11 條" },
-  "nhi_supplementary": { "rate": 0.0211, "threshold": 20000, "used": false, "source": "健保署 cp-4516 補充保險費計算公式（未納入試算）" }
+    "source": "勞工退休金條例第 24 條（工作年資以實際提繳退休金之年資為準）；勞保局 0005595"
+  },
+  "np": {
+    "b_rate": 0.013,
+    "source": "勞保局 0014336；已領勞保老年年金者僅能依 B 式（衛福部社會保險司問答）"
+  },
+  "old": {
+    "half_year_rule": "未滿半年以半年計；滿半年以一年計",
+    "units_first15": 2,
+    "units_after15": 1,
+    "max_units": 45,
+    "source": "勞動基準法第 53、55 條；勞工退休金條例第 11 條"
+  },
+  "nhi_supplementary": {
+    "rate": 0.0211,
+    "threshold": 20000,
+    "used": false,
+    "source": "健保署 cp-4516 補充保險費計算公式（未納入試算）"
+  },
+  "li_lump": {
+    "eligible_if_insured_before": "2009-01",
+    "eligible_note": "98年1月1日（2009/1/1）勞保年金施行前有保險年資者，才能選擇一次請領老年給付；之後才初次加保者不得選擇",
+    "first_years": 15,
+    "months_per_year_first": 1,
+    "months_per_year_after": 2,
+    "cap_months": 45,
+    "after60_years_max": 5,
+    "cap_months_with_after60": 50,
+    "avg_salary_months": 36,
+    "conditions": [
+      {
+        "item": 1,
+        "min_years": 1,
+        "min_age": 60,
+        "min_age_female": 55
+      },
+      {
+        "item": 2,
+        "min_years": 15,
+        "min_age": 55
+      },
+      {
+        "item": 3,
+        "same_unit_years": 25
+      },
+      {
+        "item": 4,
+        "min_years": 25,
+        "min_age": 50
+      }
+    ],
+    "not_modeled": "第 5 款（具有危險、堅強體力等特殊性質之工作合計滿 5 年、年滿 55 歲退職）不納入：SP5 不問職業",
+    "np_after_claim": "112年10月1日（2023/10/1）起領取勞保老年給付者，不論年資或金額，皆不得再參加國民年金保險",
+    "source": "勞工保險條例第 58 條第 2 項（全國法規資料庫 N0050001）；勞保局 0004856 請領資格、0100397 一次請領老年給付試算說明；勞保局 0108917 請領勞保老年給付對國保權益影響",
+    "retrieved": "2026-10-03"
+  },
+  "li_onetime": {
+    "applies_if_years_below": 15,
+    "months_per_year": 1,
+    "after60_years_max": 5,
+    "claim_at": "法定請領年齡（2026 年以後為 65 歲），不能提前、延後",
+    "avg_salary": "加保期間最高 60 個月平均（未滿 5 年按實際年資平均）",
+    "np_combine": {
+      "min_total_years": 15,
+      "claim_age": 65,
+      "no_early_or_late": true,
+      "note": "勞保年資未滿 15 年，加計國保有效年資滿 15 年，65 歲可選擇請領勞保老年年金；金額只用勞保年資算，國保另外按國保年資算；老年一次金已核付者不能再併計"
+    },
+    "source": "勞保局 0004857 給付標準（老年一次金）；勞動部 1607/1632/1640/80998（國保、勞保年資併計）；勞工保險條例第 58 條",
+    "retrieved": "2026-10-03"
+  }
 }

@@ -538,6 +538,139 @@ t('scenario：活到 85 比 90 更早、95 更晚', () => { const b = sc({}); as
 t('scenario：不改原本的輸入', () => { const inp = JSON.parse(JSON.stringify(scIn)); SP5.scenario(inp, { end: 85, more: -4000 }, { now: stNow }); assert.strictEqual(inp.pre.endAge, ''); });
 t('scenario：stressEarliest 跟 scenario().e 一樣', () => assert.strictEqual(SP5.stressEarliest(scIn, { gap: 1 }, { now: stNow }), sc({ gap: 1 })));
 
+/* ---------- v0.6.9：勞保一次請領老年給付（勞保條例第 58 條第 2 項） ---------- */
+const lumpIn = (o, pre) => require('./_helper').inputs(Object.assign({ birth: '1974-11', workStart: '24', asset: '520', inc: '11.5', spend: '4.2' }, o || {}, { pre: Object.assign({ liYears: '28', w60: '4.58' }, pre || {}) }));
+const elig = (o, pre) => { const en = SP5.create(lumpIn(o, pre), { now: stNow }); return en.liLumpElig(en.profile()).state; };
+// 2026/10 時，「2009/1 到現在」共 213 個月（17.75 年）
+t('一次領資格：2008/12 開始工作、有填勞保年資而且長過 2009/1 以後的月數 → 可以選', () => assert.strictEqual(elig({ birth: '1984-12', workStart: '24' }, { liYears: '17.84' }), 'yes'));
+t('一次領資格：2009/1 才開始工作 → 只能月領', () => assert.strictEqual(elig({ birth: '1985-01', workStart: '24' }, { liYears: '17.84' }), 'no'));
+t('一次領資格：2008/12 開始工作，但年資剛好等於 2009/1 以後的月數 → 無法判斷（不猜）', () => assert.strictEqual(elig({ birth: '1984-12', workStart: '24' }, { liYears: '17.75' }), 'unknown'));
+t('一次領資格：年資短，但查過勞保局、自己確認 2009 年前有年資 → 可以選', () => assert.strictEqual(elig({}, { liYears: '5', liPre09: true }), 'yes'));
+t('一次領資格：2009 年以後才開始工作，就算勾了確認也不行', () => assert.strictEqual(elig({ birth: '1985-01', workStart: '24' }, { liPre09: true }), 'no'));
+t('一次領資格：沒填實際勞保年資 → 無法判斷（只用開始工作年齡不能確定當時有保勞保）', () => assert.strictEqual(elig({}, { liYears: '' }), 'unknown'));
+t('一次領資格：規則寫在 data/params.json（2009-01），不是寫死在引擎', () => assert.strictEqual(SP5.DATA.params.li_lump.eligible_if_insured_before, '2009-01'));
+const lm = (y, R) => SP5.create(lumpIn(), { now: stNow }).lumpMonths(y, R);
+t('一次領基數：10.5 年 → 10.5 個月（不足一年按比例）', () => near(lm(10.5, 55), 10.5, 1e-9));
+t('一次領基數：20 年 → 15＋5×2＝25 個月', () => near(lm(20, 55), 25, 1e-9));
+t('一次領基數：60 歲前最多 45 個月（31.9 年 → 45）', () => near(lm(31.92, 55.83), 45, 1e-9));
+t('一次領基數：60 歲後年資最多算 5 年、合計最多 50 個月（35 年、63 歲退休 → 50）', () => near(lm(35, 63), 50, 1e-9));
+t('一次領基數：60 歲後的年資也算（20 年、62 歲退休 → 25）', () => near(lm(20, 62), 25, 1e-9));
+const la = (pre, y, R) => { const en = SP5.create(lumpIn({}, pre), { now: stNow }); return en.lumpAge(en.profile(), R, y); };
+t('最早一次領：年資滿 25 年、年滿 50 歲 → 退休那個月就能領', () => near(la({}, 31.9, 55.83), 55.83, 1e-9));
+t('最早一次領：年資滿 15 年 → 55 歲', () => near(la({}, 20, 52), 55, 1e-9));
+t('最早一次領：年資未滿 15 年 → 60 歲（沒填性別照男性）', () => near(la({}, 10, 52), 60, 1e-9));
+t('最早一次領：女性、年資滿 1 年 → 55 歲', () => near(la({ sex: 'F' }, 10, 52), 55, 1e-9));
+t('最早一次領：女性、年資滿 15 年 → 一樣 55 歲（性別只影響年資未滿 15 年的人）', () => near(la({ sex: 'F' }, 20, 52), la({ sex: 'M' }, 20, 52), 1e-9));
+t('最早一次領：同一家公司保到退休滿 25 年 → 不論年齡，退休就能領', () => {
+  const en = SP5.create(lumpIn({}, { sameCo: '20' }), { now: stNow }), P = en.profile();
+  near(en.lumpAge(P, 51.92 + 5, 10), 51.92 + 5, 0.01);   // 現在 51 歲 11 個月＋20 年 → 5 年後滿 25 年
+});
+const lumpEn = (pre) => { const en = SP5.create(lumpIn({}, Object.assign({ liMode: 'lump' }, pre || {})), { now: stNow }); en.sync(); return en; };
+t('選一次領：勞保沒有月領，改成一筆 45,800 × 45 ＝ 2,061,000', () => {
+  const en = lumpEn(), P = en.profile(), Q = en.pensions(P, 55.83);
+  assert.strictEqual(Q.liMonthly, 0); near(Q.liLump, 2061000, 1); assert.strictEqual(Q.liMode, 'lump');
+});
+t('選一次領：那一筆錢出現在一次領的那個月，前一個月沒有', () => {
+  const en = lumpEn(), P = en.profile(), Q = en.pensions(P, 55.83);
+  near(en.flowsM(P, Q, Q.liT).li, 2061000, 1); assert.strictEqual(en.flowsM(P, Q, Q.liT - 1).li, 0);
+  assert.ok(en.impactEvents(P, 55.83, Q).some((x) => x.t === '勞保一次領' && x.d === 'lump'));
+});
+t('選一次領：年資未滿 15 年、52 歲退休 → 60 歲才領，退休到 60 歲要繳國保，之後不能再保', () => {
+  const en = lumpEn({ liYears: '5', liPre09: true }), P = en.profile(), Q = en.pensions(P, 52);
+  near(Q.liClaim, 60, 1e-9); assert.strictEqual(Q.npEndT, Q.liT); assert.strictEqual(Q.npMonths, Q.liT - Q.tR);
+});
+t('選一次領但資格不確定（沒填年資）→ 照月領算，不猜', () => {
+  const en = lumpEn({ liYears: '' }), Q = en.pensions(en.profile(), 60); assert.ok(Q.liMonthly > 0); assert.strictEqual(Q.liLump, 0);
+});
+t('選一次領之後，階段不會再出現勞保期；勞退領完之後叫「靠資產期」', () => {
+  const en = lumpEn(), P = en.profile(), R = en.earliest(), ph = en.phases(P, R, en.evalR(P, R).Q).map((x) => x.name);
+  assert.ok(!ph.includes('勞保期') && !ph.includes('雙年金期')); assert.strictEqual(ph[ph.length - 1], '靠資產期');
+});
+t('損益兩平：活過 72 歲，月領（含國保）累計超過一次領', () => {
+  const en = SP5.create(lumpIn(), { now: stNow }); en.sync(); const P = en.profile(), c = en.liCompare(P, en.earliest());
+  assert.strictEqual(c.elig, 'yes'); near(c.cross, 72, 1e-9); near(c.lump.amt, 2061000, 1);
+});
+t('損益兩平：交叉之前一次領比較多、之後月領比較多（累計線只交叉一次）', () => {
+  const en = SP5.create(lumpIn(), { now: stNow }); en.sync(); const P = en.profile(), c = en.liCompare(P, en.earliest());
+  c.pts.forEach(([a, m, l]) => assert.ok(a <= 72 ? l >= m : m > l, a));   // 72 歲那一點是 71 歲 11 個月底的累計
+});
+t('損益兩平：用退休後的實質存款利率折現（存款利率改高，交叉點不會變早）', () => {
+  const a = SP5.create(lumpIn(), { now: stNow }); a.sync(); const ca = a.liCompare(a.profile(), a.earliest());
+  const b = SP5.create(lumpIn({}, { dep: '2' }), { now: stNow }); b.sync(); const cb = b.liCompare(b.profile(), b.earliest());
+  assert.ok(cb.cross >= ca.cross - 1e-9);
+});
+t('損益兩平：資格不確定時不比較', () => { const en = SP5.create(lumpIn({}, { liYears: '' }), { now: stNow }); assert.strictEqual(en.liCompare(en.profile(), 58).elig, 'unknown'); });
+t('輸入檢查：同一家公司年資 0～60', () => assert.ok(/目前這家公司/.test(SP5.create(lumpIn({}, { sameCo: '70' }), { now: stNow }).validate())));
+
+/* ---------- v0.6.11：勞保年資未滿 15 年（老年一次金、國保年資併計） ---------- */
+const otIn = (o, pre) => require('./_helper').inputs(Object.assign({ birth: '1967-04', workStart: '50', asset: '300', inc: '5', spend: '3' }, o || {}, { pre: Object.assign({ w60: '4.58' }, pre || {}) }));
+const otQ = (R, o, pre) => { const en = SP5.create(otIn(o, pre), { now: stNow }); en.sync(); return { en, Q: en.pensions(en.profile(), R) }; };
+t('未滿 15 年：勞保 12 年＋退休後國保 3 年＝15 年 → 65 歲月領，只用勞保 12 年算（B 式 45,800×12×1.55%）', () => {
+  const { Q } = otQ(62); assert.strictEqual(Q.liMode, 'combined'); near(Q.liMonthly, 45800 * 12 * 0.0155, 1); near(Q.liClaim, 65, 1e-9);
+});
+t('未滿 15 年：靠國保併計的月領不提前、不延後（就算選 60 歲領，也是 65 歲、不減給）', () => {
+  const { Q } = otQ(62, {}, { liClaim: '60' }); near(Q.liClaim, 65, 1e-9); near(Q.liMonthly, 45800 * 12 * 0.0155, 1);
+});
+t('未滿 15 年：國保年資不夠併計（64 歲退休：14 年＋1 年＝15 剛好）→ 仍可月領；63 歲 6 個月＋…邊界', () => {
+  const { Q } = otQ(64); assert.strictEqual(Q.liMode, 'combined');
+});
+t('未滿 15 年：勞保 9.5 年、65 歲之後才退休（沒有國保年資）→ 老年一次金', () => {
+  const { Q } = otQ(66, { workStart: '56' }); assert.strictEqual(Q.liMode, 'onetime'); assert.strictEqual(Q.liMonthly, 0);
+});
+t('老年一次金：每年 1 個月（64 歲退休、勞保 8.5 年 → 8.5 個月 × 45,800），等到法定 65 歲才領', () => {
+  const { Q } = otQ(64, { workStart: '55.5' }); assert.strictEqual(Q.liMode, 'onetime'); near(Q.liYears, 8.5, 1e-9);
+  near(Q.liLumpMonths, 8.5, 1e-9); near(Q.liLump, 45800 * 8.5, 1); near(Q.liClaim, 65, 1e-9);
+});
+t('老年一次金：66 歲才退休 → 66 歲領（要先退保）；60 歲後 6 年只算 5 年', () => {
+  const { Q } = otQ(66, { workStart: '55.5' }); assert.strictEqual(Q.liMode, 'onetime'); near(Q.liClaim, 66, 1e-9);
+  near(Q.liLumpMonths, (Q.liYears - 6) + 5, 1e-9);
+});
+t('老年一次金：60 歲以後的年資最多算 5 年', () => {
+  const { Q } = otQ(71, { workStart: '55' });   // 55～71 歲 = 16 年？→ 會滿 15，改用 workStart 58
+  const r = otQ(71, { workStart: '58' }).Q;     // 58～71 歲 = 13 年，其中 60 歲後 11 年 → 只算 5 年 → 2＋5＝7 個月（加上目前已有的部分）
+  assert.strictEqual(r.liMode, 'onetime'); assert.ok(r.liLumpMonths < r.liYears - 1e-9);
+});
+t('老年一次金：那一筆出現在領的那個月；那個月起國保停', () => {
+  const { en, Q } = otQ(66, { workStart: '56' }); const P = en.profile();
+  near(en.flowsM(P, Q, Q.liT).li, Q.liLump, 1); assert.strictEqual(en.flowsM(P, Q, Q.liT - 1).li, 0);
+  assert.ok(en.impactEvents(P, 66, Q).some((x) => x.t === '勞保老年一次金'));
+});
+t('勞保年資剛好 15 年（浮點算出 14.9999…）也算滿 15 年，可以月領（v0.6.11 修正）', () => {
+  const en = SP5.create(require('./_helper').inputs({ birth: '2001-03', workStart: '23', asset: '30', inc: '4.5', spend: '2.5' }), { now: stNow }); en.sync();
+  const Q = en.pensions(en.profile(), 38); assert.ok(Q.liMonthly > 0); assert.strictEqual(Q.liMode, '');
+});
+t('未滿 15 年但 2009 年前有年資、選了一次請領 → 走一次請領（不是老年一次金）', () => {
+  const { Q } = otQ(62, { workStart: '40' }, { liYears: '9.5', liPre09: true, liMode: 'lump' }); assert.strictEqual(Q.liMode, 'lump');   // 2007 年開始工作
+});
+t('規則寫在 data/params.json 的 li_onetime（附來源）', () => { const L = SP5.DATA.params.li_onetime; assert.strictEqual(L.np_combine.claim_age, 65); assert.ok(/80998/.test(L.source)); });
+
+/* ---------- v0.6.12：一次請領用退保前 3 年平均 ---------- */
+t('一次請領：有填退保前 3 年平均（3.2 萬）→ 用它算：32,000 × 45 ＝ 1,440,000', () => {
+  const en = lumpEn({ w36: '3.2' }), Q = en.pensions(en.profile(), 55.83); near(Q.liLump, 32000 * 45, 1);
+});
+t('一次請領：沒填 → 用平均月投保薪資估算（45,800 × 45）', () => { const en = lumpEn(), Q = en.pensions(en.profile(), 55.83); near(Q.liLump, 45800 * 45, 1); });
+t('退保前 3 年平均只影響一次請領，不影響月領', () => {
+  const a = SP5.create(lumpIn({}, { w36: '3.2' }), { now: stNow }), b = SP5.create(lumpIn(), { now: stNow });
+  near(a.pensions(a.profile(), 60).liMonthly, b.pensions(b.profile(), 60).liMonthly, 1e-6);
+});
+t('退保前 3 年平均：超過勞保上限 4.58 萬 → 擋下', () => assert.ok(/退保前 3 年平均/.test(SP5.create(lumpIn({}, { w36: '5' }), { now: stNow }).validate())));
+t('國保年金只用 B 式（2023/10 以後領勞保老年給付者不能選 A 式）：21,103 × 年資 × 1.3%', () => {
+  const en = SP5.create(lumpIn(), { now: stNow }); en.sync(); const Q = en.pensions(en.profile(), 55.83);
+  near(Q.npMonthly, 21103 * (Q.npMonths / 12) * 0.013, 1);
+});
+
+/* ---------- v0.7.0：提高準確度數字欄位的驗證 ---------- */
+const vIn = (pre) => require('./_helper').inputs({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', pre });
+const vErr = (pre) => SP5.create(vIn(pre), { now: stNow }).validate();
+t('驗證：勞保年資填非數字 → 擋下（以前會悄悄當成沒填）', () => assert.ok(/勞保年資要填/.test(vErr({ liYears: 'abc' }))));
+t('驗證：勞保年資超過「年齡－15」→ 擋下；剛好上限可以', () => { assert.ok(/勞保年資要填 0 到 26/.test(vErr({ liYears: '27' }))); assert.strictEqual(vErr({ liYears: '26' }), ''); });
+t('驗證：平均月投保薪資超過上限 4.58 萬 → 擋下，並說明不是月薪', () => { assert.ok(/不會超過勞保投保薪資上限 4\.58 萬（這不是月薪/.test(vErr({ w60: '9' }))); assert.strictEqual(vErr({ w60: '4.58' }), ''); });
+t('驗證：平均月投保薪資 0 或負數 → 擋下', () => { assert.ok(vErr({ w60: '0' })); assert.ok(vErr({ w60: '-1' })); });
+t('驗證：勞退專戶餘額負數 → 擋下；0 可以', () => { assert.ok(/勞退專戶餘額/.test(vErr({ lsBal: '-5' }))); assert.strictEqual(vErr({ lsBal: '0' }), ''); });
+t('驗證：勞退月提繳工資超過上限 → 擋下', () => assert.ok(/勞退月提繳工資/.test(vErr({ lsWage: '50' }))));
+t('驗證：勞退自提超過 6% → 擋下；6% 可以', () => { assert.ok(/自提/.test(vErr({ self: '7' }))); assert.strictEqual(vErr({ self: '6' }), ''); });
+t('驗證：空白一律可以（代表用估算）', () => assert.strictEqual(vErr({ liYears: '', w60: '', lsBal: '', lsWage: '', self: '' }), ''));
+
 /* ---------- 用語 ---------- */
 t('用語：勞退停發寫成「專戶領完」，不寫「停發」', () => {
   const en = engine({ birth: '1966-10', asset: '1500' }), P = en.profile(), Q = en.pensions(P, 60);

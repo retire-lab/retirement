@@ -27,7 +27,7 @@ section('快速開始：P0 區塊與平台名稱');
 section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活費 4.5 萬）');
 { const env=mk(), {d}=env, a=act(env); tester(env);
   check('#2／#4／#8 不再卡在 55 歲：最快 53 歲 6 個月、2039 年 12 月',/53 歲 6 個月/.test(T(d.querySelector('.hero .age').textContent))&&/2039 年 12 月/.test(hero(d)),hero(d).slice(0,80));
-  check('#1／#11 答案同時講錢：那時候退休，你會有 1,178 萬',/那時候退休，你會有 1,178 萬，夠用到 90 歲/.test(hero(d)));
+  check('#1／#11 答案同時講錢：那時候退休，需要 1,171 萬，你會有 1,178 萬',/那時候退休，需要 1,171 萬，你會有 1,178 萬，夠用到 90 歲/.test(hero(d)),hero(d).slice(0,200));
   check('下限放寬後提醒橋接期：60 歲以前要靠存款撐 6 年 6 個月',/60 歲以前退休，要靠存款撐 6 年 6 個月/.test(hero(d)));
   check('結果卡底下一行假設灰字，沒有「看看每個期間的現金流」',/不靠投資・存款 1\.7%・通膨 2%・算到 90 歲/.test(hero(d))&&!/看看每個期間的現金流/.test(T(d.body.textContent.replace(/<[^>]+>/g,''))));
   openAdj(env);
@@ -40,7 +40,7 @@ section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活
   // #12／#13 調整器
   openAdj(env);
   const rows=[...d.querySelectorAll('.strow')].map(x=>T(x.querySelector('.stlab').textContent));
-  check('#12 調調看：全部是加減按鈕，分「你可以決定的」「萬一……」',rows.join('/')==='想在幾歲退休/每月花費/每月多存/活到/收入中斷多久/收入減少多少/晚年每月多花多少/通膨/勞保只領到'&&[...d.querySelectorAll('#adjCard .adjh')].map(x=>x.textContent).join('/')==='你可以決定的/萬一……',rows.join('/'));
+  check('#12 調調看：全部是加減按鈕，分「你可以決定的」「萬一……」',rows.join('/')==='想在幾歲退休/每月花費/每月多存/活到/收入中斷多久/收入減少多少/晚年每月多花多少/通膨/勞保只領到'&&[...d.querySelectorAll('#adjCard .adjg > summary b')].map(x=>x.textContent).join('/')==='你可以決定的/萬一……',rows.join('/'));
   check('#13 金額每格 2,000',/每格 2,000/.test(T(d.getElementById('adjCard').textContent)));
   a.click(d.querySelector('[data-step="more:-1"]')); a.click(d.querySelector('[data-step="more:-1"]'));
   check('#3／#10 有調整 → 結果改成原始／調整後對照，原始那欄不動',!!d.querySelector('.cmpcard')&&/最快退休53 歲 6 個月2039\/12（最快）51 歲 7 個月/.test(imp(d)),imp(d));
@@ -120,8 +120,10 @@ section('提高準確度：卡片、套用、原本 → 改成');
   check('取消 → 對照消失、改回 65 歲',!d.querySelector('.cmpcard')&&!/請領年齡 65 歲 → 60 歲/.test(T((d.querySelector('[data-chg=li]')||{textContent:''}).textContent)));
   a.chg(d.getElementById('pLc'),'60'); a.click(d.getElementById('applyPre3'));
   check('套用後大數字下方：時間變化＋在原本時間退休的錢',d.querySelectorAll('.hero .hdelta').length===2&&/在 53 歲 6 個月退休：/.test(hero(d)),hero(d).slice(0,240));
-  openPrec(env); a.type(d.getElementById('pLs'),'40'); a.click(d.getElementById('applyPre'));
-  check('不合理的提繳年資 → 擋下並顯示錯誤',/勞退提繳年資/.test(T((d.querySelector('#precBox .err')||{textContent:''}).textContent)));
+  openPrec(env); a.type(d.getElementById('pLs'),'40'); a.chg(d.getElementById('pLs'),'40');
+  check('不合理的提繳年資 → 欄位下方當場顯示錯誤（不用等按套用）',/勞退提繳年資/.test(T((d.querySelector('.ferr[data-ferr="lsYears"]')||{textContent:''}).textContent))&&d.getElementById('pLs').getAttribute('aria-invalid')==='true');
+  a.click(d.getElementById('applyPre')); openPrec(env);
+  check('按套用：填錯的不套用，留在欄位繼續顯示錯誤',d.getElementById('pLs').value==='40'&&!!d.querySelector('.ferr[data-ferr="lsYears"]'));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 section('#6 工作空窗：情境＋幾年幾個月');
@@ -132,7 +134,9 @@ section('#6 工作空窗：情境＋幾年幾個月');
   check('加一段：有情境選單、年、月',!!d.querySelector('[data-gapsit="0"]')&&!!d.querySelector('[data-gapy="0"]')&&!!d.querySelector('[data-gapm="0"]'));
   const opts=[...d.querySelector('[data-gapsit="0"]').options].map(o=>o.textContent);
   check('七種情境，含工會的兩種自由業',opts.length===7&&opts.includes('自由業、接案（有加入職業工會）')&&opts.includes('自由業、接案（沒有加入工會）'),opts.join('/'));
-  check('空窗區塊裡沒有勞保、勞退、健保的字眼',!/勞保|勞退|健保/.test(T(d.querySelector('.pfold[data-pf=gap] .pfin').textContent)));
+  { const box=d.querySelector('.pfold[data-pf=gap] .pfin').cloneNode(true); box.querySelectorAll('.purpose').forEach(x=>x.remove());
+    check('空窗的情境選單與欄位不出現勞保、勞退、健保（只有用途說明提到）',!/勞保|勞退|健保/.test(T(box.textContent))); }
+  check('空窗寫明用途：只用來判斷勞保、勞退年資要扣多少',/只用來判斷勞保、勞退年資要扣多少/.test(T(d.querySelector('.pfold[data-pf=gap] .pfin').textContent)));
   const ph0=d.getElementById('pLy').placeholder;
   a.type(d.querySelector('[data-gapy="0"]'),'4'); a.chg(d.querySelector('[data-gapy="0"]'),'4'); a.type(d.querySelector('[data-gapm="0"]'),'0');
   check('填完空窗 → 對照：晚 11 個月、在 53 歲 6 個月退休還差 115 萬',/54 歲 5 個月/.test(imp(d))&&/↓ 晚 11 個月/.test(imp(d))&&/還差 115 萬/.test(imp(d)),imp(d));
@@ -142,8 +146,8 @@ section('#6 工作空窗：情境＋幾年幾個月');
   a.click(d.getElementById('gapAdd')); a.chg(d.querySelector('[data-gapsit="1"]'),'parental'); a.type(d.querySelector('[data-gapy="1"]'),'1');
   a.click(d.getElementById('applyPre')); openPrec(env);
   check('育嬰留停 1 年：勞保年資不再減少（還是少 4 年）',(+ph0.replace(/\D/g,'')-(+d.getElementById('pLy').placeholder.replace(/\D/g,'')))===4);
-  a.chg(d.querySelector('[data-gapsit="0"]'),'job'); a.type(d.querySelector('[data-gapm="0"]'),'12'); a.click(d.getElementById('applyPre'));
-  check('月填 12 → 擋下',/月要填 0 到 11/.test(T((d.querySelector('#precBox .err')||{textContent:''}).textContent)));
+  a.chg(d.querySelector('[data-gapsit="0"]'),'job'); a.type(d.querySelector('[data-gapm="0"]'),'12'); a.chg(d.querySelector('[data-gapm="0"]'),'12');
+  check('月填 12 → 當場擋下、顯示錯誤',/月要填 0 到 11/.test(T((d.querySelector('.ferr[data-ferr="gaps"]')||{textContent:''}).textContent)));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 section('特殊情況');
@@ -333,6 +337,149 @@ section('舊方案存過算到幾歲：照樣用，清除也不會改掉');
   check('萬一的「活到」從 95 歲開始調',/活到−95 歲\+/.test(T(d.getElementById('adjCard').textContent)));
   openPrec(env); a.click(d.getElementById('clearPre'));
   check('按「清除，改回估算」不會把算到幾歲改回 90',/算到 95 歲/.test(T(d.querySelector('.hero .assume').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.6.9：只算你那一份、隱私、那天需要多少');
+{ const env=mk(), {d}=env, a=act(env);
+  check('快速開始寫明只算你那一份、資料不會上傳',/只算你自己負擔的那一份/.test(T(d.getElementById('scopeNote').textContent))&&/不會上傳/.test(T(d.getElementById('scopeNote').textContent)));
+  a.click(d.querySelector('[data-chip=kidsOn]')); a.click(d.querySelector('[data-chip=parOn]'));
+  check('孩子、孝親費寫明用途',/只用來算每個學習階段/.test(T(d.getElementById('sec-kidsOn').textContent))&&/不需要填父母的任何資料/.test(T(d.getElementById('sec-parOn').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); tester(env);
+  check('結果卡底下灰字多「只算你自己那一份」',/只算你自己那一份/.test(T(d.querySelector('.assume').textContent)));
+  openAdj(env); for(let i=0;i<5;i++) a.click(d.querySelector('[data-step="ret:1"]'));
+  check('對照表多一列「需要有」，在「退休時會有」上面',/需要有1,171 萬[\d,]+ 萬退休時會有/.test(imp(d)),imp(d));
+  check('對照表下面解釋「需要有」',/需要有：在那個時間退休/.test(T(d.querySelector('.cmpcard').textContent)));
+  openPrec(env);
+  check('健保寫明用途',/只用來判斷退休後要不要自己繳健保費/.test(T(d.querySelector('.pfold[data-pf=nhi]').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env);
+  a.type(d.getElementById('birth'),'1968-11'); a.type(d.getElementById('workStart'),'30'); a.type(d.getElementById('asset'),'50'); a.type(d.getElementById('inc'),'6'); a.type(d.getElementById('spend'),'5'); a.click(d.getElementById('go'));
+  check('65 歲還不夠：65 歲退休，需要 684 萬，你會有 133 萬，還差 551 萬',/65 歲退休，需要 684 萬，你會有 133 萬，還差 551 萬/.test(hero(d)),hero(d).slice(0,200));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.6.9：勞保一次領 vs 月領');
+function liCase(env, birth, ws, asset){ const {d}=env,a=act(env); a.type(d.getElementById('birth'),birth); a.type(d.getElementById('workStart'),ws); a.type(d.getElementById('asset'),asset||'520'); a.type(d.getElementById('inc'),'11.5'); a.type(d.getElementById('spend'),'4.2'); a.click(d.getElementById('go')); openPrec(env); }
+const how=d=>T((d.querySelector('.lihow')||{textContent:''}).textContent);
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1990-03','23');
+  check('2013 年才開始工作 → 你只能月領，不顯示比較',/你只能月領/.test(how(d))&&!d.querySelector('.licmp')&&!d.querySelector('[data-pa="liMode:lump"]'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24');
+  check('2009 年前開始工作、沒填年資 → 無法判斷，請查勞保局，不顯示比較',/還無法判斷/.test(how(d))&&/勞保局/.test(how(d))&&!d.querySelector('.licmp'));
+  a.type(d.getElementById('pLy'),'28'); a.chg(d.getElementById('pLy'),'28'); a.type(d.getElementById('pW'),'4.58'); a.chg(d.getElementById('pW'),'4.58');
+  check('填了 28 年 → 可以選一次領（第 58 條），出現月領／一次領',/可以選一次領（勞保條例第 58 條）/.test(how(d))&&!!d.querySelector('[data-pa="liMode:lump"]'));
+  const card=()=>T(d.querySelector('.licmp').textContent);
+  check('比較卡：一次領 55 歲 10 個月 206 萬、月領 65 歲起每月 2.27 萬',/一次領55 歲 10 個月領 206 萬/.test(card())&&/月領65 歲起每月 2\.27 萬/.test(card()),card().slice(0,200));
+  check('比較卡：兩條累計線＋交叉點，只寫事實「活過 72 歲，月領累計超過一次領」',d.querySelectorAll('.licmp polyline').length===2&&/活過 72 歲，月領累計超過一次領。/.test(card()));
+  check('比較卡不寫建議、划算',!/建議|划算|比較好|應該/.test(card()));
+  check('比較卡寫明含國保、一次領後不能保國保、核付後不能改',/含國保/.test(card())&&/不能再參加國民年金保險/.test(card())&&/不能改/.test(card()));
+  check('比較卡不放進主結果',!d.querySelector('.hero .licmp')&&!d.querySelector('.cmpcard .licmp'));
+  a.click(d.querySelector('[data-pa="liMode:lump"]'));
+  check('選一次領 → 先對照：條件寫「勞保怎麼領 月領 → 一次領」',/勞保怎麼領月領一次領回復/.test(imp(d)),imp(d));
+  a.click(d.getElementById('applyPre3')); openPrec(env);
+  check('設為新的原始後，勞保標題寫「一次領」',/一次領/.test(T(d.querySelector('.pfold[data-pf=li] summary').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24','900');   // 56 歲 8 個月退休、年資未滿 15 年：60 歲前退休，性別才有差（v0.6.11 起併計國保，最快退休變早）
+  a.type(d.getElementById('pLy'),'5'); a.chg(d.getElementById('pLy'),'5');
+  check('年資短 → 還是無法判斷，可以勾「我查過了」',/還無法判斷/.test(how(d))&&!!d.querySelector('[data-pre="liPre09"]'));
+  a.chg(d.querySelector('[data-pre="liPre09"]'),true);
+  check('勾了 → 可以選一次領（你確認過……）',/你確認過 2009 年以前就有勞保年資/.test(how(d)));
+  check('年資未滿 15 年 → 出現「勞保登記的性別（選填）」並寫明用途',/勞保登記的性別（選填）/.test(T(d.querySelector('.liq').textContent))&&/只用來判斷勞保一次領最早幾歲能領/.test(T(d.querySelector('.liq').textContent))&&/不影響其他計算/.test(T(d.querySelector('.liq').textContent)));
+  const lumpAgeTxt=()=>T(d.querySelector('.licmp .lump').textContent);
+  const before=lumpAgeTxt(); a.click(d.querySelector('[data-pa="sex:F"]'));
+  check('選女 → 一次領從 60 歲提早到退休那個月（56 歲 8 個月；女性 55 歲就符合，但要先退休退保）',/^一次領60 歲領/.test(before)&&/^一次領56 歲 8 個月領/.test(lumpAgeTxt()),before+' → '+lumpAgeTxt());
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24');
+  a.type(d.getElementById('pLy'),'28'); a.chg(d.getElementById('pLy'),'28');
+  check('年資滿 15 年、50 歲以後退休 → 不問性別、不問同一家公司年資',!d.querySelector('.liq'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24','300');   // 60 歲 4 個月退休
+  a.type(d.getElementById('pLy'),'5'); a.chg(d.getElementById('pLy'),'5'); a.chg(d.querySelector('[data-pre="liPre09"]'),true);
+  check('年資未滿 15 年、但 60 歲以後才退休 → 不問性別（問了也沒差）',!d.querySelector('.liq'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('調調看：兩組都能收起，收起時寫出改了什麼');
+{ const env=mk(), {d,W}=env, a=act(env); tester(env); openAdj(env);
+  const g=k=>d.querySelector('[data-ag="'+k+'"]'), sum=k=>T(g(k).querySelector('summary span').textContent);
+  check('兩組都是可以收起的區塊，預設展開，標題寫「沒有調整」',g('mine').tagName==='DETAILS'&&g('wi').tagName==='DETAILS'&&g('mine').open&&g('wi').open&&sum('mine')==='沒有調整'&&sum('wi')==='沒有調整');
+  a.click(d.querySelector('[data-step="ret:1"]')); a.click(d.querySelector('[data-step="more:-1"]'));
+  a.click(d.querySelector('[data-step="wi.gap:1"]')); a.click(d.querySelector('[data-step="end:-1"]'));
+  check('你可以決定的：想在 54 歲退休・少花 2,000',sum('mine')==='想在 54 歲退休・少花 2,000',sum('mine'));
+  check('萬一……：活到 89 歲・收入中斷 1 年（活到歸在萬一）',sum('wi')==='活到 89 歲・收入中斷 1 年',sum('wi'));
+  g('wi').open=false; g('wi').dispatchEvent(new W.Event('toggle'));
+  a.click(d.querySelector('[data-step="more:-1"]'));
+  check('收起萬一後再調別的，重算後仍維持收起，摘要還在',!g('wi').open&&g('mine').open&&sum('wi')==='活到 89 歲・收入中斷 1 年');
+  a.click(d.querySelector('.strow [data-rst="wi.gap"]'));
+  check('回復收入中斷 → 收起的摘要跟著更新',sum('wi')==='活到 89 歲',sum('wi'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('結果頁最下面的假設改成分點');
+{ const env=mk(), {d}=env, a=act(env); tester(env);
+  const li=[...d.querySelectorAll('.disc li')].map(x=>T(x.textContent));
+  check('假設分成 10 點',li.length===10,li.length);
+  check('第一點就是只算你自己那一份（含配偶負擔家用的原文）',/^只算你自己負擔的那一份，並假設配偶持續負擔其目前的家用份額。/.test(li[0]));
+  check('涵蓋存款利率、通膨、算到幾歲、勞保勞退國保、健保、工作空窗、不是建議',[/年利率 1\.7%/,/通膨 2%/,/算到 90 歲/,/國保保費與年金已計入/,/第六類自付每月 826 元/,/工作空窗只問多久/,/不是建議/].every(r=>li.some(x=>r.test(x))));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.6.11：勞保年資未滿 15 年、適用範圍');
+function u15(env, asset){ const {d}=env,a=act(env); a.type(d.getElementById('birth'),'1967-04'); a.type(d.getElementById('workStart'),asset==='1500'?'56':'50'); a.type(d.getElementById('asset'),asset); a.type(d.getElementById('inc'),'5'); a.type(d.getElementById('spend'),'3'); a.click(d.getElementById('go')); openPrec(env); }
+{ const env=mk(), {d}=env;
+  check('快速開始寫明只算勞保、勞退，公教軍人、農民不適用',/只算勞保、勞退；公務員、教師、軍人、農民的退休制度不同，結果不適用/.test(T(d.getElementById('scopeNote').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env; u15(env,'800');
+  check('勞保 10.7 年＋國保 4.3 年 → 標題「65 歲月領（併計國保）」',/65 歲月領（併計國保）/.test(T(d.querySelector('.pfold[data-pf=li] summary').textContent)));
+  check('說明：合計滿 15 年、65 歲可以月領、不能提前延後、國保另外算、一次金領了就不能併計',[/合計滿 15 年/,/65 歲可以月領勞保年金/,/不能提前、延後/,/國保年金另外算/,/不能再併計/].every(r=>r.test(T(d.querySelector('.u15').textContent))));
+  check('每個階段的收支：有勞保年金（不是只靠資產）',/勞保|雙年金/.test([...d.querySelectorAll('.phc b')].map(x=>x.textContent).join('/')));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env; u15(env,'1500');
+  check('勞保 3.5 年、加國保也不滿 15 年 → 標題「65 歲老年一次金」',/65 歲老年一次金/.test(T(d.querySelector('.pfold[data-pf=li] summary').textContent)));
+  check('說明：老年一次金 16 萬、每年 1 個月、請領年齡不適用',/可以領老年一次金 16 萬/.test(T(d.querySelector('.u15').textContent))&&/每年 1 個月/.test(T(d.querySelector('.u15').textContent)));
+  check('假設提到沒算公保、軍保、農保與一次領的稅',[...d.querySelectorAll('.disc li')].some(x=>/公保、軍保、農保/.test(x.textContent)&&/一次領的稅/.test(x.textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env; tester(env); openPrec(env);
+  check('勞保滿 15 年的人不出現未滿 15 年的說明',!d.querySelector('.u15'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.6.12：一次請領用退保前 3 年平均、季發、農民');
+{ const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24');
+  a.type(d.getElementById('pLy'),'28'); a.chg(d.getElementById('pLy'),'28'); a.type(d.getElementById('pW'),'4.58'); a.chg(d.getElementById('pW'),'4.58');
+  check('可以選一次領時，出現選填的「退保前 3 年平均月投保薪資」並寫明用途',!!d.getElementById('pW36')&&/只用來算一次請領的金額/.test(how(d)));
+  const lump=()=>T(d.querySelector('.licmp .lump').textContent);
+  check('沒填：一次領 206 萬',/領 206 萬/.test(lump()),lump());
+  a.type(d.getElementById('pW36'),'3.2'); a.chg(d.getElementById('pW36'),'3.2');
+  check('填 3.2 萬 → 一次領變 144 萬，附註寫用你填的數字',/領 144 萬/.test(lump())&&/一次領用你填的退保前 3 年平均（3\.2 萬）/.test(T(d.querySelector('.licmp').textContent)),lump());
+  check('對照表條件寫「退保前 3 年平均」',/退保前 3 年平均用平均月投保薪資估算3\.2 萬/.test(imp(d)),imp(d));
+  a.type(d.getElementById('pW36'),'5'); a.chg(d.getElementById('pW36'),'5');
+  check('填 5 萬（超過上限）→ 欄位下方顯示錯誤；對照表照樣在（其他有效的修改還在）',/退保前 3 年平均月投保薪資/.test(T((d.querySelector('.ferr[data-ferr="w36"]')||{textContent:''}).textContent))&&!!d.querySelector('.cmpcard')&&!/還不能比較/.test(T(d.getElementById('result').textContent)));
+  check('填錯的那項不算進對照表的條件',!/退保前 3 年平均/.test(imp(d)),imp(d));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env; liCase(env,'1990-03','23');
+  check('不能選一次領的人，不出現退保前 3 年平均',!d.getElementById('pW36'));
+  const li=[...d.querySelectorAll('.disc li')].map(x=>T(x.textContent));
+  check('假設寫明勞退月退是季發、沒算老農津貼與農民退休儲金',li.some(x=>/季發/.test(x))&&li.some(x=>/老農津貼、農民退休儲金/.test(x)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('工作期入不敷出時，不寫「存下 -X 萬」');
+{ const env=mk(), {d}=env, a=act(env);
+  a.type(d.getElementById('birth'),'1978-05'); a.type(d.getElementById('workStart'),'24'); a.type(d.getElementById('asset'),'380'); a.type(d.getElementById('inc'),'4'); a.type(d.getElementById('spend'),'4.5'); a.click(d.getElementById('go'));
+  a.click(d.querySelectorAll('#mapCard .phc')[0]);
+  const t=T(d.querySelector('#mapCard .ppanel').textContent);
+  check('工作期支出大於收入 → 寫「－ 這段入不敷出」，不出現負的「存下」',/－ 這段入不敷出/.test(t)&&!/這段存下\s*-/.test(t),t.slice(0,160));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.7.0：填錯當場擋下，不算修改');
+{ const env=mk(), {d}=env, a=act(env); tester(env); openPrec(env);
+  a.type(d.getElementById('pLy'),'abc'); a.chg(d.getElementById('pLy'),'abc');
+  check('只填錯一項 → 沒有對照表、沒有黃色橫幅（填錯不算修改）',!d.querySelector('.cmpcard')&&!d.querySelector('.pvbar'));
+  check('提高準確度按鈕寫「1 項有錯」',/1 項有錯/.test(T(d.getElementById('tgPrec').textContent)),T(d.getElementById('tgPrec').textContent));
+  check('錯誤寫在勞保年資欄位下方',!!d.querySelector('.ferr[data-ferr="liYears"]'));
+  a.type(d.getElementById('pLy'),'20'); a.chg(d.getElementById('pLy'),'20');
+  check('改正 → 錯誤消失，出現對照表',!d.querySelector('.ferr')&&!!d.querySelector('.cmpcard')&&/勞保年資估算 15 年20 年/.test(imp(d)),imp(d));
+  a.type(d.getElementById('pW'),'9'); a.chg(d.getElementById('pW'),'9');
+  check('一對一錯 → 對照表只有對的那項，按鈕寫「1 項有錯・1 項還沒套用」',/1 項有錯・1 項還沒套用/.test(T(d.getElementById('tgPrec').textContent))&&/勞保年資/.test(imp(d))&&!/平均月投保薪資/.test(imp(d)),T(d.getElementById('tgPrec').textContent));
+  a.click(d.getElementById('applyPre')); openPrec(env);
+  check('套用：對的套用了（勞保年資 20），錯的留在欄位（9）並提示',d.getElementById('pLy').value==='20'&&d.getElementById('pW').value==='9'&&!!d.querySelector('.ferr[data-ferr="w60"]')&&/1 項有錯，沒有套用/.test(d.getElementById('toast').textContent));
+  check('套用後沒有對照表（剩下的只有填錯的那項）',!d.querySelector('.cmpcard'));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 console.log('\n'+ok+' 通過，'+bad+' 失敗');

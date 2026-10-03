@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '0.6.8';
+  var VERSION = '0.7.0';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);
@@ -67,7 +67,7 @@
      （勞保局整合試算 0109187 實測：61 歲 3 個月請領、法定 65 歲 → 減給 15%）；年資未滿 15 年為 0 */
   function liMonthlyCalc(w60, years, claimAge, legal) {
     var L = PR.li;
-    if (!(years >= L.min_years)) return 0;
+    if (!(years >= L.min_years - 1e-9)) return 0;   /* 容許浮點誤差：年資剛好 15 年（算出 14.9999…）也要算滿 */
     var k = 1 + L.adjust_per_year * Math.max(-L.adjust_max_years, Math.min(L.adjust_max_years, claimAge - legal));
     return Math.max(w60 * years * L.f1_rate + L.f1_add, w60 * years * L.f2_rate) * k;
   }
@@ -244,8 +244,12 @@
         /* 沒填實際年資時：工作年資扣掉「勞保、勞退都中斷」的空窗 */
         liYearsNow: isFinite(num(pre.liYears)) ? num(pre.liYears) : Math.max(0, worked - gy.all),
         gapAll: gy.all, gapLs: gy.ls,
+        adj: adj, liGiven: isFinite(num(pre.liYears)), workStartIdx: mi(p.y, p.mo) + Math.round((num(S.workStart) || 0) * 12),
+        liMode: adj.liMode !== undefined ? adj.liMode : (pre.liMode === 'lump' ? 'lump' : ''),
+        liPre09: pre.liPre09 === true, sex: pre.sex === 'F' ? 'F' : pre.sex === 'M' ? 'M' : '', sameCo: isFinite(num(pre.sameCo)) ? num(pre.sameCo) : null,
         /* 填了就照填（那是最高 60 個月的平均，不一定剛好在某一級）；沒填就用月入帳對應投保薪資分級表 */
         w60: isFinite(num(pre.w60)) ? W(pre.w60) : liGradeOf(inc0, NOW, now.m),   /* 收入減少不影響：看的是最高 60 個月 */
+        w36: isFinite(num(pre.w36)) ? W(pre.w36) : null,   /* 一次請領用「退保前 3 年」平均；沒填就用 w60 估算 */
         lsWage: lsGradeOf((isFinite(num(pre.lsWage)) ? W(pre.lsWage) : inc0) * incF, NOW, now.m),   /* 對應到月提繳分級表；收入減少時跟著降 */
         gap0: gap1 > gap0 ? gap0 : 0, gap1: gap1 > gap0 ? gap1 : 0, spend75: adj.spend75 || 0, t75: mi(p.y + 75, p.mo) - NOWI,
         lsSelf: (num(pre.self) || 0) / 100,
@@ -257,6 +261,38 @@
       };
     }
 
+    /* ===== 勞保一次請領老年給付（勞保條例第 58 條第 2 項；規則在 data/params.json 的 li_lump） =====
+       資格：2009/1/1 前有勞保年資。只用使用者已填的資料判斷：
+         開始工作（出生年月＋開始工作年齡）在 2009/1 以後 → no（只能月領）
+         有填實際勞保年資，且長於「2009/1 到現在」的月數 → yes（一定有 2009 年前的年資）
+         使用者查過勞保局、自己確認 2009 年前有年資（pre.liPre09）→ yes（年資短的人只能靠這個）
+         其他 → unknown（無法判斷，不猜） */
+    var LL = PR.li_lump, LL_CUT = (function () { var m = /^(\d{4})-(\d{2})$/.exec(LL.eligible_if_insured_before); return mi(+m[1], +m[2]); })();
+    function liLumpElig(P) {
+      if (P.workStartIdx >= LL_CUT) return { state: 'no' };
+      if (P.liGiven && P.liYearsNow * 12 > (NOWI - LL_CUT) + 1e-6) return { state: 'yes', by: 'years' };
+      if (P.liPre09) return { state: 'yes', by: 'confirmed' };
+      return { state: 'unknown' };
+    }
+    /* 基數：前 15 年每年 1 個月、之後每年 2 個月，最多 45 個月；60 歲後的年資最多算 5 年，合計最多 50 個月。不足一年按比例 */
+    function lumpMonths(years, R) {
+      var f = function (y) { return Math.min(y, LL.first_years) * LL.months_per_year_first + Math.max(0, y - LL.first_years) * LL.months_per_year_after; };
+      var after60 = Math.max(0, Math.min(years, R - 60)), pre = years - after60, used60 = Math.min(after60, LL.after60_years_max);
+      var m1 = Math.min(LL.cap_months, f(pre));
+      if (used60 <= 0) return m1;
+      return Math.min(LL.cap_months_with_after60, m1 + (f(pre + used60) - f(pre)));
+    }
+    /* 最早可以一次領的年齡（≥ 退休）：第 58 條第 2 項第 1～4 款，年資算到退休那個月；第 5 款（特殊工作）不納入 */
+    function lumpAge(P, R, years) {
+      var best = Infinity;
+      LL.conditions.forEach(function (c) {
+        if (c.same_unit_years) { if (P.sameCo !== null && P.sameCo + (R - P.A0y) >= c.same_unit_years - 1e-9) best = Math.min(best, R); return; }
+        if (years < c.min_years - 1e-9) return;
+        var a = P.sex === 'F' && c.min_age_female ? c.min_age_female : c.min_age;
+        best = Math.min(best, Math.max(R, a));
+      });
+      return best;
+    }
     function pensions(P, R) {
       var tR = tOfAge(R);
       if (!A.pensions) return { tR: tR, legal: 65, liYears: 0, liClaim: E, liT: P.tE, liMonthly: 0, lsClaim: E, lsT: P.tE, lsBal: 0, lsMonthly: 0, lsLump: 0, lsEnd: E, lsEndT: P.tE, T: 0, npMonths: 0, npEndT: tR, np65T: P.tE, npMonthly: 0 };
@@ -267,6 +303,29 @@
       var gapIn = Math.max(0, Math.min(tR, P.gap1) - P.gap0);   /* 退休前收入中斷的月數：沒有勞保年資、沒有勞退提繳 */
       var liYears = P.liYearsNow + (tR - gapIn) / 12, liClaim = Math.max(R, pref), liT = tOfAge(liClaim);
       var liMonthly = liMonthlyCalc(P.w60, liYears, liClaim, legal) * P.stress;   /* 提前／延後按月比例 */
+      /* 一次領：資格確定（yes）才算；領的那個月起不能再保國保（下面 npEndT 用 liT，自動停） */
+      var liLump = 0, liLumpMonths = 0, liMode = '';
+      if (P.liMode === 'lump' && liLumpElig(P).state === 'yes' && liYears >= 1) {
+        var la = lumpAge(P, R, liYears);
+        if (isFinite(la)) {
+          liMode = 'lump'; liLumpMonths = lumpMonths(liYears, R); liLump = (P.w36 !== null ? P.w36 : P.w60) * liLumpMonths * P.stress;
+          liClaim = la; liT = tOfAge(la); liMonthly = 0;
+        }
+      }
+      /* 勞保年資未滿 15 年（沒有選一次請領）：data/params.json 的 li_onetime
+         勞保＋退休後的國保年資滿 15 年 → 65 歲月領（只用勞保年資算，不提前、不延後）；國保另外按國保年資算
+         否則 → 法定年齡領老年一次金（每年 1 個月；60 歲後的年資最多算 5 年）；領的那個月起國保停 */
+      if (liMode === '' && liYears > 0 && liYears < PR.li.min_years - 1e-9) {
+        var LO = PR.li_onetime, npY65 = A.np ? Math.max(0, tOfAge(65) - tR) / 12 : 0;
+        if (liYears + npY65 >= LO.np_combine.min_total_years - 1e-9) {
+          liMode = 'combined'; liClaim = Math.max(R, LO.np_combine.claim_age); liT = tOfAge(liClaim);
+          liMonthly = Math.max(P.w60 * liYears * PR.li.f1_rate + PR.li.f1_add, P.w60 * liYears * PR.li.f2_rate) * P.stress;
+        } else {
+          var aft = Math.max(0, Math.min(liYears, R - 60)), om = (liYears - aft) + Math.min(aft, LO.after60_years_max);
+          liMode = 'onetime'; liLumpMonths = om * LO.months_per_year; liLump = P.w60 * liLumpMonths * P.stress;
+          liClaim = Math.max(R, legal); liT = tOfAge(liClaim); liMonthly = 0;
+        }
+      }
       /* 勞退：每月月底提繳、每月滾存到退休；60 歲（或退休時）那個月請領。
          勞動部個人退休金試算表（2026-10-02 實測）為「月底提繳、年內單利、年底複利」，與本式相差約 0.007% */
       var bal = P.lsBalGiven !== null ? P.lsBalGiven : lsBalNowEst(P), cm = P.lsWage * (0.06 + P.lsSelf), t;
@@ -279,7 +338,7 @@
       var lsMonthly = lsOk ? lsMonthlyCalc(bal, Math.floor(lsClaim + 1e-9)) : 0;
       /* 國保：退休那個月起、到 65 歲或開始領勞保（取早）前要繳；65 歲起 B 式年金 */
       var t65 = tOfAge(65), npEndT = Math.min(t65, liT), npMonths = A.np ? Math.max(0, npEndT - tR) : 0;
-      return { tR: tR, legal: legal, liYears: liYears, liClaim: liClaim, liT: liT, liMonthly: liMonthly,
+      return { tR: tR, legal: legal, liYears: liYears, liClaim: liClaim, liT: liT, liMonthly: liMonthly, liLump: liLump, liLumpMonths: liLumpMonths, liMode: liMode,
         lsClaim: lsClaim, lsT: lsT, lsBal: bal, lsMonthly: lsMonthly, lsLump: lsOk ? 0 : bal, lsYears: lsYears, liPref: pref, lsEnd: lsClaim + T, lsEndT: lsT + T * 12, T: T,
         npMonths: npMonths, npEndT: npEndT, np65T: t65, npMonthly: npMonthlyCalc(npMonths / 12, T_.NP_WAGE) };
     }
@@ -311,6 +370,7 @@
       if (t >= Q.liT) n += Q.liMonthly;
       if (Q.lsMonthly && t >= Q.lsT && t < Q.lsEndT) n += Q.lsMonthly / defl(t - Q.lsT);
       if (Q.lsLump && t === Q.lsT) n += Q.lsLump;
+      if (Q.liLump && t === Q.liT) n += Q.liLump;
       if (A.np && t >= Q.tR && t < Q.npEndT) n -= T_.NP_PREM;
       if (A.nhi !== false && !P.nhiDep && t >= Q.tR) n -= T_.NHI_SELF;
       if (Q.npMonths && t >= Q.np65T) n += Q.npMonthly;
@@ -329,6 +389,7 @@
       if (t >= Q.liT) f.li = Q.liMonthly;
       if (Q.lsMonthly && t >= Q.lsT && t < Q.lsEndT) f.ls = Q.lsMonthly / defl(t - Q.lsT);
       if (Q.lsLump && t === Q.lsT) f.ls = Q.lsLump;
+      if (Q.liLump && t === Q.liT) f.li = Q.liLump;
       if (A.np && t >= Q.tR && t < Q.npEndT) f.npPrem = T_.NP_PREM;
       if (A.nhi !== false && !P.nhiDep && t >= Q.tR) f.nhiPrem = T_.NHI_SELF;
       if (Q.npMonths && t >= Q.np65T) f.np = Q.npMonthly;
@@ -408,6 +469,7 @@
       if (Q.npMonths && t === Q.npEndT && Q.npEndT > Q.tR) ev.push({ k: 'out', text: '國保停繳' });
       if (Q.npMonths && t === Q.np65T) ev.push({ k: 'in', text: '國保年金開始：每月 ' + fmtW(Q.npMonthly) });
       if (Q.liMonthly && t === Q.liT) ev.push({ k: 'in', text: '勞保年金開始：每月 ' + fmtW(Q.liMonthly) });
+      if (Q.liLump && t === Q.liT) ev.push({ k: 'in', text: (Q.liMode === 'onetime' ? '勞保老年一次金 ' : '勞保一次領 ') + fmtW(Q.liLump) + '（之後不能再保國保）' });
       if (t === Q.lsT) {
         if (Q.lsMonthly) ev.push({ k: 'in', text: '勞退月退開始：每月 ' + fmtW(Q.lsMonthly) });
         else if (Q.lsLump) ev.push({ k: 'in', text: '勞退一次領 ' + fmtW(Q.lsLump) });
@@ -488,6 +550,16 @@
         if (!(gyv >= 0 && gyv <= 50 && Math.floor(gyv) === gyv)) return '工作空窗第 ' + (gi + 1) + ' 段：年要填 0 到 50 的整數。';
         if (!(gmv >= 0 && gmv <= 11 && Math.floor(gmv) === gmv)) return '工作空窗第 ' + (gi + 1) + ' 段：月要填 0 到 11 的整數。';
       }
+      /* 提高準確度的數字欄位：有填就要是數字、在合理範圍（v0.7.0 補上；以前非數字會悄悄當成沒填） */
+      var filled = function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; };
+      var maxLi = Math.max(0, Math.floor(age() - 15) + 1);
+      if (filled(pre.liYears) && !(num(pre.liYears) >= 0 && num(pre.liYears) <= maxLi)) return '勞保年資要填 0 到 ' + maxLi + ' 的數字。';
+      if (filled(pre.w60) && !(W(pre.w60) > 0 && W(pre.w60) <= T_.LI_CAP + 1e-6)) return '平均月投保薪資要大於 0，而且不會超過勞保投保薪資上限 ' + (T_.LI_CAP / 10000) + ' 萬（這不是月薪，是投保級距的平均）。';
+      if (filled(pre.lsBal) && !(num(pre.lsBal) >= 0 && num(pre.lsBal) <= 100000)) return '勞退專戶餘額要填 0 以上的數字（單位：萬）。';
+      if (filled(pre.lsWage) && !(W(pre.lsWage) > 0 && W(pre.lsWage) <= T_.LS_CAP + 1e-6)) return '勞退月提繳工資要大於 0，而且不會超過勞退提繳上限 ' + (T_.LS_CAP / 10000) + ' 萬。';
+      if (filled(pre.self) && !(num(pre.self) >= 0 && num(pre.self) <= 6)) return '勞退自提要在 0% 到 6% 之間。';
+      if (pre.sameCo !== undefined && pre.sameCo !== '' && !(num(pre.sameCo) >= 0 && num(pre.sameCo) <= 60)) return '在目前這家公司保勞保的年數要在 0 到 60 之間。';
+      if (pre.w36 !== undefined && pre.w36 !== '' && !(W(pre.w36) > 0 && W(pre.w36) <= T_.LI_CAP + 1e-6)) return '退保前 3 年平均月投保薪資要大於 0，而且不會超過勞保投保薪資上限 ' + (T_.LI_CAP / 10000) + ' 萬。';
       if (pre.inf !== undefined && pre.inf !== '' && !(num(pre.inf) >= 0 && num(pre.inf) <= 10)) return '通膨要在 0% 到 10% 之間。';
       if (pre.dep !== undefined && pre.dep !== '' && !(num(pre.dep) >= 0 && num(pre.dep) <= 10)) return '存款利率要在 0% 到 10% 之間。';
       if (pre.lsYears !== undefined && pre.lsYears !== '') {
@@ -506,7 +578,7 @@
       if (Q.lsMonthly) { cuts.push(Q.lsClaim); if (Q.lsEnd < E) cuts.push(Q.lsEnd); }
       if (Q.npMonths) cuts.push(65);
       cuts = cuts.filter(function (a, i, arr) { return a >= P.A0y && a <= E && arr.indexOf(a) === i; }).sort(function (a, b) { return a - b; });
-      var out = [];
+      var out = [], firstPay = Math.min(Q.liMonthly > 0 ? Q.liClaim : Infinity, Q.lsMonthly ? Q.lsClaim : Infinity, Q.npMonths ? 65 : Infinity);
       for (var i = 0; i < cuts.length - 1; i++) {
         var f = cuts[i], t = cuts[i + 1], ls = Q.lsMonthly && f >= Q.lsClaim && f < Q.lsEnd, li = f >= Q.liClaim && Q.liMonthly > 0, np = Q.npMonths > 0 && f >= 65;
         var name, parts = [];
@@ -516,7 +588,7 @@
         else if (ls) name = '勞退期';
         else if (li) name = '勞保期';
         else if (np) name = '國保期';
-        else name = '橋接期';
+        else name = f < firstPay - 1e-9 ? '橋接期' : '靠資產期';   /* 橋接＝第一筆年金開始之前；之後都沒有年金（例如勞保一次領、勞退領完）＝靠資產期 */
         var src = f < R ? '靠薪水' : parts.length ? parts.join('＋') + '＋資產' : '只靠資產';
         if (out.length && out[out.length - 1].name === name && out[out.length - 1].src === src) { out[out.length - 1].t = t; continue; }
         out.push({ name: name, src: src, f: f, t: t });
@@ -547,11 +619,37 @@
       if (Q.lsMonthly) ev.push({ a: Q.lsClaim, t: '勞退月退開始', d: 'in', v: Q.lsMonthly * 12 });
       else if (Q.lsLump) ev.push({ a: Q.lsClaim, t: '勞退一次領', d: 'lump', v: Q.lsLump });
       if (Q.liMonthly) ev.push({ a: Q.liClaim, t: '勞保年金開始', d: 'in', v: Q.liMonthly * 12 });
+      if (Q.liLump) ev.push({ a: Q.liClaim, t: Q.liMode === 'onetime' ? '勞保老年一次金' : '勞保一次領', d: 'lump', v: Q.liLump });
       if (Q.npMonths) ev.push({ a: 65, t: '國保年金開始', d: 'in', v: Q.npMonthly * 12 });
       if (Q.lsMonthly && Q.lsEnd < E) ev.push({ a: Q.lsEnd, t: '勞退專戶領完（月退依平均餘命分攤）', d: 'in-', v: Q.lsMonthly * 12 / defl(Q.T * 12) });
       return ev.sort(function (x, y) { return x.a - y.a || (y.ret ? 1 : 0) - (x.ret ? 1 : 0); });
     }
 
+    /* 一次領 vs 月領：勞保＋國保的累計（今天的購買力，用退休後的實質存款利率折到退休那個月）。
+       只呈現事實：回傳兩條累計線與「月領累計超過一次領」的年齡；不做建議 */
+    function liCompare(P0, R) {
+      var el = liLumpElig(P0); if (el.state !== 'yes') return { elig: el.state };
+      var Pm = profile(Object.assign({}, P0.adj || {}, { liMode: '' })), Pl = profile(Object.assign({}, P0.adj || {}, { liMode: 'lump' }));
+      var Qm = pensions(Pm, R), Ql = pensions(Pl, R);
+      if (!Ql.liLump) return { elig: 'yes', none: true };
+      var tR = Qm.tR, tE = tOfAge(E), cm = 0, cl = 0, cross = null, pts = [], d = 1;
+      var flow = function (Q, t) {
+        var v = 0;
+        if (Q.liMonthly && t >= Q.liT) v += Q.liMonthly;
+        if (Q.liLump && t === Q.liT) v += Q.liLump;
+        if (A.np && t >= Q.tR && t < Q.npEndT) v -= T_.NP_PREM;
+        if (Q.npMonths && t >= Q.np65T) v += Q.npMonthly;
+        return v;
+      };
+      for (var t = tR; t < tE; t++) {
+        cm += flow(Qm, t) * d; cl += flow(Ql, t) * d; d /= (1 + M_POST);
+        if (cross === null && t >= Qm.liT && cm > cl) cross = ageOfT(t);
+        var a = ageOfT(t + 1); if (Math.abs(a - Math.round(a)) < 1e-9) pts.push([Math.round(a), cm, cl]);
+      }
+      return { elig: 'yes', cross: cross, pts: pts,
+        lump: { age: Ql.liClaim, amt: Ql.liLump, months: Ql.liLumpMonths, w36: Pl.w36, npMonths: Ql.npMonths, npMonthly: Ql.npMonthly },
+        monthly: { age: Qm.liClaim, amt: Qm.liMonthly, kind: Qm.liMode, oneAmt: Qm.liLump, npMonths: Qm.npMonths, npMonthly: Qm.npMonthly }, years: Qm.liYears };
+    }
     function bridgeInfo(P, R, ev) {
       var Q = ev.Q, bEnd = Math.min(Q.liMonthly ? Q.liClaim : E, Q.lsMonthly ? Q.lsClaim : E), out = 0;
       for (var t = Q.tR; t < tOfAge(bEnd); t++) out -= netM(P, Q, t);
@@ -574,6 +672,7 @@
       VERSION: VERSION, NOWI: NOWI, NOW: NOW, E_DEF: E_DEF, assume: A, T: T_, rates: function () { return { inf: INF, dep: DEP, depDefault: depRow.rate / 100, rPre: R_PRE, rPost: R_POST, rLs: R_LS }; }, legal: function () { return legalAge(birthP().y); },
       E: function () { return E; }, sync: sync,
       num: num, W: W, fmtW: fmtW, esc: esc, mi: mi, ymStr: ymStr, durStr: durStr, parseYM: parseYM, age: age,
+      liLumpElig: liLumpElig, lumpMonths: lumpMonths, lumpAge: lumpAge, liCompare: liCompare,
       kidStages: kidStages, kidGroups: kidGroups, stageCostRaw: stageCostRaw, mayHaveOld: mayHaveOld, oldSrc: OS, kidEndIdx: kidEndIdx, parentAgeAt: parentAgeAt, kidMonthlyNow: kidMonthlyNow,
       profile: profile, pensions: pensions, lsBalNowEst: lsBalNowEst, oldLump: oldLump, flowsM: flowsM, netM: netM, minFrom: minFrom, monthsRun: monthsRun, bIdx: bIdx,
       ageMonths: ageMonths, tOfAge: tOfAge, ageOfT: ageOfT, fromAge: fromAge, ageText: ageText, ymOf: ymOf,

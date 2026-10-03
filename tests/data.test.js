@@ -62,6 +62,10 @@ t('勞保與勞退分級表：30,300 到 45,800 之間的級距完全相同', ()
 });
 t('caps.csv：上限都已由官方分級表確認', () => assert.ok(D.caps.every((r) => r.status === 'confirmed')));
 t('存款利率：在合理範圍（0–5%），單位是 %', () => D.deposit.forEach((r) => assert.ok(r.rate > 0 && r.rate < 5, r.rate)));
+t('params.li_lump：一次領規則有來源、取得日期、第 58 條第 2 項第 1～4 款', () => {
+  const L = D.params.li_lump; assert.ok(L.source && /第 58 條/.test(L.source) && L.retrieved);
+  assert.strictEqual(L.conditions.length, 4); assert.strictEqual(L.cap_months, 45); assert.strictEqual(L.cap_months_with_after60, 50);
+});
 t('params：勞退年金化利率在合理範圍（0.5%–5%）', () => { const r = D.params.ls_annuity_rate.value; assert.ok(r > 0.005 && r < 0.05); });
 t('params：勞保兩式與減給展延參數齊全', () => ['min_years', 'f1_rate', 'f1_add', 'f2_rate', 'adjust_per_year', 'adjust_max_years'].forEach((k) => assert.ok(typeof D.params.li[k] === 'number', k)));
 t('params：每一項都有來源', () => Object.entries(D.params).forEach(([k, v]) => { if (k !== 'version') assert.ok(v.source, k + ' 缺來源'); }));

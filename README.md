@@ -9,37 +9,46 @@
 
 **只存在使用者自己的裝置（瀏覽器的 localStorage，名稱以 `sp5:` 開頭）。** 這個網站沒有伺服器、沒有帳號，系統擁有者看不到任何人的資料。
 
-代價：換裝置、清除瀏覽器資料、iPhone Safari 長時間沒開，資料可能不見。匯出備份、PDF 匯出列在待辦。
+代價：換裝置、清除瀏覽器資料、iPhone Safari 長時間沒開，資料可能不見。匯出備份列在待辦。
+
+**PDF 報告也在使用者的瀏覽器裡產生**（v0.7.0），資料不會離開裝置。
 
 ## 專案結構
 
 ```
 data/                    制度數字（CSV／JSON）與 SOURCES.md；官方調整時只改這裡
 src/engine.js            計算引擎（全專案唯一的一份；瀏覽器與 node 共用）
-src/index.html           畫面
+src/index.html           畫面（含 reportModel()：PDF 報告的資料模型）
+src/pdfdoc.js            PDF 排版（純函式：資料模型 → pdfmake 文件定義；瀏覽器與 node 共用）
+fonts/                   楷書子集 kai-subset.ttf、收錄字表、字型授權；原始字型放 fonts/source/（不進 repo）
 scripts/load-data.js     讀 data/ → SP5_DATA
-scripts/build.js         產生 src/data.generated.js，再把資料與引擎內嵌成 dist/index.html
+scripts/build.js         內嵌資料、引擎、PDF 排版成 dist/index.html；複製 pdfmake 與字型；產生預覽單檔 dist/preview.html
+scripts/build-font.py    產生楷書子集（優先全字庫正楷體 TW-Kai，沒有就用文鼎 PL 中楷）
 tests/                   引擎、制度規則、persona、資料檔、畫面結構測試（零套件相依）
-tests/e2e/ui.e2e.js      畫面端到端測試（需要 jsdom，選用）
+tests/e2e/ui.e2e.js      畫面操作測試（jsdom）
+tests/pdf.test.js        PDF 報告測試（jsdom＋pdfmake＋pdf.js，整條鏈實際跑）
 docs/系統設計文件.md     架構、引擎、制度規則、畫面、測試、決策紀錄
 .github/workflows/       push 到 main：測試 → build → 發布 GitHub Pages
 ```
 
-上線的只有 `dist/index.html` 一個檔案。**不要直接改 dist**。
+上線的是 `dist/`：`index.html`，加上按下「產生 PDF」才下載的 `vendor/pdfmake.min.js` 與 `fonts/kai-subset.ttf`。**不要直接改 dist**。
 
 ## 開發
 
-需要 Node.js 18 以上，沒有任何套件相依。
+需要 Node.js 18 以上。網頁本身沒有任何外部相依；開發與 build 用到 jsdom、pdfmake、pdf.js（devDependencies）。
 
 ```bash
-npm test          # 引擎、規則、persona、資料、畫面結構、驗收測試
-npm run build     # 產生 dist/index.html（也會產生 src/data.generated.js）
-npm run check     # 兩個一起
+npm install --omit=optional   # 第一次（略過 pdf.js 的選用原生模組 canvas，用不到）
+npm test          # 引擎、規則、persona、資料、畫面結構、驗收測試（不需要套件）
+npm run build     # dist/index.html、dist/vendor、dist/fonts、dist/preview.html
+npm run test:ui   # 畫面操作
+npm run test:pdf  # PDF 報告
+npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 ```
 
 開發畫面：先 `npm run build` 一次，之後直接用瀏覽器打開 `src/index.html`。
 
-選用的畫面端到端測試：`npm i -D jsdom && npm run build && node tests/e2e/ui.e2e.js`
+換 PDF 字型：把官方的全字庫正楷體（TW-Kai*.ttf）放進 `fonts/source/`，執行 `npm run font`（需要 Python 的 fonttools），再 build。
 
 ## 更新制度數字
 
@@ -51,7 +60,8 @@ npm run check     # 兩個一起
 
 1. repo 設成 **Public**（免費方案的 GitHub Pages 只支援公開 repo）。
 2. Settings → Pages → Source 選 **GitHub Actions**。
-3. push 到 `main`。測試通過才會發布，網址是 `https://<帳號>.github.io/<repo 名稱>/`。
+3. push 到 `main`。GitHub Actions 會安裝套件、跑全部測試（引擎、畫面操作、PDF），**通過才發布**，網址是 `https://<帳號>.github.io/<repo 名稱>/`。
+4. 用網頁上傳更新時：上傳 `sp5` 資料夾裡的東西即可（不要上傳 `node_modules`、`dist`）；`package-lock.json` 要一起上傳。
 
 ## 規則與假設
 
@@ -60,6 +70,11 @@ npm run check     # 兩個一起
 - 通膨預設 2%，可選 2.5%、3%（不提供更低，避免把結果調得太好看）；勞退基金 3%；薪資與生活費隨通膨調整（薪資實質成長 0%）。
 - v0.6.0：從現在的年紀開始算；結果頁「調調看」四個調整器＋「萬一……」，有調整時整頁預覽並顯示時間與錢的影響；工作空窗依情境扣年資。
 - 萬一……（原壓力測試）：收入（中斷 1／2 年，明年起，期間自繳國保與健保；減少 10／20%，勞保平均投保薪資不降）、支出（75 歲起每月多花 1／2 萬；通膨 3%、4%）、勞保（只領到 90%～50%）；最多算到 80 歲，不改變主結果。
+- 勞保一次請領老年給付（v0.6.9）：只有 2009/1/1 前有勞保年資者可選（勞保條例第 58 條第 2 項，規則在 data/params.json 的 li_lump）。資格只用已填資料判斷，判斷不了就明說、請使用者查勞保局；一次領後不得再參加國保（2023/10 起）。提高準確度的勞保區塊呈現月領與一次領的累計比較（含國保），只寫「活過 X 歲，月領累計超過一次領」，不給建議。
+- 勞保年資未滿 15 年（v0.6.11）：法定年齡領老年一次金（每年 1 個月）；加上退休後到 65 歲的國保年資滿 15 年，65 歲可月領（只用勞保年資算、不提前延後）。規則在 data/params.json 的 li_onetime。
+- 適用範圍：只算勞保、勞退；公務員、教師、軍人、農民不適用。
+- 勞保一次請領：法定用退保前 3 年平均月投保薪資，可選填；沒填用最高 60 個月平均估算。國保年金只用 B 式（2023/10 以後領勞保老年給付者不得選 A 式）。
+- 個人分擔制：只算使用者自己負擔的那一份，假設配偶繼續負擔他的家用份額；快速開始第一頁就寫明。敏感題目（子女出生年月、孝親費、工作空窗、健保依附、勞保登記的性別、同一家公司年資）都寫明「只用來……」；性別與同一家公司年資只在會改變答案時才問。
 - 勞保：平均月投保薪資沒填時，用月入帳對應 115 年投保薪資分級表估算；預設法定年齡請領，可自選（法定 ±5 年，不早於退休）；提前／延後不足一年按月比例（勞保局整合試算實測：61 歲 3 個月 18,102、67 歲 9 個月 23,640）。
 - 勞退：月領門檻看「實際提繳退休金之年資」滿 15 年（勞工退休金條例第 24 條）；累積採每月月底提繳、按月複利，與勞動部個人退休金試算表相差約 0.007%；提繳工資依 115 年月提繳分級表對應級距。
 - 舊制：基數年資未滿半年以半年計、滿半年以一年計（勞動基準法第 55 條）。
@@ -70,10 +85,28 @@ npm run check     # 兩個一起
 
 ## 待辦
 
-- 勞保一次請領老年給付（規則已確認，尚未納入）。
-- 勞保、勞退上限值待以官方分級表確認（data/caps.csv 標為 provisional）。
-- PDF 匯出（加密碼）、匯出／匯入備份、存成連結。
+- 字型換成全字庫正楷體（官方檔案放進 fonts/source/，npm run font）；PDF 加密升級到 R6（等 pdfkit 支援）。
+- 匯出／匯入備份、存成連結。
 - 設計細節見 docs/系統設計文件.md。
+
+## 版本紀錄
+
+| 版本 | 重點 |
+| --- | --- |
+| v0.7.0 | 分享 PDF 報告（單一版本／對照、完整版／去個資版、AES-256 密碼、目錄、楷書）；填錯當場擋下；補上提高準確度數字欄位的驗證 |
+| v0.6.14 | 對照表段落標題放大 |
+| v0.6.13 | 修正工作期入不敷出的寫法 |
+| v0.6.12 | 一次請領可填退保前 3 年平均；適用範圍補農民；假設補季發 |
+| v0.6.11 | 勞保未滿 15 年：老年一次金、併計國保 65 歲月領；修正年資剛好 15 年的浮點 bug；寫明適用範圍 |
+| v0.6.10 | 調調看「你可以決定的」「萬一……」兩組都可以收起，收起時標題寫出改了什麼 |
+| v0.6.10 | 調調看兩組可收起並顯示改了什麼；假設改成分點 |
+| v0.6.9 | 勞保一次領 vs 月領比較（含國保、損益兩平年齡，不給建議）；一次領走 lump 事件路徑；「那天需要多少」拉到結果與對照表；快速開始寫明只算你那一份與資料不上傳；敏感題目寫明用途；勞保登記性別、同一家公司年資（只在會改變答案時問） |
+| v0.6.8 | 提高準確度拿掉「算到幾歲」，只留萬一的「活到」 |
+| v0.6.0～v0.6.7 | 第一位真人測試回饋改版：從現在的年紀開始算、調調看、原始 vs 調整後對照、工作空窗、整理版面 |
+| v0.5.x | 不靠投資（存款利率）、平台名稱、子女每階段、勞退舊制提醒、提早退休併入地圖 |
+| v0.1～v0.4 | 規格、按月引擎、官方試算器實測、資料外部化 |
+
+完整紀錄見 docs/系統設計文件.md 第 12 章。
 
 ## 注意
 

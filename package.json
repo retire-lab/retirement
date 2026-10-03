@@ -1,14 +1,22 @@
 {
   "name": "sp5-retirement-age",
-  "version": "0.6.8",
+  "version": "0.7.0",
   "private": true,
   "description": "退休生命週期決策平台 Retirement Lifecycle Decision Platform（內部代號 SP5）",
   "scripts": {
     "test": "node tests/engine.test.js && node tests/rules.test.js && node tests/persona.test.js && node tests/data.test.js && node tests/html.test.js && node tests/acceptance.test.js",
     "build": "node scripts/build.js",
-    "check": "npm test && npm run build"
+    "test:ui": "node tests/e2e/ui.e2e.js",
+    "test:pdf": "node tests/pdf.test.js",
+    "font": "python3 scripts/build-font.py",
+    "check": "npm test && npm run build && npm run test:ui && npm run test:pdf"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.1",
+    "pdfjs-dist": "3.11.174",
+    "pdfmake": "0.2.23"
   }
 }
