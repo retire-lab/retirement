@@ -1,7 +1,6 @@
-# 每次 push 到 main：先跑引擎測試，通過才 build 並發布到 GitHub Pages。
+# 每次 push 到 main：安裝套件 → 跑全部測試（引擎、畫面操作、PDF）→ 通過才 build 並發布到 GitHub Pages。
 # 測試沒過就不會發布，網站上永遠是測試過的版本。
 # 第一次使用：repo 的 Settings → Pages → Source 選「GitHub Actions」。
-# 2026-10：先安裝相依套件（build 需要 pdfmake）；actions 全部升到 Node 24 版本（checkout v6、setup-node v6、configure-pages v6、upload-pages-artifact v5、deploy-pages v5），專案本身也改用 Node 24 跑測試。
 name: test-build-deploy
 
 on:
@@ -23,20 +22,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 24
-      - name: 安裝相依套件
-        # 有 package-lock.json 就用 npm ci（照鎖定版本、可重現）；沒有才退回 npm install
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
-      - name: 引擎測試
+          node-version: 22
+          cache: npm
+      - name: 安裝測試與 PDF 需要的套件（jsdom、pdfmake、pdf.js）
+        run: npm ci --omit=optional
+      - name: ESLint（抓 bug 的規則：沒定義的變數、重複宣告、沒用到的變數）
+        run: npm run lint
+      - name: 引擎與規則測試
         run: npm test
-      - name: 合成單一 HTML
+      - name: 合成網頁（含 PDF 程式庫與楷書字型）
         run: npm run build
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - name: 畫面操作測試與 PDF 報告測試（兩組互不相干，同時跑）
+        run: |
+          npm run test:ui > ui.log 2>&1 & UI=$!
+          npm run test:pdf > pdf.log 2>&1 & PDF=$!
+          wait $UI; R1=$?
+          wait $PDF; R2=$?
+          echo "===== 畫面操作測試 ====="; cat ui.log
+          echo "===== PDF 報告測試 ====="; cat pdf.log
+          exit $(( R1 || R2 ))
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
@@ -49,4 +58,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
