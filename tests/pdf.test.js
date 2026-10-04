@@ -34,7 +34,7 @@ function app(saved, name) {
     w.addEventListener('error', (e) => errs.push(e.message));
   } });
   const d = dom.window.document, W = dom.window;
-  const click = (e) => { if (!e) throw new Error('找不到元素'); e.dispatchEvent(new W.MouseEvent('click', { bubbles: true })); };
+  const click = (e) => { if (!e) throw new Error('找不到元素'); if (e.closest && e.closest('[inert]')) throw new Error('點到被設成不可操作的元素（真的瀏覽器點不到）：' + (e.id || e.className || e.tagName)); e.dispatchEvent(new W.MouseEvent('click', { bubbles: true })); };
   const val = (e, v) => { if (typeof e === 'string') e = d.getElementById(e); e.value = v; e.dispatchEvent(new W.Event('input', { bubbles: true })); e.dispatchEvent(new W.Event('change', { bubbles: true })); };
   click(d.getElementById('go'));
   return { d, W, click, val, errs, model: () => W.SP5App.reportModel() };
@@ -111,7 +111,7 @@ function checkStructure(txt, chapters) {
   const FIRST = { '一': ['基本資料'], '二': ['退休時間', '最快退休'], '三': ['年齡'], '四': ['工作期'], '五': ['一次領'] };
   chapters.forEach((c, i) => { const pz = Z(txt.pages[pg[i] - 1]), after = pz.slice(pz.indexOf(Z(c)) + Z(c).length); assert.ok(FIRST[c[0]].some((m) => after.includes(m)), c + '：標題那一頁（第 ' + pg[i] + ' 頁）沒有該章的內容，標題被單獨留在頁尾'); });
   /* 每一頁都有內容（不是只有頁首頁尾） */
-  txt.pages.forEach((p, i) => assert.ok(Z(p).replace(/退休生命週期決策平台|RetirementLifecycleDecisionPlatform|第\d+頁|\d{4}\/\d{2}\/\d{2}|v\d+\.\d+\.\d+|完整版|去個資版|・|對照/g, '').length > 60, '第 ' + (i + 1) + ' 頁不是空白頁'));
+  txt.pages.forEach((p, i) => assert.ok(Z(p).replace(/退休生命週期決策平台|RetirementLifecycleDecisionPlatform|第\d+頁|\d{4}\/\d{2}\/\d{2}|v\d+\.\d+\.\d+|完整版|分享版|・|對照/g, '').length > 60, '第 ' + (i + 1) + ' 頁不是空白頁'));
 }
 /* 文件定義裡往下層找（章節標題與第一個內容包在同一個區塊裡） */
 function findNodes(x, pred, out) { out = out || []; if (Array.isArray(x)) x.forEach((y) => findNodes(y, pred, out)); else if (x && typeof x === 'object') { if (pred(x)) out.push(x); ['stack', 'content'].forEach((k) => { if (x[k]) findNodes(x[k], pred, out); }); } return out; }
@@ -123,7 +123,7 @@ t('單一版本：沒改條件 → 模型是單一版本，檔名不含「對照
 t('單一版本：章節、目錄頁碼、沒有空白頁', async () => checkStructure((await pdfOf('single', getSingle)).txt, CH_SINGLE));
 t('單一版本：沒有勞保一次領資格（沒填年資）→ 沒有第五章', async () => { const { M, txt } = await pdfOf('single', getSingle); assert.strictEqual(M.li, null); assert.ok(!Z(txt.all).includes('五、')); });
 t('單一版本：前言寫「你目前的設定」；方案名稱在完整版裡', async () => { const z = Z((await pdfOf('single', getSingle)).txt.pages[0]); assert.ok(z.includes('這份報告是你目前的設定')); assert.ok(z.includes('我和小芸的退休計畫')); });
-t('單一版本：假設 10 點全部印出（與網頁同一份清單）', async () => { const { M, txt } = await pdfOf('single', getSingle); assert.strictEqual(M.assumptions.length, 10); M.assumptions.forEach((a) => assert.ok(Z(txt.pages[0]).includes(Z(a)), a)); });
+t('單一版本：假設 12 點全部印出（與網頁同一份清單；第一點是「不是機率，也不是保證」）', async () => { const { M, txt } = await pdfOf('single', getSingle); assert.strictEqual(M.assumptions.length, 12); assert.ok(/不是機率，也不是保證/.test(M.assumptions[0])); M.assumptions.forEach((a) => assert.ok(Z(txt.pages[0]).includes(Z(a)), a)); });
 t('單一版本：條件每一列（標籤＋值）都在 PDF 裡', async () => { const { M, txt } = await pdfOf('single', getSingle); const z = Z(txt.all); M.conditions.forEach((g) => { assert.ok(z.includes(Z(g.title)), g.title); g.rows.forEach((r) => { assert.ok(z.includes(Z(r.label)), r.label); assert.ok(z.includes(Z(r.o).replace(/；/g, '')), r.label + '：' + r.o); }); }); });
 t('單一版本：結果的數字＝引擎直接算的（最快退休、需要有、會有）', async () => {
   const { M, txt } = await pdfOf('single', getSingle), en = SP5.create(COMPLEX, { now: { y: 2026, m: 10 } }); en.sync();
@@ -137,10 +137,10 @@ t('單一版本：每個階段、每一個事件（標題＋說明）都在 PDF 
   M.phases.orig.forEach((p) => { assert.ok(z.includes(Z(p.name)), p.name); p.events.forEach((e) => { n++; assert.ok(z.includes(Z(e.t)), p.name + '：' + e.t); if (e.text) assert.ok(z.includes(Z(e.text)), e.t + '：' + e.text); }); });
   assert.ok(n >= 8, '事件數量合理：' + n);
 });
-t('單一版本：階段與網頁「每個階段的收支」一樣（名稱、順序）', async () => { const { M } = await pdfOf('single', getSingle); const web = [...A_SINGLE.d.querySelectorAll('#mapCard .phc b')].map((b) => b.textContent); assert.deepStrictEqual(J(M.phases.orig.map((p) => p.name)), J(web)); });
+t('單一版本：階段與網頁「每個階段的收支」一樣（名稱、順序）', async () => { const { M } = await pdfOf('single', getSingle); const web = [...A_SINGLE.d.querySelectorAll('#mapCard .phc .phh b')].map((b) => b.textContent); assert.deepStrictEqual(J(M.phases.orig.map((p) => p.name)), J(web)); });
 
 /* ========== 對照版 ========== */
-t('對照版：有修改 → 模型是對照，檔名含「對照」', async () => { const M = getCmp(); assert.strictEqual(M.meta.compare, true); assert.ok(M.meta.pendingN >= 5 && M.meta.adjN === 4, 'pending ' + M.meta.pendingN + ' adj ' + M.meta.adjN); assert.strictEqual(A_CMP.W.SP5App.pdfFileName(M, true), '退休試算_去個資版_對照_' + M.meta.date + '.pdf'); });
+t('對照版：有修改 → 模型是對照，檔名含「對照」', async () => { const M = getCmp(); assert.strictEqual(M.meta.compare, true); assert.ok(M.meta.pendingN >= 5 && M.meta.adjN === 4, 'pending ' + M.meta.pendingN + ' adj ' + M.meta.adjN); assert.strictEqual(A_CMP.W.SP5App.pdfFileName(M, true), '退休試算_分享版_對照_' + M.meta.date + '.pdf'); });
 t('對照版：章節（先條件、再結果）、目錄頁碼、沒有空白頁', async () => checkStructure((await pdfOf('cmp', getCmp)).txt, CH_CMP.concat(['五、勞保：一次領和月領，累計各拿多少'])));
 t('對照版：條件四組，改過的項目調整後的值都在 PDF 裡', async () => {
   const { M, txt } = await pdfOf('cmp', getCmp), z = Z(txt.all);
@@ -167,22 +167,22 @@ t('對照版：每個階段兩個版本都有，金額與事件左右對照（�
 t('對照版：勞保一次領的事件金額＝4.2 萬 × 45 個月＝189 萬', async () => { const { M } = await pdfOf('cmp', getCmp); const ev = [].concat(...M.phases.adj.map((p) => p.events)).find((e) => e.t === '勞保一次領'); assert.ok(ev && /189 萬/.test(ev.text), ev && ev.text); });
 t('對照版：曲線兩條線（灰色虛線、藍色）與兩條退休時間線', async () => { const { dd } = await pdfOf('cmp', getCmp); const svg = svgOf(dd); assert.strictEqual((svg.match(/<polyline/g) || []).length, 2); assert.ok(/stroke-dasharray="4,3"/.test(svg) && /原始 .*退休/.test(svg) && /調整後 .*退休/.test(svg) && /用完/.test(svg)); });
 
-/* ========== 去個資版 ========== */
+/* ========== 分享版 ========== */
 const YMRE = /\d{4}\s*\/\s*\d{2}(?!\s*\/\s*\d{2})|\d{4}\s*年\s*\d{1,2}\s*月/g;   // 年月（不含頁首的產生日期 YYYY/MM/DD）
 for (const [key, fn, label] of [['singleA', getSingle, '單一版本'], ['cmpA', getCmp, '對照版']]) {
-  t('去個資版（' + label + '）：沒有任何年月（只剩頁首的產生日期）', async () => { const { txt } = await pdfOf(key, fn, { anon: true }); const hits = txt.all.match(YMRE) || []; assert.deepStrictEqual(hits, [], hits.slice(0, 5).join('、')); });
-  t('去個資版（' + label + '）：沒有出生年月、孩子生日、方案名稱；出生年月改寫成年齡', async () => {
+  t('分享版（' + label + '）：沒有任何年月（只剩頁首的產生日期）', async () => { const { txt } = await pdfOf(key, fn, { anon: true }); const hits = txt.all.match(YMRE) || []; assert.deepStrictEqual(hits, [], hits.slice(0, 5).join('、')); });
+  t('分享版（' + label + '）：沒有出生年月、孩子生日、方案名稱；出生年月改寫成年齡', async () => {
     const { txt } = await pdfOf(key, fn, { anon: true }), z = Z(txt.all);
     ['1978/05', '1978', '2012/09', '2012-09', '2016/03', '2016-03', '我和小芸的退休計畫', '小芸'].forEach((x) => assert.ok(!z.includes(Z(x)), '不該出現：' + x));
     assert.ok(!/出生年月\d/.test(z), '沒有「出生年月」那一列（頁尾說明拿掉了什麼的那句不算）');
     assert.ok(z.includes('年齡') && z.includes('48歲'), '改寫成年齡');
   });
-  t('去個資版（' + label + '）：頁首寫「去個資版」、頁尾寫拿掉了哪些', async () => { const { txt } = await pdfOf(key, fn, { anon: true }); assert.ok(Z(txt.pages[0]).includes('去個資版')); assert.ok(Z(txt.pages[0]).includes('已移除出生年月與所有年月')); });
-  t('去個資版（' + label + '）：財務數字照樣保留（資產、房貸、學費）', async () => { const z = Z((await pdfOf(key, fn, { anon: true })).txt.all); ['380萬', '2.8萬', '研究所25萬'].forEach((x) => assert.ok(z.includes(x), x)); });
+  t('分享版（' + label + '）：頁首寫「分享版」、頁尾寫拿掉了哪些', async () => { const { txt } = await pdfOf(key, fn, { anon: true }); assert.ok(Z(txt.pages[0]).includes('分享版')); assert.ok(Z(txt.pages[0]).includes('已移除出生年月與所有年月')); });
+  t('分享版（' + label + '）：財務數字照樣保留（資產、房貸、學費）', async () => { const z = Z((await pdfOf(key, fn, { anon: true })).txt.all); ['380萬', '2.8萬', '研究所25萬'].forEach((x) => assert.ok(z.includes(x), x)); });
 }
-t('去個資版（對照）：工作空窗只寫幾段、多久，不寫原因；完整版寫原因', async () => {
+t('分享版（對照）：工作空窗只寫幾段、多久，不寫原因；完整版寫原因', async () => {
   const za = Z((await pdfOf('cmpA', getCmp, { anon: true })).txt.all), zf = Z((await pdfOf('cmp', getCmp)).txt.all);
-  ['育嬰留職停薪', '待業、找工作'].forEach((x) => { assert.ok(!za.includes(Z(x)), '去個資版不該有：' + x); assert.ok(zf.includes(Z(x)), '完整版要有：' + x); });
+  ['育嬰留職停薪', '待業、找工作'].forEach((x) => { assert.ok(!za.includes(Z(x)), '分享版不該有：' + x); assert.ok(zf.includes(Z(x)), '完整版要有：' + x); });
   assert.ok(za.includes(Z('2 段・共 1 年 6 個月')));
 });
 t('完整版：保留出生年月、孩子生日、方案名稱', async () => { const z = Z((await pdfOf('cmp', getCmp)).txt.all); ['1978/05', '2012/09', '我和小芸的退休計畫'].forEach((x) => assert.ok(z.includes(Z(x)), x)); });
@@ -227,7 +227,7 @@ t('能選勞保一次領：有第五章，結論「活過 72 歲，月領累計�
   assert.ok(z.includes('五、勞保：一次領和月領，累計各拿多少')); assert.ok(z.includes(Z('活過 72 歲，月領累計超過一次領。'))); assert.ok(z.includes(Z('206 萬')));
   checkStructure(txt, CH_SINGLE.concat(['五、勞保：一次領和月領，累計各拿多少']));
 });
-t('未存檔：改了答案沒存 → 完整版標「（未存檔）」，去個資版不寫方案名稱', async () => {
+t('未存檔：改了答案沒存 → 完整版標「（未存檔）」，分享版不寫方案名稱', async () => {
   const A = app(COMPLEX); A.click(A.d.getElementById('back')); A.val('asset', '400'); A.click(A.d.getElementById('go'));
   const M = A.model(); assert.strictEqual(M.meta.dirty, true); assert.strictEqual(M.meta.compare, false, '改答案不算調整');
   const f = await readPdf((await makePdf(M, {})).buf), an = await readPdf((await makePdf(M, { anon: true })).buf);
@@ -263,7 +263,7 @@ t('分享視窗（改了條件）：寫「原始 vs 調整後的對照」、幾�
   assert.ok(/原始 vs 調整後的對照/.test(b) && /你有 6 項實際資料還沒套用/.test(b) && /只想分享調整後的版本？先按「存成新方案」/.test(b), b.slice(0, 200));
 });
 t('分享視窗：未存檔時提醒「會標示未存檔」', async () => { const A = app(COMPLEX); A.click(A.d.getElementById('back')); A.val('asset', '400'); A.click(A.d.getElementById('go')); A.click(A.d.getElementById('shareBtn')); assert.ok(/有未存檔的修改，報告會用畫面上的數字，並標示「未存檔」/.test(T(A.d.getElementById('mBody').textContent))); });
-t('分享視窗：選去個資版 → 列出會拿掉哪些（含為什麼連年月都拿掉）；切回完整版就收起', async () => {
+t('分享視窗：選分享版 → 列出會拿掉哪些（含為什麼連年月都拿掉）；切回完整版就收起', async () => {
   const A = app(COMPLEX); A.click(A.d.getElementById('shareBtn'));
   A.val(A.d.querySelector('input[name="pdfv"][value="anon"]'), 'anon'); A.d.querySelector('input[name="pdfv"][value="anon"]').checked = true;
   A.d.querySelector('input[name="pdfv"][value="anon"]').dispatchEvent(new A.W.Event('change', { bubbles: true }));
@@ -293,11 +293,11 @@ t('產生（不加密碼）：顯示「任何人都能打開」，文件沒有�
   assert.ok(!A.d.getElementById('pdfNoPw').hidden && A.d.getElementById('pdfPwBox').hidden);
   A.click(mbtn(A, '產生 PDF')); await wait(80); assert.ok(A.W.__dd && !A.W.__dd.userPassword); assert.ok(!/密碼請自己記好/.test(A.d.getElementById('toast').textContent));
 });
-t('產生（去個資版＋對照）：檔名「去個資版_對照」，送出的內容沒有出生年月與方案名稱，下次預設去個資版', async () => {
+t('產生（分享版＋對照）：檔名「分享版_對照」，送出的內容沒有出生年月與方案名稱，下次預設分享版', async () => {
   const A = quickCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn'));
   const an = A.d.querySelector('input[name="pdfv"][value="anon"]'); an.checked = true; an.dispatchEvent(new A.W.Event('change', { bubbles: true }));
   setPw(A, 'abcd1234', 'abcd1234'); A.click(mbtn(A, '產生 PDF')); await wait(80);
-  assert.ok(/^退休試算_去個資版_對照_/.test(A.W.__dl), A.W.__dl);
+  assert.ok(/^退休試算_分享版_對照_/.test(A.W.__dl), A.W.__dl);
   const js = JSON.stringify(A.W.__dd.content); assert.ok(!js.includes('1978/05') && !js.includes('我和小芸'), '內容沒有個資');
   A.click(A.d.getElementById('shareBtn')); assert.ok(A.d.querySelector('input[name="pdfv"][value="anon"]').checked, '記住上次的選擇');
 });
@@ -349,6 +349,24 @@ t('回報 8：曲線縱軸至少 4 個刻度，負的那一段也有', async () 
 t('章節標題與該章第一個內容包成不可拆開的區塊（放不下就整塊換頁）', async () => {
   const dd = PDFDOC.build(getRep(), { coverage: COVER }); const blocks = dd.content.filter((x) => x.stack && x.stack[0] && x.stack[0].tocItem);
   assert.strictEqual(blocks.length, 4); blocks.forEach((b) => { assert.strictEqual(b.unbreakable, true); assert.ok(b.stack.length >= 3, '標題、底線之外還有內容'); });
+});
+
+
+/* ========== v0.9.1：PDF 安全 ========== */
+t('PDF 安全：產生加密 PDF 之後，瀏覽器裡（localStorage、sessionStorage）找不到密碼，只記得上次選哪個版本', async () => {
+  const A = complexCompare(); stubPdf(A); A.click(A.d.getElementById('shareBtn')); setPw(A, 'Secr3t-pass!', 'Secr3t-pass!'); A.click(mbtn(A, '產生 PDF')); await wait(80);
+  assert.ok(A.W.__dd && A.W.__dd.userPassword === 'Secr3t-pass!', '確實用了密碼');
+  for (const st of [A.W.localStorage, A.W.sessionStorage]) for (let i = 0; i < st.length; i++) { const k = st.key(i); assert.ok(!String(st.getItem(k)).includes('Secr3t-pass!') && !k.includes('Secr3t'), k + ' 裡有密碼'); }
+  assert.strictEqual(A.W.localStorage.getItem('sp5:pdfv'), 'full');
+  assert.ok(!A.d.getElementById('pdfP1'), '對話框關閉後，密碼欄位已經不在畫面上');
+});
+t('PDF 安全：PDF 的屬性資料（標題、作者、主旨、產生者）與檔名沒有姓名、方案名稱、出生年月', async () => {
+  for (const anon of [false, true]) {
+    const M = getCmp(), dd = PDFDOC.build(M, { anon, coverage: COVER }), info = JSON.stringify(dd.info), fname = A_CMP.W.SP5App.pdfFileName(M, anon);
+    ['我和小芸', '小芸', '1978', '2012', '2016', '1978/05'].forEach((x) => { assert.ok(!info.includes(x), (anon ? '分享版' : '完整版') + '屬性有：' + x); assert.ok(!fname.includes(x), '檔名有：' + x); });
+    assert.strictEqual(dd.info.author, '');
+  }
+  const { txt } = await pdfOf('cmp', getCmp); assert.ok(!/小芸/.test(txt.meta.info.Title + txt.meta.info.Subject + (txt.meta.info.Author || '')));
 });
 
 (async () => {

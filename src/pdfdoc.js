@@ -3,7 +3,7 @@
  * 純函式：輸入 reportModel()（網頁產生的資料模型），輸出 pdfmake 的 docDefinition。
  * 瀏覽器與 Node 測試共用同一份；不碰畫面、不連網路。
  *
- * opts.anon      true＝去個資版：拿掉出生年月（改寫年齡）、所有年月（年齡＋年月可反推出生日）、
+ * opts.anon      true＝分享版：拿掉出生年月（改寫年齡）、所有年月（年齡＋年月可反推出生日）、
  *                孩子的出生年月（改寫年齡）、工作空窗的原因、方案名稱
  * opts.password  有值就加 AES-256 密碼（PDF 1.7 ext3）
  * opts.coverage  字型子集收錄的字；不在裡面的字換成替代字或「□」，不會印出空白
@@ -20,7 +20,7 @@
   function build(M, opts) {
     opts = opts || {};
     var anon = !!opts.anon, cov = opts.coverage ? new Set(Array.from(opts.coverage)) : null, cmp = !!M.meta.compare;
-    /* 文字：去個資版拿掉年月；字型沒有的字換掉 */
+    /* 文字：分享版拿掉年月；字型沒有的字換掉 */
     var tx = function (s) {
       s = s == null ? '' : String(s);
       if (anon) s = s.replace(/\d{4}\/\d{2} 起，/g, '').replace(YM, '').replace(/（\s*）/g, '').replace(/\s{2,}/g, ' ').trim();
@@ -161,10 +161,10 @@
         { text: tx(M.li.sentence) + '（含國保；以實質存款利率折算到退休那個月。只呈現事實，不做建議。）', color: C.acc, margin: [0, 6, 0, 0] }].concat(M.li.note ? [{ text: tx(M.li.note), style: 'note' }] : []) });
     }
 
-    var foot = anon ? '去個資版：已移除出生年月與所有年月（只留年齡）、孩子的出生年月、工作空窗的原因、方案名稱。' : '完整版：含你填的個人資料，請妥善保管。';
+    var foot = anon ? '分享版：已移除出生年月與所有年月（只留年齡）、孩子的出生年月、工作空窗的原因、方案名稱。' : '完整版：含你填的個人資料，請妥善保管。';
     var dd = {
       pageSize: 'A4', pageMargins: [40, 70, 40, 56],
-      info: { title: '退休試算報告' + (anon ? '（去個資版）' : '（完整版）'), author: '', subject: cmp ? '原始 vs 調整後' : '目前的設定', creator: '退休生命週期決策平台 v' + M.meta.version, producer: '退休生命週期決策平台' },
+      info: { title: '退休試算報告' + (anon ? '（分享版）' : '（完整版）'), author: '', subject: cmp ? '原始 vs 調整後' : '目前的設定', creator: '退休生命週期決策平台 v' + M.meta.version, producer: '退休生命週期決策平台' },
       defaultStyle: { font: opts.font || 'Kai', fontSize: 10, color: C.ink, lineHeight: 1.25 },
       styles: {
         title: { fontSize: 22, margin: [0, 0, 0, 2] }, meta: { fontSize: 11, color: C.mut, margin: [0, 0, 0, 6] },
@@ -174,7 +174,7 @@
       },
       header: function () {
         return { margin: [40, 24, 40, 0], stack: [{ columns: [{ text: [{ text: '退休生命週期決策平台\n', fontSize: 12 }, { text: 'Retirement Lifecycle Decision Platform', fontSize: 7.5, color: C.mut }] },
-          { text: M.meta.date.replace(/-/g, '/') + ' ・ v' + M.meta.version + ' ・ ' + (anon ? '去個資版' : '完整版') + (cmp ? '・對照' : ''), alignment: 'right', fontSize: 8.5, color: C.mut }] },
+          { text: M.meta.date.replace(/-/g, '/') + ' ・ v' + M.meta.version + ' ・ ' + (anon ? '分享版' : '完整版') + (cmp ? '・對照' : ''), alignment: 'right', fontSize: 8.5, color: C.mut }] },
           { canvas: [{ type: 'line', x1: 0, y1: 4, x2: 515, y2: 4, lineWidth: 0.6, lineColor: C.ink }] }] };
       },
       footer: function (cur) {

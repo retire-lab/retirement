@@ -2,6 +2,7 @@
 /* v0.4.2 修正的制度規則：每條都測一般情況＋邊界 */
 'use strict';
 const { assert, SP5, ZERO, engine, near, suite } = require('./_helper');
+const stressEarliest = (inp, sel, opt) => require('../src/engine.js').scenario(inp, sel, opt).e;   // v0.9.3：引擎的 stressEarliest 包裝拿掉了，測試直接用 scenario().e
 const S = suite('制度規則（v0.4.2）');
 const t = S.test;
 
@@ -249,7 +250,7 @@ t('地圖：階段首尾相接、沒有缺口', () => {
 const stIn = require('./_helper').inputs({ birth: '1974-11', asset: '400', inc: '10', spend: '4.5' });
 const stNow = { y: 2026, m: 10 };
 const stBase = SP5.create(stIn, { now: stNow }).earliest();
-const st = (sel) => SP5.stressEarliest(stIn, sel, { now: stNow });
+const st = (sel) => stressEarliest(stIn, sel, { now: stNow });
 const later = (a, b) => (a === null ? b === null : b === null || b >= a - 1e-9);   // b 不早於 a
 t('壓力測試：完全不加壓力 = 基準（一致性）', () => assert.strictEqual(st({}), stBase));
 t('壓力測試：勞保 100% = 不打折 = 基準', () => assert.strictEqual(st({ li: 100 }), stBase));
@@ -263,7 +264,7 @@ t('壓力測試：多種一起，比任何單一情境都晚', () => {
   [{ li: 70 }, { gap: 1 }, { inf: 1 }, { end: 95 }].forEach((one) => assert.ok(later(st(one), all), JSON.stringify(one)));
 });
 t('壓力測試：不會改到原本的輸入（算完 endAge 仍是空的）', () => {
-  const inp = JSON.parse(JSON.stringify(stIn)); SP5.stressEarliest(inp, { end: 100 }, { now: stNow }); assert.strictEqual(inp.pre.endAge, '');
+  const inp = JSON.parse(JSON.stringify(stIn)); stressEarliest(inp, { end: 100 }, { now: stNow }); assert.strictEqual(inp.pre.endAge, '');
 });
 t('壓力測試：勞保打折只影響勞保年金（勞保 50% 的月領剛好是一半）', () => {
   const en = SP5.create(stIn, { now: stNow }), P1 = en.profile(), P2 = en.profile({ liFactor: 0.5 });
@@ -289,12 +290,12 @@ t('70 歲：主結果仍以 65 歲為限（earliest 預設不超過 65）', () =
 });
 t('70 歲：壓力測試延長搜尋後，65 歲還不夠的情境可以算出精確年月', () => {
   const sel = { li: 60, inf: 1 };
-  const v65 = SP5.stressEarliest(late, sel, { now: stNow }), v70 = SP5.stressEarliest(late, sel, { now: stNow, maxAge: 70 });
+  const v65 = stressEarliest(late, sel, { now: stNow }), v70 = stressEarliest(late, sel, { now: stNow, maxAge: 70 });
   assert.strictEqual(v65, null); assert.ok(v70 !== null && v70 > 65 && v70 <= 70, String(v70));
   near(v70 * 12, Math.round(v70 * 12), 1e-6, '要落在某個月');
 });
 t('70 歲：65 歲內就夠的情境，延長搜尋不改變答案', () => {
-  const sel = { li: 80 }; assert.strictEqual(SP5.stressEarliest(stIn, sel, { now: stNow }), SP5.stressEarliest(stIn, sel, { now: stNow, maxAge: 70 }));
+  const sel = { li: 80 }; assert.strictEqual(stressEarliest(stIn, sel, { now: stNow }), stressEarliest(stIn, sel, { now: stNow, maxAge: 70 }));
 });
 t('70 歲：工作到 67 歲 → 勞保 67 歲領、延後 2 年加給 8%，沒有國保', () => {
   const en = SP5.create(late, { now: stNow }), Q = en.pensions(en.profile(), 67);
@@ -302,7 +303,7 @@ t('70 歲：工作到 67 歲 → 勞保 67 歲領、延後 2 年加給 8%，沒�
   near(Q.liMonthly / SP5.liMonthlyCalc(en.profile().w60, Q.liYears, 65, SP5.legalAge(1964)), 1.08, 1e-9);
 });
 t('70 歲：工作到 67 歲，資產往後走不會用完（可行就真的可行）', () => {
-  const v = SP5.stressEarliest(late, { li: 60, inf: 1 }, { now: stNow, maxAge: 70 });
+  const v = stressEarliest(late, { li: 60, inf: 1 }, { now: stNow, maxAge: 70 });
   const inp = JSON.parse(JSON.stringify(late));
   const en = SP5.create(inp, { now: stNow, assume: { infAdd: 0.01 } });
   const led = en.ledger(en.profile({ liFactor: 0.6 }), v); assert.strictEqual(led.exhaust, null); assert.strictEqual(led.preExhaust, null);
@@ -311,8 +312,8 @@ t('70 歲：工作到 67 歲，資產往後走不會用完（可行就真的可�
 const heavy = require('./_helper').inputs({ birth: '1964-05', asset: '30', inc: '5', spend: '4' });
 t('80 歲：重壓力要工作到 70 歲以後 → 上限 70 時算不出，上限 80 時算得出精確年月', () => {
   const sel = { li: 70 };
-  assert.strictEqual(SP5.stressEarliest(heavy, sel, { now: stNow, maxAge: 70 }), null);
-  const v = SP5.stressEarliest(heavy, sel, { now: stNow, maxAge: 80 });
+  assert.strictEqual(stressEarliest(heavy, sel, { now: stNow, maxAge: 70 }), null);
+  const v = stressEarliest(heavy, sel, { now: stNow, maxAge: 80 });
   assert.ok(v !== null && v > 70 && v <= 80, String(v)); near(v * 12, Math.round(v * 12), 1e-6);
 });
 t('80 歲：工作到 78 歲 → 勞保延後加給停在 20%、勞退 78 歲領、平均餘命 10 年、沒有國保', () => {
@@ -325,18 +326,18 @@ t('80 歲：算到 90 歲時，80 歲退休後還有 10 年，逐月路徑完整
   assert.ok(mon.length > 0 && mon.every((m) => isFinite(m.end)));
 });
 t('80 歲：最壞情況（一路搜到 80 歲都不夠）連跑 5 次在 2 秒內', () => {
-  const t0 = Date.now(); for (let i = 0; i < 5; i++) SP5.stressEarliest(heavy, { li: 50, gap: 2, inf: 2, cut: 20, spend: 2, end: 100 }, { now: stNow, maxAge: 80 });
+  const t0 = Date.now(); for (let i = 0; i < 5; i++) stressEarliest(heavy, { li: 50, gap: 2, inf: 2, cut: 20, spend: 2, end: 100 }, { now: stNow, maxAge: 80 });
   assert.ok(Date.now() - t0 < 2000, (Date.now() - t0) + ' ms');
 });
 t('同時發生：一定不早於任何單一情境（不會比最晚的單一情境更早）', () => {
-  const sel = { li: 70, gap: 1, inf: 1, end: 95 }, all = SP5.stressEarliest(stIn, sel, { now: stNow, maxAge: 70 });
-  Object.keys(sel).forEach((k) => { const one = SP5.stressEarliest(stIn, { [k]: sel[k] }, { now: stNow, maxAge: 70 }); assert.ok(all === null || (one !== null && all >= one - 1e-9), k); });
+  const sel = { li: 70, gap: 1, inf: 1, end: 95 }, all = stressEarliest(stIn, sel, { now: stNow, maxAge: 70 });
+  Object.keys(sel).forEach((k) => { const one = stressEarliest(stIn, { [k]: sel[k] }, { now: stNow, maxAge: 70 }); assert.ok(all === null || (one !== null && all >= one - 1e-9), k); });
 });
 t('同時發生：這組範例比單獨相加更晚（風險互相放大）', () => {
   const base = SP5.create(stIn, { now: stNow }).earliest(), sel = { li: 70, gap: 2, inf: 1, end: 95 };
   const m = (v) => Math.round((v - base) * 12);
-  const sum = Object.keys(sel).reduce((a, k) => a + m(SP5.stressEarliest(stIn, { [k]: sel[k] }, { now: stNow, maxAge: 70 })), 0);
-  const all = m(SP5.stressEarliest(stIn, sel, { now: stNow, maxAge: 70 }));
+  const sum = Object.keys(sel).reduce((a, k) => a + m(stressEarliest(stIn, { [k]: sel[k] }, { now: stNow, maxAge: 70 })), 0);
+  const all = m(stressEarliest(stIn, sel, { now: stNow, maxAge: 70 }));
   assert.ok(all > sum, '同時 ' + all + ' 個月、相加 ' + sum + ' 個月');
 });
 
@@ -372,7 +373,7 @@ t('壓力的通膨是「在使用者選的通膨上再加」：選 3% ＋ 壓力
 });
 t('不加壓力 = 基準，在使用者改過通膨與利率時也成立', () => {
   const inp = require('./_helper').inputs({ asset: '400', spend: '4.5', pre: { inf: '2.5', dep: '0.8' } });
-  const en = SP5.create(inp, { now: stNow }); en.sync(); assert.strictEqual(SP5.stressEarliest(inp, {}, { now: stNow }), en.earliest());
+  const en = SP5.create(inp, { now: stNow }); en.sync(); assert.strictEqual(stressEarliest(inp, {}, { now: stNow }), en.earliest());
 });
 
 /* ---------- v0.5.0：收入中斷（明年 1 月起） ---------- */
@@ -536,7 +537,6 @@ t('scenario：每月多存 → 更早；每月少存 → 更晚（雙向）', ()
 t('scenario：少花 2,000 比多存 2,000 更有效（退休後也少用）', () => assert.ok(sc({ more: -2000 }) <= sc({ save: 2000 })));
 t('scenario：活到 85 比 90 更早、95 更晚', () => { const b = sc({}); assert.ok(sc({ end: 85 }) < b); assert.ok(sc({ end: 95 }) > b); });
 t('scenario：不改原本的輸入', () => { const inp = JSON.parse(JSON.stringify(scIn)); SP5.scenario(inp, { end: 85, more: -4000 }, { now: stNow }); assert.strictEqual(inp.pre.endAge, ''); });
-t('scenario：stressEarliest 跟 scenario().e 一樣', () => assert.strictEqual(SP5.stressEarliest(scIn, { gap: 1 }, { now: stNow }), sc({ gap: 1 })));
 
 /* ---------- v0.6.9：勞保一次請領老年給付（勞保條例第 58 條第 2 項） ---------- */
 const lumpIn = (o, pre) => require('./_helper').inputs(Object.assign({ birth: '1974-11', workStart: '24', asset: '520', inc: '11.5', spend: '4.2' }, o || {}, { pre: Object.assign({ liYears: '28', w60: '4.58' }, pre || {}) }));
@@ -626,7 +626,6 @@ t('老年一次金：66 歲才退休 → 66 歲領（要先退保）；60 歲後
   near(Q.liLumpMonths, (Q.liYears - 6) + 5, 1e-9);
 });
 t('老年一次金：60 歲以後的年資最多算 5 年', () => {
-  const { Q } = otQ(71, { workStart: '55' });   // 55～71 歲 = 16 年？→ 會滿 15，改用 workStart 58
   const r = otQ(71, { workStart: '58' }).Q;     // 58～71 歲 = 13 年，其中 60 歲後 11 年 → 只算 5 年 → 2＋5＝7 個月（加上目前已有的部分）
   assert.strictEqual(r.liMode, 'onetime'); assert.ok(r.liLumpMonths < r.liYears - 1e-9);
 });
@@ -670,6 +669,41 @@ t('驗證：勞退專戶餘額負數 → 擋下；0 可以', () => { assert.ok(/
 t('驗證：勞退月提繳工資超過上限 → 擋下', () => assert.ok(/勞退月提繳工資/.test(vErr({ lsWage: '50' }))));
 t('驗證：勞退自提超過 6% → 擋下；6% 可以', () => { assert.ok(/自提/.test(vErr({ self: '7' }))); assert.strictEqual(vErr({ self: '6' }), ''); });
 t('驗證：空白一律可以（代表用估算）', () => assert.strictEqual(vErr({ liYears: '', w60: '', lsBal: '', lsWage: '', self: '' }), ''));
+
+/* ---------- v0.7.2：快速開始空白時的訊息 ---------- */
+t('沒填出生年月 →「還沒填（例如 1974-11）」；填錯 →「請寫成 1974-11 這種格式」', () => {
+  const v = (o) => SP5.create(Object.assign({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', pre: {} }, o), { now: stNow }).validate();
+  assert.strictEqual(v({ birth: '' }), '出生年月還沒填（例如 1974-11）。'); assert.strictEqual(v({ birth: '1986/6/1' }), '出生年月請寫成 1974-11 這種格式。');
+  assert.strictEqual(v({ workStart: '' }), '幾歲開始工作還沒填（例如 24）。'); assert.ok(/請填 15 到/.test(v({ workStart: '9' })));
+  ['asset', 'inc', 'spend'].forEach((k) => assert.ok(/還沒填/.test(v({ [k]: '' })), k));
+});
+
+/* ---------- v0.8.0：勞退舊制欄位沒勾選時，填了也要是數字 ---------- */
+t('舊制欄位：沒勾選舊制，填「abc」也擋下；空白或數字可以', () => {
+  const v = (pre) => SP5.create(require('./_helper').inputs({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', pre }), { now: stNow }).validate();
+  assert.ok(/到職年要填數字/.test(v({ oldOn: false, oHire: 'abc' }))); assert.ok(/舊制年資要填數字/.test(v({ oldOn: false, oYrs: 'x' }))); assert.ok(/月平均工資要填數字/.test(v({ oldOn: false, oWage: '<b>' })));
+  assert.strictEqual(v({ oldOn: false, oHire: '', oYrs: '', oWage: '' }), ''); assert.strictEqual(v({ oldOn: false, oHire: '1998', oYrs: '5', oWage: '4' }), '');
+});
+t('esc()：& < > " \' 都跳脫', () => assert.strictEqual(SP5.create(require('./_helper').inputs({}), { now: stNow }).esc('<a href="x" onclick=\'y\'>&'), '&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;'));
+
+/* ---------- v0.9.0：萬一存款利率降低 ---------- */
+t('萬一存款利率降低：退休前後的利率都減，最低 0；最快退休只會更晚或不變', () => {
+  const inp = require('./_helper').inputs({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5' });
+  const base = SP5.scenario(inp, {}, { now: stNow, maxAge: 80 }), r0 = base.en.rates();
+  let prev = base.e;
+  [0.5, 1, 1.5].forEach((d) => {
+    const sc = SP5.scenario(inp, { dep: d }, { now: stNow, maxAge: 80 }), r = sc.en.rates();
+    near(r.dep, Math.max(0, r0.dep - d / 100), 1e-12); assert.ok(r.rPre < r0.rPre && r.rPost < r0.rPost, '實質利率變低');
+    assert.ok(sc.e === null || (prev !== null && sc.e >= prev - 1e-9), '最快退休不會變早：' + prev + ' → ' + sc.e); prev = sc.e;
+  });
+  near(SP5.scenario(inp, { dep: 5 }, { now: stNow, maxAge: 80 }).en.rates().dep, 0, 1e-12);
+});
+t('萬一存款利率降低：跟通膨上升不同——房貸每月固定，通膨上升會讓房貸變輕，利率下降不會', () => {
+  const inp = require('./_helper').inputs({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', house: true, housePay: '3', houseYrs: '20' });
+  const a = SP5.scenario(inp, { inf: 1 }, { now: stNow }), b = SP5.scenario(inp, { dep: 1 }, { now: stNow });
+  const loanReal = (sc) => { const en = sc.en, P = en.profile(sc.adj), Q = en.evalR(P, 60).Q; return en.flowsM(P, Q, 120).loan; };
+  assert.ok(loanReal(a) < loanReal(b) - 1, '通膨上升時，十年後的房貸（今天的購買力）比較輕：' + loanReal(a) + ' vs ' + loanReal(b));
+});
 
 /* ---------- 用語 ---------- */
 t('用語：勞退停發寫成「專戶領完」，不寫「停發」', () => {

@@ -9,7 +9,7 @@
 
 **只存在使用者自己的裝置（瀏覽器的 localStorage，名稱以 `sp5:` 開頭）。** 這個網站沒有伺服器、沒有帳號，系統擁有者看不到任何人的資料。
 
-代價：換裝置、清除瀏覽器資料、iPhone Safari 長時間沒開，資料可能不見。匯出備份列在待辦。
+代價：換裝置、清除瀏覽器資料、iPhone Safari 長時間沒開，資料可能不見。所以方案清單有「備份」：**匯出所有方案**存成 .json（預設加密碼：AES-256-GCM，金鑰由密碼經 PBKDF2 計算 60 萬次），到新的裝置**匯入**就能接著用；匯入一律新增，不會覆蓋現有的方案。
 
 **PDF 報告也在使用者的瀏覽器裡產生**（v0.7.0），資料不會離開裝置。
 
@@ -18,16 +18,24 @@
 ```
 data/                    制度數字（CSV／JSON）與 SOURCES.md；官方調整時只改這裡
 src/engine.js            計算引擎（全專案唯一的一份；瀏覽器與 node 共用）
-src/index.html           畫面（含 reportModel()：PDF 報告的資料模型）
+src/index.html           畫面的 HTML 與 CSS
+src/app/*.js             畫面程式，依功能分 12 個檔案（狀態、快速開始、每個階段、調調看、對照、提高準確度、結果、PDF、存檔、對話框、方案、事件）；
+                         不是獨立模組，build 時依檔名順序接起來包在同一個函式裡 → src/app.generated.js
 src/pdfdoc.js            PDF 排版（純函式：資料模型 → pdfmake 文件定義；瀏覽器與 node 共用）
 fonts/                   楷書子集 kai-subset.ttf、收錄字表、字型授權；原始字型放 fonts/source/（不進 repo）
 scripts/load-data.js     讀 data/ → SP5_DATA
 scripts/build.js         內嵌資料、引擎、PDF 排版成 dist/index.html；複製 pdfmake 與字型；產生預覽單檔 dist/preview.html
+scripts/lint.js          ESLint：src/app/*.js 接起來再檢查，錯誤行號換算回原檔
 scripts/build-font.py    產生楷書子集（優先全字庫正楷體 TW-Kai，沒有就用文鼎 PL 中楷）
 tests/                   引擎、制度規則、persona、資料檔、畫面結構測試（零套件相依）
 tests/e2e/ui.e2e.js      畫面操作測試（jsdom）
+tests/backup.test.js     方案匯出／匯入測試（jsdom＋Node 的 Web Crypto，真的加解密）
+tests/a11y.test.js       無障礙自動檢查（axe-core，9 個畫面）
+tests/official.test.js   官方試算器實測案例（tests/fixtures/official-cases.json）
+tests/boundary.test.js   退休當月的逐月邊界；Math.pow 跨瀏覽器差異不影響最快退休
+tests/deadcode.test.js   死程式檢查：沒用的 CSS、不存在的按鈕、只寫不讀的狀態、沒人用的引擎函式
 tests/pdf.test.js        PDF 報告測試（jsdom＋pdfmake＋pdf.js，整條鏈實際跑）
-docs/系統設計文件.md     架構、引擎、制度規則、畫面、測試、決策紀錄
+docs/system-design.md     架構、引擎、制度規則、畫面、測試、決策紀錄
 .github/workflows/       push 到 main：測試 → build → 發布 GitHub Pages
 ```
 
@@ -43,6 +51,7 @@ npm test          # 引擎、規則、persona、資料、畫面結構、驗收�
 npm run build     # dist/index.html、dist/vendor、dist/fonts、dist/preview.html
 npm run test:ui   # 畫面操作
 npm run test:pdf  # PDF 報告
+npm run lint      # ESLint（抓 bug 的規則）
 npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 ```
 
@@ -85,14 +94,25 @@ npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 
 ## 待辦
 
+- 四份外部評論合併後的待辦（P0：快速開始改空白、存檔讀取失敗的備份、方案匯出入、設計文件英文檔名；P1：跳脫使用者輸入、資料核對日期、分享版改名、「不是保證」、ESLint、拆分 index.html 等），已逐項查證並排好順序，見 docs/system-design.md 11.1。
+
 - 字型換成全字庫正楷體（官方檔案放進 fonts/source/，npm run font）；PDF 加密升級到 R6（等 pdfkit 支援）。
 - 匯出／匯入備份、存成連結。
-- 設計細節見 docs/系統設計文件.md。
+- 設計細節見 docs/system-design.md。
 
 ## 版本紀錄
 
+有兩種「版本」，意思不同：**軟體版本**（package.json、src/engine.js 的 VERSION，例如 0.7.2）是程式改了幾次；**資料年度**（data/params.json 的 version，例如 115）是制度數字用民國哪一年的版本。官方調整制度數字時，資料年度會變，軟體版本不一定變。
+
 | 版本 | 重點 |
 | --- | --- |
+| v0.9.3 | 全面清理死程式（CSS 40 個類別、95 條規則；舊「萬一」的殘留；沒用的狀態與引擎公開函式）；雇主提繳率改讀 params.json；新增死程式檢查測試 |
+| v0.9.2 | 修正：v0.9.0 起所有對話框都被鎖住按不了（對話框在 main 裡面，卻把整個 main 設成不可操作）；測試的點擊改為遇到不可操作的元素就報錯 |
+| v0.9.1 | 測試：無障礙自動檢查、PDF 安全、官方案例集中、退休當月邊界、Math.pow 跨瀏覽器 |
+| v0.9.0 | 每個階段改成色條＋直式清單；曲線白話結論；萬一存款利率降低；制度資料核對日期；分享版改名；假設寫明不是保證；對話框鎖 Tab 鍵 |
+| v0.8.1 | 方案匯出／匯入（.json、預設加密、一律新增）；CSV 格式不符時 build 失敗；pick() 每張表只排序一次；修正：方案資料不合法時按「回到結果」會崩潰 |
+| v0.8.0 | 重構（使用者看到的不變）：畫面程式拆成 src/app/ 12 個檔案；ESLint；所有存檔與輸入的文字放進畫面前跳脫，加攻擊測試；狀態物件分出計算結果 |
+| v0.7.2 | 快速開始改成空白（避免範例數字產生看似精確的結果）；存檔讀取失敗時先另存原始資料再提示；設計文件改名 docs/system-design.md；.npmrc 檢查 Node 版本 |
 | v0.7.1 | PDF 版面：章節不拆頁、年月與金額不黏在一起、曲線用完年齡與第四章一致；孩子資料格式 |
 | v0.7.0 | 分享 PDF 報告（單一版本／對照、完整版／去個資版、AES-256 密碼、目錄、楷書）；填錯當場擋下；補上提高準確度數字欄位的驗證 |
 | v0.6.14 | 對照表段落標題放大 |
@@ -100,14 +120,13 @@ npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 | v0.6.12 | 一次請領可填退保前 3 年平均；適用範圍補農民；假設補季發 |
 | v0.6.11 | 勞保未滿 15 年：老年一次金、併計國保 65 歲月領；修正年資剛好 15 年的浮點 bug；寫明適用範圍 |
 | v0.6.10 | 調調看「你可以決定的」「萬一……」兩組都可以收起，收起時標題寫出改了什麼 |
-| v0.6.10 | 調調看兩組可收起並顯示改了什麼；假設改成分點 |
 | v0.6.9 | 勞保一次領 vs 月領比較（含國保、損益兩平年齡，不給建議）；一次領走 lump 事件路徑；「那天需要多少」拉到結果與對照表；快速開始寫明只算你那一份與資料不上傳；敏感題目寫明用途；勞保登記性別、同一家公司年資（只在會改變答案時問） |
 | v0.6.8 | 提高準確度拿掉「算到幾歲」，只留萬一的「活到」 |
 | v0.6.0～v0.6.7 | 第一位真人測試回饋改版：從現在的年紀開始算、調調看、原始 vs 調整後對照、工作空窗、整理版面 |
 | v0.5.x | 不靠投資（存款利率）、平台名稱、子女每階段、勞退舊制提醒、提早退休併入地圖 |
 | v0.1～v0.4 | 規格、按月引擎、官方試算器實測、資料外部化 |
 
-完整紀錄見 docs/系統設計文件.md 第 12 章。
+完整紀錄見 docs/system-design.md 第 12 章。
 
 ## 注意
 

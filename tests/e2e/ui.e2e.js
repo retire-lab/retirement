@@ -5,7 +5,7 @@ function mk(store){const errs=[];const dom=new JSDOM(html,{runScripts:'dangerous
 const T=s=>s.replace(/\s+/g,' ').trim();
 let ok=0,bad=0; const check=(name,cond,info)=>{ if(cond){ok++;console.log('  ✓',name);} else {bad++;console.log('  ✗',name,info||'');} };
 function act(env){const {d,W}=env; return {
-  click:el=>{if(!el)throw new Error('missing element');el.dispatchEvent(new W.MouseEvent('click',{bubbles:true}))},
+  click:el=>{if(!el)throw new Error('missing element');if(el.closest&&el.closest('[inert]'))throw new Error('點到被設成不可操作的元素（真的瀏覽器點不到）：'+(el.id||el.className||el.tagName));el.dispatchEvent(new W.MouseEvent('click',{bubbles:true}))},
   type:(el,v)=>{el.value=v;el.dispatchEvent(new W.Event('input',{bubbles:true}))},
   chg:(el,v)=>{if(el.type==='checkbox')el.checked=v;else el.value=v;el.dispatchEvent(new W.Event('change',{bubbles:true}))},
   visible:id=>{let e=d.getElementById(id); while(e){ if(e.hidden) return false; e=e.parentElement;} return true;}
@@ -35,12 +35,12 @@ section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活
   a.click(d.getElementById('tgAdj'));
   // #1 工作期
   a.click(d.querySelector('[data-phase="0"]'));
-  const wp=T(d.querySelector('.ppanel').textContent);
+  const wp=T(d.querySelector('.phrow.open').textContent);   /* v0.9.0：「退休時你會有」在每一列的標題，展開後下面是算式 */
   check('#1 工作期寫出退休時有多少錢：1,178 萬＝現有 500＋存下 711－通膨 32.7',/退休時你會有 1,178 萬/.test(wp)&&/現有500 萬/.test(wp)&&/這段存下711 萬/.test(wp)&&/通膨讓存款縮水32.7 萬/.test(wp),wp.slice(0,160));
   // #12／#13 調整器
   openAdj(env);
   const rows=[...d.querySelectorAll('.strow')].map(x=>T(x.querySelector('.stlab').textContent));
-  check('#12 調調看：全部是加減按鈕，分「你可以決定的」「萬一……」',rows.join('/')==='想在幾歲退休/每月花費/每月多存/活到/收入中斷多久/收入減少多少/晚年每月多花多少/通膨/勞保只領到'&&[...d.querySelectorAll('#adjCard .adjg > summary b')].map(x=>x.textContent).join('/')==='你可以決定的/萬一……',rows.join('/'));
+  check('#12 調調看：全部是加減按鈕，分「你可以決定的」「萬一……」',rows.join('/')==='想在幾歲退休/每月花費/每月多存/活到/收入中斷多久/收入減少多少/晚年每月多花多少/通膨/存款利率/勞保只領到'&&[...d.querySelectorAll('#adjCard .adjg > summary b')].map(x=>x.textContent).join('/')==='你可以決定的/萬一……',rows.join('/'));
   check('#13 金額每格 2,000',/每格 2,000/.test(T(d.getElementById('adjCard').textContent)));
   a.click(d.querySelector('[data-step="more:-1"]')); a.click(d.querySelector('[data-step="more:-1"]'));
   check('#3／#10 有調整 → 結果改成原始／調整後對照，原始那欄不動',!!d.querySelector('.cmpcard')&&/最快退休53 歲 6 個月2039\/12（最快）51 歲 7 個月/.test(imp(d)),imp(d));
@@ -158,11 +158,12 @@ section('特殊情況');
   check('65 歲還不夠時：原始寫 65 歲還不夠，調整後算到 80 歲',/最快退休65 歲還不夠/.test(imp(d)),imp(d));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 { const env=mk(), {d}=env, a=act(env);
+  a.type(d.getElementById('birth'),'1974-11'); a.type(d.getElementById('workStart'),'25');   /* v0.7.2 起快速開始是空的，不再有範例可依賴 */
   a.type(d.getElementById('asset'),'20'); a.type(d.getElementById('inc'),'4'); a.type(d.getElementById('spend'),'5'); a.click(d.getElementById('go'));
   check('入不敷出：還沒退休錢就用完',/還沒退休錢就用完/.test(hero(d)));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 { const env=mk(), {d}=env, a=act(env);
-  a.type(d.getElementById('birth'),'1976-10'); a.type(d.getElementById('asset'),'5000'); a.type(d.getElementById('inc'),'5'); a.type(d.getElementById('spend'),'3'); a.click(d.getElementById('go'));
+  a.type(d.getElementById('birth'),'1976-10'); a.type(d.getElementById('asset'),'5000'); a.type(d.getElementById('inc'),'5'); a.type(d.getElementById('spend'),'3'); a.type(d.getElementById('workStart'),'25'); a.click(d.getElementById('go'));
   openAdj(env);
   check('已經夠用：你現在就已經達到退休門檻',/你現在就已經達到退休門檻/.test(hero(d)),hero(d).slice(0,160));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
@@ -183,7 +184,7 @@ section('子女每階段、舊存檔、舊制提醒、方案比對');
   check('舊存檔：沒有工作空窗欄位也能算、不顯示有未存檔的修改',!d.querySelector('.scbar.dirty')&&T(d.getElementById('saveBtn').textContent)==='已存檔');
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 { const env=mk(), {d}=env, a=act(env);
-  a.type(d.getElementById('birth'),'1974-11'); a.type(d.getElementById('workStart'),'24'); a.type(d.getElementById('asset'),'400'); a.click(d.getElementById('go'));
+  a.type(d.getElementById('birth'),'1974-11'); a.type(d.getElementById('workStart'),'24'); a.type(d.getElementById('asset'),'400'); a.type(d.getElementById('inc'),'10.5'); a.type(d.getElementById('spend'),'4'); a.click(d.getElementById('go'));
   check('1998 年開始工作 → 提高準確度按鈕上寫「可能有勞退舊制」',/可能有勞退舊制/.test(T(d.getElementById('tgPrec').textContent)));
   a.click(d.getElementById('tgPrec'));
   check('打開提高準確度，最上面提醒可能有舊制年資',/可能有勞退舊制年資/.test(T(d.querySelector('#panelPrec .holdhint').textContent)));
@@ -240,7 +241,8 @@ section('混合（實際資料＋調調看）與存成新方案');
   check('條件超過 3 項 → 收起「還有 N 項」',/還有 2 項 ›/.test(imp(d)),imp(d));
   a.click(d.getElementById('condAll'));
   check('展開後看得到萬一的條件',/勞保只領到不打折80%回復/.test(imp(d)),imp(d));
-  const before=d.querySelectorAll('.scrow').length, n0=T(d.querySelector('.scbar .ct').textContent);
+  const n0=T(d.querySelector('.scbar .ct').textContent);
+  check('存成新方案之前：1／10',/1／10/.test(n0),n0);
   a.click(d.getElementById('saveNew'));
   check('存成新方案：方案數 +1、自動命名、切到新方案',/2／10/.test(T(d.querySelector('.scbar .ct').textContent))&&/（少花 2,000等）/.test(T(d.querySelector('.scbar .nm').textContent)),T(d.querySelector('.scbar').textContent));
   check('新方案：沒有對照、提示萬一沒存進去',!d.querySelector('.cmpcard')&&/萬一……沒有存進去/.test(d.getElementById('toast').textContent));
@@ -361,7 +363,7 @@ section('v0.6.9：只算你那一份、隱私、那天需要多少');
 section('v0.6.9：勞保一次領 vs 月領');
 function liCase(env, birth, ws, asset){ const {d}=env,a=act(env); a.type(d.getElementById('birth'),birth); a.type(d.getElementById('workStart'),ws); a.type(d.getElementById('asset'),asset||'520'); a.type(d.getElementById('inc'),'11.5'); a.type(d.getElementById('spend'),'4.2'); a.click(d.getElementById('go')); openPrec(env); }
 const how=d=>T((d.querySelector('.lihow')||{textContent:''}).textContent);
-{ const env=mk(), {d}=env, a=act(env); liCase(env,'1990-03','23');
+{ const env=mk(), {d}=env; liCase(env,'1990-03','23');
   check('2013 年才開始工作 → 你只能月領，不顯示比較',/你只能月領/.test(how(d))&&!d.querySelector('.licmp')&&!d.querySelector('[data-pa="liMode:lump"]'));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 { const env=mk(), {d}=env, a=act(env); liCase(env,'1974-11','24');
@@ -414,10 +416,13 @@ section('調調看：兩組都能收起，收起時寫出改了什麼');
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 section('結果頁最下面的假設改成分點');
-{ const env=mk(), {d}=env, a=act(env); tester(env);
+{ const env=mk(), {d}=env; tester(env);
   const li=[...d.querySelectorAll('.disc li')].map(x=>T(x.textContent));
-  check('假設分成 10 點',li.length===10,li.length);
-  check('第一點就是只算你自己那一份（含配偶負擔家用的原文）',/^只算你自己負擔的那一份，並假設配偶持續負擔其目前的家用份額。/.test(li[0]));
+  check('假設分成 12 點（v0.9.0 加「不是保證」、孩子費用攤平；空窗、利率各補一句；資料核對日期）',li.length===12,li.length);
+  check('第一點是「固定假設下的門檻，不是機率，也不是保證」',/^這是在固定假設下推算的門檻，不是機率，也不是保證/.test(li[0]),li[0]);
+  check('第二點是只算你自己那一份（含配偶負擔家用的原文）',/^只算你自己負擔的那一份，並假設配偶持續負擔其目前的家用份額。/.test(li[1]));
+  check('最後一點寫出制度資料最後核對的日期',/^制度數字（勞保、勞退、國保、健保）最後核對：\d{4}\/\d{2}\/\d{2}。/.test(li[li.length-1]),li[li.length-1]);
+  check('補的三句：孩子費用攤平、空窗只扣年資、退休前後同一個利率',li.some(x=>/全年金額平均攤到每個月/.test(x))&&li.some(x=>/只扣制度年資，不重建當時的薪資與存款/.test(x))&&li.some(x=>/退休前後都用同一個利率/.test(x)));
   check('涵蓋存款利率、通膨、算到幾歲、勞保勞退國保、健保、工作空窗、不是建議',[/年利率 1\.7%/,/通膨 2%/,/算到 90 歲/,/國保保費與年金已計入/,/第六類自付每月 826 元/,/工作空窗只問多久/,/不是建議/].every(r=>li.some(x=>r.test(x))));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
@@ -480,6 +485,187 @@ section('v0.7.0：填錯當場擋下，不算修改');
   a.click(d.getElementById('applyPre')); openPrec(env);
   check('套用：對的套用了（勞保年資 20），錯的留在欄位（9）並提示',d.getElementById('pLy').value==='20'&&d.getElementById('pW').value==='9'&&!!d.querySelector('.ferr[data-ferr="w60"]')&&/1 項有錯，沒有套用/.test(d.getElementById('toast').textContent));
   check('套用後沒有對照表（剩下的只有填錯的那項）',!d.querySelector('.cmpcard'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.7.2：快速開始是空的（不用範例數字算出看似精確的結果）');
+{ const env=mk(), {d}=env, a=act(env);
+  const ids=['birth','workStart','asset','inc','spend'];
+  check('五個欄位都是空的',ids.every(i=>d.getElementById(i).value===''),ids.map(i=>i+'='+d.getElementById(i).value).join(' '));
+  check('範例只在灰色提示文字裡（例如……）',ids.every(i=>/^例如 /.test(d.getElementById(i).getAttribute('placeholder')||'')));
+  check('空的時候不顯示「每月約可累積」（不會出現 NaN）',d.getElementById('accum').hidden&&!/NaN|undefined/.test(d.getElementById('quick').textContent));
+  a.click(d.getElementById('go'));
+  check('直接按「算」→ 擋下，留在快速開始並寫出原因',!d.getElementById('result').querySelector('.hero')&&/出生年月/.test(T((d.querySelector('#quick .err')||d.querySelector('.err')||{textContent:''}).textContent)),T((d.querySelector('.err')||{textContent:''}).textContent));
+  a.type(d.getElementById('birth'),'1986-06'); a.type(d.getElementById('workStart'),'25'); a.type(d.getElementById('asset'),'500'); a.type(d.getElementById('inc'),'9'); a.type(d.getElementById('spend'),'4.5');
+  a.click(d.getElementById('go'));
+  check('填完五個欄位 → 算得出結果',!!d.querySelector('.hero .age')&&/53 歲 6 個月/.test(T(d.querySelector('.hero .age').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env);
+  a.click(d.getElementById('openList')||d.body); 
+  check('新方案的預設也是空的',!d.getElementById('birth')||d.getElementById('birth').value==='');
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.7.2：存檔讀不出來時，先另存原始資料再提示（不會被覆蓋）');
+{ const BAD='{"v":1,"list":[壞掉';
+  const env=mk({'sp5:data':BAD}), {d,W}=env, a=act(env);
+  const keys=()=>Object.keys(W.localStorage).filter(k=>k.indexOf('sp5:data:backup-')===0);
+  check('JSON 壞掉 → 原始資料另存到 sp5:data:backup-時間，內容一字不差',keys().length===1&&W.localStorage.getItem(keys()[0])===BAD,keys().join(','));
+  check('跳出提示「存檔讀不出來」，寫明已另外保存、存檔不會覆蓋它',/存檔讀不出來/.test(T(d.getElementById('mTitle').textContent))&&/已經另外保存一份/.test(T(d.getElementById('mBody').textContent))&&T(d.getElementById('mBody').textContent).includes(keys()[0]));
+  a.click([...d.querySelectorAll('#mBtns button')].find(b=>/知道了/.test(b.textContent)));
+  a.type(d.getElementById('birth'),'1986-06'); a.type(d.getElementById('workStart'),'25'); a.type(d.getElementById('asset'),'500'); a.type(d.getElementById('inc'),'9'); a.type(d.getElementById('spend'),'4.5');
+  a.click(d.getElementById('go')); a.click(d.getElementById('saveBtn'));
+  check('重新填寫、存檔之後，備份還在、內容沒變',keys().length===1&&W.localStorage.getItem(keys()[0])===BAD);
+  check('新的存檔寫在原本的位置，可以正常讀',(()=>{try{return JSON.parse(W.localStorage.getItem('sp5:data')).v===1;}catch(e){return false;}})());
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk({'sp5:data':JSON.stringify({v:2,list:'不是陣列'})}), {d,W}=env;
+  check('JSON 正常但格式不符（版本不對）→ 一樣另存並提示',Object.keys(W.localStorage).some(k=>k.indexOf('sp5:data:backup-')===0)&&/存檔讀不出來/.test(T(d.getElementById('mTitle').textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk({'sp5:data':JSON.stringify({v:1,active:null,list:[],cmp:[],showAll:false})}), {d,W}=env;
+  check('正常的存檔 → 不跳提示、不另存',d.getElementById('modal').hidden&&!Object.keys(W.localStorage).some(k=>k.indexOf('backup')>=0));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const errs=[]; const {JSDOM}=require('jsdom');
+  const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://user.github.io/sp5/',beforeParse(w){ w.localStorage.setItem('sp5:data','壞掉'); const set=w.Storage.prototype.setItem; w.Storage.prototype.setItem=function(k,v){ if(String(k).indexOf('backup')>=0) throw new Error('QuotaExceededError'); return set.call(this,k,v); }; w.scrollTo=()=>{}; w.HTMLElement.prototype.scrollIntoView=()=>{}; w.addEventListener('error',e=>errs.push(e.message)); }});
+  const d=dom.window.document;
+  check('儲存空間滿、另存不了 → 明確警告「先不要按存檔」',/沒辦法另外保存/.test(T(d.getElementById('mBody').textContent))&&/先不要按「存檔」/.test(T(d.getElementById('mBody').textContent)));
+  check('沒有執行錯誤',errs.length===0,errs); }
+
+section('v0.8.0：攻擊測試——存檔與輸入裡的惡意 HTML 一律當成純文字');
+{ const X='X"\'><i id=xss></i>';
+  const noXss=(d)=>!d.getElementById('xss')&&!d.querySelector('i#xss');
+  const deep=(o)=>{ if(typeof o==='string') return X; if(Array.isArray(o)) return o.map(deep); if(o&&typeof o==='object'){ const r={}; for(const k in o) r[k]=deep(o[k]); return r; } return o; };
+  const base={birth:'1986-06',workStart:'25',asset:'500',inc:'9',spend:'4.5',house:true,car:false,kidsOn:true,parOn:true,housePay:'2',houseYrs:'10',housePre:false,housePreAge:'',houseRate:'',carPay:'',carYrs:'',par:'1',parMode:'keep',parYrs:'',
+    kids:[{bym:'2018-03',path:'uni',costs:{ele:'2',jun:'2',sen:'2',uni:'3'}}],
+    pre:{liYears:'',w60:'',lsBal:'',lsWage:'',lsYears:'',liClaim:'',self:'0',endAge:'',nhiDep:false,inf:'',dep:'',oldOn:false,oHire:'',oYrs:'',oWage:'',gaps:[],liMode:'',liPre09:false,sex:'',sameCo:'',w36:''}};
+  const store=(saved,meta)=>({'sp5:data':JSON.stringify(Object.assign({v:1,active:X,list:[{id:X,name:X,saved,updated:X},{id:X+'2',name:X+'2',saved,updated:X}],cmp:[X,X+'2'],showAll:false},meta||{}))});
+  const steps=(env,tag)=>{ const {d}=env, a=act(env), out=[];
+    const step=(name,fn)=>{ try{ fn(); }catch(e){ out.push(name+'（'+e.message+'）'); return; } if(!noXss(d)) out.push(name); };
+    step('開啟',()=>{});
+    step('按「算」',()=>{ if(d.getElementById('go')&&!d.getElementById('quick').hidden) a.click(d.getElementById('go')); });
+    step('提高準確度',()=>{ const b=d.getElementById('tgPrec'); if(b) a.click(b); });
+    step('調調看',()=>{ const b=d.getElementById('tgAdj'); if(b) a.click(b); });
+    step('分享視窗',()=>{ const b=d.getElementById('shareBtn'); if(b){ a.click(b); const c=[...d.querySelectorAll('#mBtns button')].find(x=>/取消/.test(x.textContent)); if(c) a.click(c); } });
+    step('方案清單',()=>{ const b=d.getElementById('openList'); if(b) a.click(b); });
+    step('改名視窗',()=>{ const b=d.querySelector('[data-rn]'); if(b){ a.click(b); const c=[...d.querySelectorAll('#mBtns button')].find(x=>/取消/.test(x.textContent)); if(c) a.click(c); } });
+    step('刪除確認',()=>{ const b=d.querySelector('[data-del]:not([disabled])'); if(b){ a.click(b); const c=[...d.querySelectorAll('#mBtns button')].find(x=>/取消/.test(x.textContent)); if(c) a.click(c); } });
+    step('方案比對',()=>{ const b=d.getElementById('openCmp')||d.querySelector('[data-vs]'); if(b) a.click(b); });
+    return out; };
+  /* 第 1 輪：每一個欄位都是惡意內容 */
+  { const env=mk(store(deep(base))), {d}=env; const bad=steps(env,'1');
+    check('第 1 輪（存檔的每個欄位都是惡意內容）：每個畫面都沒有被注入',bad.length===0,bad.join('、'));
+    check('第 1 輪：惡意內容原封不動放在輸入框裡、方案名稱以純文字出現（確認真的有渲染到）',d.getElementById('birth').value===X&&d.getElementById('quick').querySelector('input').value===X||d.body.textContent.includes('<i id=xss></i>'),d.getElementById('birth').value);
+    check('第 1 輪：沒有執行錯誤',env.errs.length===0,env.errs); }
+  /* 第 2 輪：數字合法，名稱、id、時間、工作空窗類型是惡意內容 → 走得到結果頁 */
+  { const sv=JSON.parse(JSON.stringify(base));   /* 數字都合法才走得到結果頁（工作空窗的類型不合法就會停在快速開始） */
+    const env=mk(store(sv)), {d}=env; const onResult=!!d.querySelector('.hero');
+    const bad=steps(env,'2');
+    check('第 2 輪：走得到結果頁',onResult);
+    check('第 2 輪（方案名稱、id、存檔時間是惡意內容）：每個畫面都沒有被注入',bad.length===0,bad.join('、'));
+    check('第 2 輪：惡意內容以純文字出現在畫面上（確認真的有渲染到）',d.body.textContent.includes('<i id=xss></i>'));
+    check('第 2 輪：沒有執行錯誤',env.errs.length===0,env.errs); }
+  /* 第 3 輪：在提高準確度的每個欄位輸入惡意內容 */
+  { const env=mk(), {d}=env, a=act(env); tester(env); openPrec(env);
+    const ids=[...d.querySelectorAll('#panelPrec input[type=text][data-pre]')].map(x=>x.id);
+    ids.forEach(id=>{ const e=d.getElementById(id); if(e){ a.type(e,X); a.chg(e,X); } });
+    check('第 3 輪：提高準確度有 '+ids.length+' 個文字欄位都輸入了惡意內容',ids.length>=5,ids.join(','));
+    check('第 3 輪：欄位錯誤訊息、對照表都沒有被注入',noXss(d));
+    check('第 3 輪：欄位裡保留使用者打的字（當成純文字）',ids.every(id=>!d.getElementById(id)||d.getElementById(id).value===X));
+    check('第 3 輪：沒有執行錯誤',env.errs.length===0,env.errs); }
+  /* 第 4 輪：假設驗證失效（模擬將來某個欄位漏了檢查），惡意內容進了對照表，第二道防線（放進 HTML 前跳脫）還是要擋住 */
+  { const env=mk(), {d,W}=env, a=act(env); tester(env);
+    const orig=W.SP5Engine.create; W.SP5Engine.create=function(inp,o){ const en=orig(inp,o); en.validate=function(){ return ''; }; return en; };
+    openPrec(env); a.type(d.getElementById('pOh'),X); a.chg(d.getElementById('pOh'),X);
+    check('第 4 輪：驗證失效時，惡意內容真的進了對照表（確認這輪有測到東西）',/<i id=xss><\/i>/.test(T((d.querySelector('.cmpcard')||{textContent:''}).textContent)),T((d.querySelector('.cmpcard')||{textContent:''}).textContent).slice(0,120));
+    check('第 4 輪：對照表當成純文字顯示，沒有被注入',noXss(d));
+    W.SP5Engine.create=orig; }
+}
+
+section('v0.9.0：每個階段改成色條＋直式清單');
+{ const env=mk(), {d}=env, a=act(env); tester(env);
+  const m=d.getElementById('mapCard'), strips=m.querySelectorAll('.strip');
+  check('單一版本：一條色條＋圖例三種（有薪水、只靠資產、有年金補貼）',strips.length===1&&T(m.querySelector('.slegend').textContent)==='有薪水只靠資產有年金補貼');
+  check('色條只能看、不能點（裡面沒有按鈕或連結），而且有文字說明給螢幕閱讀器',!strips[0].querySelector('button,a,[tabindex]')&&strips[0].getAttribute('role')==='img'&&/工作期/.test(strips[0].getAttribute('aria-label')));
+  const labs=[...strips[0].querySelectorAll('.sl')].map(x=>T(x.textContent));
+  check('色條的標籤：退休（上方粗體）、現在、終點，以及放得下的分界年齡',labs.includes('退休 53')&&labs.includes('現在 40')&&labs.includes('90')&&labs.includes('60'),labs.join(','));
+  check('退休在上方，現在與終點在下方',!!strips[0].querySelector('.slrow.up .sl.ret')&&[...strips[0].querySelectorAll('.slrow.dn .sl')].some(x=>/現在/.test(x.textContent)));
+  const pcts=[...strips[0].querySelectorAll('.sg,.sl,.sltk,.sdot')].map(x=>x.getAttribute('style')).join(' ').match(/(left|width):(-?[\d.]+)%/g)||[];
+  check('色條、標籤的位置都在 0～100%（不會超出卡片）',pcts.length>0&&pcts.every(x=>{const v=+x.split(':')[1].replace('%','');return v>=0&&v<=100;}),pcts.join(' '));
+  const segs=[...strips[0].querySelectorAll('.sg')].map(x=>x.className.replace('sg ',''));
+  check('顏色依錢從哪裡來：工作期綠、橋接期橘、之後灰藍',segs[0]==='k-pay'&&segs[1]==='k-asset'&&segs.slice(2).every(x=>x==='k-pension'),segs.join(','));
+  check('不再寫「寬度不代表時間長短」',!/寬度不代表時間長短/.test(T(m.textContent)));
+  const rows=[...m.querySelectorAll('.phrow')];
+  check('清單：每一段一列（5 段），沒點之前就寫出金額',rows.length===5&&rows.every(r=>/退休時你會有 [\d,.]+ 萬|這段要從資產拿出 [\d,.]+ 萬|這段收入大於支出/.test(T(r.textContent))),rows.map(r=>T(r.textContent).slice(0,40)).join(' | '));
+  check('預設全部收起',!m.querySelector('.ppanel')&&rows.every(r=>r.querySelector('.phc').getAttribute('aria-expanded')==='false'));
+  a.click(m.querySelectorAll('.phc')[1]);
+  check('點一下：那一段展開，看得到事件',!!d.querySelector('#mapCard .phrow.open .ppanel')&&/退休/.test(T(d.querySelector('#mapCard .ppanel').textContent))&&d.querySelectorAll('#mapCard .phc')[1].getAttribute('aria-expanded')==='true');
+  a.click(d.querySelectorAll('#mapCard .phc')[1]);
+  check('再點一下：收回',!d.querySelector('#mapCard .ppanel'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+{ const env=mk(), {d}=env, a=act(env); tester(env); openAdj(env); a.click(d.querySelector('.stv[data-edit="ret"]')); d.getElementById('ed-y').value='2036'; d.getElementById('ed-m').value='6'; a.click(d.querySelector('[data-editok="ret"]'));
+  const m=d.getElementById('mapCard'), strips=m.querySelectorAll('.strip');
+  check('對照：兩條色條，原始在上（淡色）、調整後在下',strips.length===2&&strips[0].classList.contains('dim')&&!strips[1].classList.contains('dim')&&/^原始・/.test(T(m.querySelectorAll('.stlab')[0].textContent))&&/^調整後・/.test(T(m.querySelectorAll('.stlab')[1].textContent)));
+  check('對照：調整後提早退休、資產用完 → 調整後那條有紅點與「…用完」',!!strips[1].querySelector('.sdot')&&/用完/.test(T(strips[1].textContent))&&!strips[0].querySelector('.sdot'),T(strips[1].textContent));
+  check('對照：清單跟著頁籤（預設調整後）',/^調整後：/.test(T([...m.querySelectorAll('.muted')].find(x=>/退休來看/.test(x.textContent)).textContent)));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.9.0：曲線的白話結論與文字摘要');
+{ const env=mk(), {d}=env; tester(env);
+  const say=T(d.getElementById('curveSay').textContent), al=d.querySelector('#curveCard svg').getAttribute('aria-label');
+  check('有橋接期：說明 60 歲前只靠資產、之後變慢，並寫出到 90 歲還剩多少',/退休後到 60 歲勞退開始前只靠資產，下降最快；之後年金補上，下降變慢。到 90 歲還剩 [\d,.]+ 萬。/.test(say),say);
+  check('圖表的文字摘要有實際數字：現在、退休時、最低點、到 90 歲',/現在 500 萬；53 歲 6 個月退休時 1,178 萬；最低點 \d+ 歲那一年 .*到 90 歲剩 [\d,.]+ 萬/.test(al),al); }
+{ const env=mk(), {d}=env, a=act(env); a.type(d.getElementById('birth'),'1974-11'); a.type(d.getElementById('workStart'),'25'); a.type(d.getElementById('asset'),'450'); a.type(d.getElementById('inc'),'9'); a.type(d.getElementById('spend'),'4'); a.click(d.getElementById('go'));
+  openAdj(env); a.click(d.querySelector('.stv[data-edit="ret"]')); d.getElementById('ed-y').value='2029'; d.getElementById('ed-m').value='11'; a.click(d.querySelector('[data-editok="ret"]'));
+  const say=T(d.getElementById('curveSay').textContent);
+  check('資產會用完：「照這樣，資產會在…用完；最吃緊的是…只靠資產的這段」',/^調整後：照這樣，資產會在 \d+ 歲 \d+ 個月用完；最吃緊的是 55～60 歲只靠資產的這段。/.test(say),say); }
+
+section('v0.9.0：萬一存款利率降低');
+{ const env=mk(), {d}=env, a=act(env); tester(env); openAdj(env);
+
+  check('萬一……有「存款利率」，預設寫目前的利率（設定）',/存款利率1\.7%（設定）/.test(T(d.getElementById('adjCard').textContent)),T(d.getElementById('adjCard').textContent).slice(0,300));
+  a.click(d.querySelector('[data-step="wi.dep:1"]'));
+  check('降一格 → 對照表寫「存款利率 1.7% → 1.2%」',/存款利率1\.7%1\.2%/.test(imp(d)),imp(d));
+  a.click(d.querySelector('[data-step="wi.dep:1"]')); a.click(d.querySelector('[data-step="wi.dep:1"]'));
+  check('最多降 1.5 個百分點（0.2%），不會變負的',/存款利率1\.7%0\.2%/.test(imp(d))&&!d.querySelector('[data-step="wi.dep:1"]:not([disabled])')||/0\.2%/.test(imp(d)),imp(d));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.9.0：制度資料核對日期');
+{ const env=mk(), {d}=env; tester(env);
+  check('結果卡底下寫出制度資料核對日期，沒過期不提醒',/制度資料核對 \d{4}\/\d{2}\/\d{2}/.test(T(d.querySelector('.hero').textContent))&&!/超過一年沒有核對/.test(T(d.getElementById('result').textContent))); }
+{ const errs=[]; const {JSDOM}=require('jsdom');
+  const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://user.github.io/sp5/',beforeParse(w){ const real=w.Date.now; w.Date.now=()=>real()+2*365*86400000; w.scrollTo=()=>{}; w.HTMLElement.prototype.scrollIntoView=()=>{}; w.addEventListener('error',e=>errs.push(e.message)); }});
+  const env={d:dom.window.document,W:dom.window,errs}; tester(env); const d=env.d;
+  check('兩年後打開：結果頁最上面提醒「制度資料已經超過一年沒有核對」',/制度資料已經超過一年沒有核對/.test(T(d.querySelector('.hero').textContent)));
+  check('假設的最後一點也寫明可能跟最新規定不同',[...d.querySelectorAll('.disc li')].some(x=>/已經超過一年沒有核對，可能跟最新的規定不同/.test(x.textContent)));
+  check('沒有執行錯誤',errs.length===0,errs); }
+
+section('v0.9.0：年齡上限的說法、分享版改名');
+{ const env=mk(), {d}=env, a=act(env); a.type(d.getElementById('birth'),'1968-11'); a.type(d.getElementById('workStart'),'30'); a.type(d.getElementById('asset'),'50'); a.type(d.getElementById('inc'),'6'); a.type(d.getElementById('spend'),'5'); a.click(d.getElementById('go'));
+  openAdj(env); a.click(d.querySelector('[data-step="wi.li:-1"]'));
+  check('出現「還不夠」時說明：原始找到 65 歲、調整後找到 80 歲、錢都算到 90 歲',/「還不夠」的意思：原始那欄找最快退休只找到 65 歲，調整後那欄找到 80 歲；兩邊的錢都算到 90 歲。/.test(T(d.querySelector('.cmpnote').textContent))); }
+{ const env=mk(), {d}=env, a=act(env); tester(env); a.click(d.getElementById('shareBtn'));
+  const t=T(d.getElementById('mBody').textContent);
+  check('分享視窗：「去個資版」改名「分享版」，並說明財務數字會保留、熟悉你的人可能猜出是你',/分享版/.test(t)&&!/去個資版/.test(t)&&/熟悉你的人可能從數字猜出是你/.test(t)); }
+
+section('v0.9.0：對話框鎖住 Tab 鍵、關閉後還原焦點');
+{ const env=mk(), {d,W}=env, a=act(env); tester(env);
+  const sb=d.getElementById('shareBtn'); sb.focus(); a.click(sb);
+  check('打開時：背景（結果頁）不可操作，但對話框本身、提示訊息可以操作（v0.9.2：以前整個 main 被鎖，連對話框也點不到）',!!d.getElementById('result').closest('[inert]')&&!d.getElementById('modal').closest('[inert]')&&!d.getElementById('toast').closest('[inert]'));
+  check('打開時：焦點在對話框裡',d.getElementById('modal').contains(d.activeElement));
+  const fs=[...d.getElementById('modal').querySelectorAll('button, input, select')].filter(x=>!x.disabled&&!x.closest('[hidden]'));
+  fs[fs.length-1].focus(); d.dispatchEvent(new W.KeyboardEvent('keydown',{key:'Tab',bubbles:true}));
+  check('在最後一個時按 Tab → 回到第一個',d.activeElement===fs[0],d.activeElement&&d.activeElement.outerHTML.slice(0,60));
+  fs[0].focus(); d.dispatchEvent(new W.KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true}));
+  check('在第一個時按 Shift+Tab → 到最後一個',d.activeElement===fs[fs.length-1]);
+  d.dispatchEvent(new W.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  check('按 Esc 關閉 → 背景恢復可操作、焦點回到「分享」按鈕',d.getElementById('modal').hidden&&!d.querySelector('[inert]')&&d.activeElement===d.getElementById('shareBtn'));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.9.2：每一種對話框都按得到（存成新方案之後按分享也一樣）');
+{ const env=mk(), {d}=env, a=act(env); tester(env); openAdj(env); a.click(d.querySelector('[data-step="more:-1"]')); a.click(d.getElementById('saveNew'));
+  const open=(name,fn)=>{ fn(); const m=d.getElementById('modal'); const okm=!m.hidden&&!m.closest('[inert]'); const c=[...d.querySelectorAll('#mBtns button')].find(b=>/取消|知道了|關閉/.test(b.textContent)); let closed=false; try{ a.click(c); closed=m.hidden&&!d.querySelector('[inert]'); }catch(e){} check(name+'：對話框沒被鎖住，按得了取消，關閉後背景恢復',okm&&closed); };
+  open('存成新方案之後按分享',()=>a.click(d.getElementById('shareBtn')));
+  open('方案清單：改名',()=>{ a.click(d.getElementById('openList')); a.click(d.querySelector('[data-rn]')); });
+  open('方案清單：刪除確認',()=>a.click(d.querySelector('[data-del]:not([disabled])')));
+  open('方案清單：匯出',()=>a.click(d.getElementById('expAll')));
+  open('方案清單：清除這台裝置的資料',()=>a.click(d.getElementById('wipe')));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 console.log('\n'+ok+' 通過，'+bad+' 失敗');

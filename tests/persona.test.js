@@ -5,6 +5,7 @@
  */
 'use strict';
 const { assert, engine, near, suite } = require('./_helper');
+const stressEarliest = (inp, sel, opt) => require('../src/engine.js').scenario(inp, sel, opt).e;   // v0.9.3：引擎的 stressEarliest 包裝拿掉了，測試直接用 scenario().e
 const S = suite('Persona 健全性');
 
 const P = {
@@ -56,10 +57,10 @@ for (const [name, inp] of Object.entries(P)) {
     // 8. 地圖階段首尾相接
     const ph = en.phases(Pr, R, ev.Q); for (let i = 1; i < ph.length; i++) near(ph[i].f, ph[i - 1].t, 1e-9, '階段相接');
     // 10. 壓力測試：不加壓力 = 基準；任何一種壓力都不會讓退休變早
-    const { SP5, NOW } = require('./_helper'), inpX = require('./_helper').inputs(inp);
-    assert.strictEqual(SP5.stressEarliest(inpX, {}, { now: NOW }), e, '不加壓力應等於基準');
+    const { NOW } = require('./_helper'), inpX = require('./_helper').inputs(inp);
+    assert.strictEqual(stressEarliest(inpX, {}, { now: NOW }), e, '不加壓力應等於基準');
     [{ li: 70 }, { inf: 1 }, { end: 100 }, { gap: 1 }, { cut: 10 }, { spend: 1 }].forEach((sel) => {
-      const v = SP5.stressEarliest(inpX, sel, { now: NOW });
+      const v = stressEarliest(inpX, sel, { now: NOW });
       assert.ok(e === null ? v === null : v === null || v >= e - 1e-9, JSON.stringify(sel) + ' 反而變早：' + v + ' < ' + e);
     });
     // 9. 事件都落在試算範圍內，而且按時間排序

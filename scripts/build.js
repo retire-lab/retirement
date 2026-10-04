@@ -35,11 +35,18 @@ const assetsJs = '/* 由 scripts/build.js 自動產生，請勿手改 */\nwindow
   ';\nwindow.SP5_FONT_NAME = ' + JSON.stringify(fontName) + ';\nwindow.SP5_FONT_CHARS = ' + JSON.stringify(fontChars) + ';\n';
 fs.writeFileSync(src('pdfassets.generated.js'), assetsJs);
 
+// 2.5（v0.8.0）畫面程式：src/app/*.js 依檔名順序接起來，包在同一個函式裡（共用變數）→ src/app.generated.js
+const appDir = src('app');
+const appFiles = fs.readdirSync(appDir).filter((f) => /^\d\d-[\w-]+\.js$/.test(f)).sort();
+const stripHead = (t) => t.replace(/^\/\* src\/app\/[\s\S]*?\*\/\n/, '');   // 每個檔案開頭的說明註解不放進成品
+const appJs = '(function () {\n' + appFiles.map((f) => stripHead(fs.readFileSync(path.join(appDir, f), 'utf8'))).join('') + '})();';
+fs.writeFileSync(src('app.generated.js'), appJs);
+
 // 3. 內嵌
 let html = fs.readFileSync(src('index.html'), 'utf8');
 const engine = fs.readFileSync(src('engine.js'), 'utf8');
 const pdfdoc = fs.readFileSync(src('pdfdoc.js'), 'utf8');
-const pieces = [['<script src="data.generated.js"></script>', dataJs], ['<script src="engine.js"></script>', engine], ['<script src="pdfdoc.js"></script>', pdfdoc], ['<script src="pdfassets.generated.js"></script>', assetsJs.replace(/<\//g, '<\\/')]];
+const pieces = [['<script src="data.generated.js"></script>', dataJs], ['<script src="engine.js"></script>', engine], ['<script src="pdfdoc.js"></script>', pdfdoc], ['<script src="pdfassets.generated.js"></script>', assetsJs.replace(/<\//g, '<\\/')], ['<script src="app.generated.js"></script>', appJs]];
 for (const [tag, code] of pieces) {
   if (html.split(tag).length !== 2) { console.error('build 失敗：src/index.html 裡必須剛好有一個 ' + tag); process.exit(1); }
   if (code.includes('</script')) { console.error('build 失敗：' + tag + ' 的內容不能出現 </script'); process.exit(1); }

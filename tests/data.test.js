@@ -69,10 +69,27 @@ t('params.li_lump：一次領規則有來源、取得日期、第 58 條第 2 �
 t('params：勞退年金化利率在合理範圍（0.5%–5%）', () => { const r = D.params.ls_annuity_rate.value; assert.ok(r > 0.005 && r < 0.05); });
 t('params：勞保兩式與減給展延參數齊全', () => ['min_years', 'f1_rate', 'f1_add', 'f2_rate', 'adjust_per_year', 'adjust_max_years'].forEach((k) => assert.ok(typeof D.params.li[k] === 'number', k)));
 t('params：每一項都有來源', () => Object.entries(D.params).forEach(([k, v]) => { if (k !== 'version') assert.ok(v.source, k + ' 缺來源'); }));
+t('params.verified：最後核對日期是合法日期，而且不是未來', () => { const v = D.params.verified; assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(v.at), v.at); const d = new Date(v.at + 'T00:00:00'); assert.ok(isFinite(d.getTime()) && d.getTime() <= Date.now(), v.at); });
+t('params：同一個門檻不重複寫成不同的數字（勞保年資 15 年：li.min_years ＝ li_onetime.applies_if_years_below）', () => assert.strictEqual(D.params.li_onetime.applies_if_years_below, D.params.li.min_years));
+t('params：雇主提繳率 ls.employer_rate 是 6%，而且引擎沒有寫死 0.06（v0.9.3 以前寫死在兩處）', () => { assert.strictEqual(D.params.ls.employer_rate, 0.06); assert.ok(!/0\.06\b/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'engine.js'), 'utf8'))); });
 t('SOURCES.md：每個資料檔都有登記', () => {
   const md = fs.readFileSync(path.join(__dirname, '..', 'data', 'SOURCES.md'), 'utf8');
   fs.readdirSync(path.join(__dirname, '..', 'data')).filter((f) => /\.(csv|json)$/.test(f)).forEach((f) => assert.ok(md.includes(f), f + ' 沒有登記在 SOURCES.md'));
 });
 t('暫定的數字有標記（caps 的 status），提醒要確認', () => assert.ok(D.caps.every((r) => r.status)));
+
+/* ---------- v0.8.1：CSV 格式不符就讓 build 失敗 ---------- */
+{
+  const os = require('os'), { csv } = require('../scripts/load-data.js');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sp5csv-'));
+  const put = (n, t) => fs.writeFileSync(path.join(tmp, n), t);
+  put('ok.csv', 'effective,rate,source\n2026-01-01,1.7,台銀,一年期定存\n');
+  put('quote.csv', 'effective,rate,source\n2026-01-01,"1,7",台銀\n');
+  put('short.csv', 'effective,insured_amount,self_monthly,source\n2026-01-01,21103\n');
+  t('CSV：最後一欄（來源）可以含逗號', () => { const r = csv('ok.csv', tmp); assert.strictEqual(r[0].rate, 1.7); assert.strictEqual(r[0].source, '台銀,一年期定存'); });
+  t('CSV：出現引號 → 失敗，指出檔名與行號', () => assert.throws(() => csv('quote.csv', tmp), /quote\.csv 第 2 行：不支援引號/));
+  t('CSV：欄位數不足 → 失敗，指出檔名、行號與欄位數', () => assert.throws(() => csv('short.csv', tmp), /short\.csv 第 2 行：欄位數 2，標題有 4 欄/));
+  t('CSV：data/ 裡所有資料檔都通過檢查', () => fs.readdirSync(path.join(__dirname, '..', 'data')).filter((f) => f.endsWith('.csv')).forEach((f) => assert.ok(csv(f).length > 0, f)));
+}
 
 process.exit(S.run() ? 1 : 0);

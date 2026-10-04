@@ -1,0 +1,25 @@
+{
+  "說明": "官方試算器的實測案例（v0.9.1 集中）。每一筆記錄：輸入、官方輸出、來源、實測日期、容許誤差。官方規則改了，先更新這裡的官方輸出與日期，再看引擎要不要跟著改。",
+  "cases": [
+    { "id": "li-early-61y3m", "title": "勞保老年年金：65 年次、61 歲 3 個月請領（提前 3 年 9 個月，按月比例減給 15%）",
+      "source": { "name": "勞保局 勞工保險老年給付與勞工退休金月退休金整合試算", "url": "https://www.bli.gov.tw/0109187.html", "measured": "2026-10-02" },
+      "call": { "fn": "liMonthlyCalc", "args": [45800, 30, 61.25, 65] }, "official": 18102, "tolerance": 0,
+      "also": [{ "what": "第一式（官方先把基礎金額四捨五入再乘比率）", "formula": "(45800*30*0.00775+3000)*0.85", "official": 11602, "tolerance": 1 }] },
+    { "id": "li-late-67y9m", "title": "勞保老年年金：67 歲 9 個月請領（法定 65 歲，延後 2 年 9 個月，按月比例加給 11%）",
+      "source": { "name": "勞保局 勞工保險老年給付與勞工退休金月退休金整合試算", "url": "https://www.bli.gov.tw/0109187.html", "measured": "2026-10-02" },
+      "call": { "fn": "liMonthlyCalc", "args": [45800, 30, 67.75, 65] }, "official": 23640, "tolerance": 0,
+      "also": [{ "what": "第一式（官方先取整再乘比率）", "formula": "(45800*30*0.00775+3000)*1.11", "official": 15150, "tolerance": 1 }] },
+    { "id": "ls-100w-67y9m", "title": "勞退月退：專戶 100 萬、67 歲 9 個月申請 → 取 67 歲、平均餘命 18 年",
+      "source": { "name": "勞保局 勞工保險老年給付與勞工退休金月退休金整合試算", "url": "https://www.bli.gov.tw/0109187.html", "measured": "2026-10-02" },
+      "call": { "fn": "lsMonthlyCalc", "args": [1000000, 67] }, "official": 5119, "tolerance": 0,
+      "also": [{ "what": "季發（3 個月一次）", "formula": "round(lsMonthlyCalc)*3", "official": 15357, "tolerance": 0 }, { "what": "平均餘命", "fn": "lifeYears", "args": [67], "official": 18, "tolerance": 0 }] },
+    { "id": "ls-100w-61y3m", "title": "勞退月退：專戶 100 萬、61 歲 3 個月申請 → 取 61 歲、平均餘命 23 年",
+      "source": { "name": "勞保局 勞工保險老年給付與勞工退休金月退休金整合試算", "url": "https://www.bli.gov.tw/0109187.html", "measured": "2026-10-02" },
+      "call": { "fn": "lsMonthlyCalc", "args": [1000000, 61] }, "official": 4117, "tolerance": 0,
+      "also": [{ "what": "季發（3 個月一次）", "formula": "round(lsMonthlyCalc)*3", "official": 12351, "tolerance": 0 }, { "what": "平均餘命", "fn": "lifeYears", "args": [61], "official": 23, "tolerance": 0 }] },
+    { "id": "ls-accum-10y", "title": "勞退累積：月提繳工資 50,600、提繳 6%（每月 3,036）、收益率 3%、10 年 → 本利和 423,395",
+      "source": { "name": "勞動部勞工保險局 勞工個人退休金試算表", "url": "https://www.bli.gov.tw/", "measured": null, "note": "v0.4.3～v0.4.6 期間實測，日期未記錄。官方算法是月底提繳、年內單利、年底複利；SP5 按月複利，10 年相差約 0.007%" },
+      "engine": { "inputs": { "birth": "1976-10", "pre": { "lsBal": "0", "lsWage": "5.06", "lsYears": "20" } }, "assume": { "inf": 0, "rPre": 0, "rPost": 0, "rLs": 0.03, "pensions": true, "np": false, "nhi": false }, "at": 60, "field": "lsBal" },
+      "official": 423395, "relTolerance": 0.0005 }
+  ]
+}

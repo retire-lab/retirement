@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '0.7.1';
+  var VERSION = '0.9.3';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);
@@ -20,15 +20,21 @@
   var PR = DATA.params;
   var LIFE = {}; DATA.life.forEach(function (r) { LIFE[r.age] = r.T; });
   /* 依年度的表：取「生效日 ≤ 指定年月」的最新一列；都還沒生效就用最早那列 */
+  /* 每張表只排序一次（v0.8.1；以前每次呼叫都複製再排序）。不改動原本的陣列 */
+  var SORTED = [];
+  function sortedOf(rows) {
+    for (var i = 0; i < SORTED.length; i++) if (SORTED[i][0] === rows) return SORTED[i][1];
+    var s = rows.slice().sort(function (a, b) { return a.effective < b.effective ? -1 : a.effective > b.effective ? 1 : 0; });
+    SORTED.push([rows, s]); return s;
+  }
   function pick(rows, y, m) {
-    var key = y + '-' + ('0' + m).slice(-2) + '-01';
-    var sorted = rows.slice().sort(function (a, b) { return a.effective < b.effective ? -1 : 1; });
-    var hit = sorted.filter(function (r) { return r.effective <= key; });
-    return hit.length ? hit[hit.length - 1] : sorted[0];
+    var key = y + '-' + ('0' + m).slice(-2) + '-01', sorted = sortedOf(rows), hit = null;
+    for (var i = 0; i < sorted.length && sorted[i].effective <= key; i++) hit = sorted[i];
+    return hit || sorted[0];
   }
   /* SP5 不算投資：名下可自由動用的錢，退休前後都用存款利率（rPreNom／rPostNom 為 null 時取 data/deposit_rate.csv）。
      infAdd：壓力測試在使用者選的通膨上再加幾個百分點 */
-  var DEFAULT_ASSUME = { inf: 0.02, rPreNom: null, rPostNom: null, rLsNom: 0.03, infAdd: 0, pensions: true, np: true, nhi: true };
+  var DEFAULT_ASSUME = { inf: 0.02, rPreNom: null, rPostNom: null, rLsNom: 0.03, infAdd: 0, depCut: 0, pensions: true, np: true, nhi: true };
 
   var PATHS = [['grad', '大學＋研究所'], ['uni', '大學'], ['med', '醫學系等 6 年制'], ['five2', '五專＋二技'], ['five', '五專'], ['hs', '讀到高中職']];
   var GROUP = { pre: 'k12', ele: 'k12', jun: 'k12', sen: 'hs', five: 'hs', uni: 'col', grad: 'col', med: 'col', tech2: 'col' };
@@ -118,6 +124,8 @@
       DEP = isFinite(du) ? du / 100 : depRow.rate / 100;
       var nPre = isFinite(du) ? DEP : A.rPreNom != null ? A.rPreNom : DEP;
       var nPost = isFinite(du) ? DEP : A.rPostNom != null ? A.rPostNom : DEP;
+      /* 萬一存款利率降低（v0.9.0）：退休前後的存款利率都減 depCut，最低 0。跟通膨上升不同：房貸每月固定，不會因此變輕 */
+      if (A.depCut) { DEP = Math.max(0, DEP - A.depCut); nPre = Math.max(0, nPre - A.depCut); nPost = Math.max(0, nPost - A.depCut); }
       R_PRE = A.rPre != null ? A.rPre : (1 + nPre) / (1 + INF) - 1;
       R_POST = A.rPost != null ? A.rPost : (1 + nPost) / (1 + INF) - 1;
       R_LS = A.rLs != null ? A.rLs : (1 + A.rLsNom) / (1 + INF) - 1;
@@ -149,7 +157,7 @@
 
     function fmtW(n) { var w = n / 10000, a = Math.abs(w), d = a >= 100 ? 0 : a >= 10 ? 1 : 2; return (+w.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d }) + ' 萬'; }
 
-    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }   /* 單引號也跳脫（v0.8.0），屬性用單引號時也安全 */
 
     function mi(y, m) { return y * 12 + m - 1; }
 
@@ -328,7 +336,7 @@
       }
       /* 勞退：每月月底提繳、每月滾存到退休；60 歲（或退休時）那個月請領。
          勞動部個人退休金試算表（2026-10-02 實測）為「月底提繳、年內單利、年底複利」，與本式相差約 0.007% */
-      var bal = P.lsBalGiven !== null ? P.lsBalGiven : lsBalNowEst(P), cm = P.lsWage * (0.06 + P.lsSelf), t;
+      var bal = P.lsBalGiven !== null ? P.lsBalGiven : lsBalNowEst(P), cm = P.lsWage * (PR.ls.employer_rate + P.lsSelf), t;
       for (t = 0; t < tR; t++) bal = bal * (1 + M_LS) + (t >= P.gap0 && t < P.gap1 ? 0 : cm);
       var lsClaim = Math.max(60, R), lsT = tOfAge(lsClaim);
       for (t = tR; t < lsT; t++) bal *= (1 + M_LS);
@@ -346,7 +354,7 @@
        只問空窗多久、不問何時，所以保守假設空窗都發生在新制期間 */
     function lsYrsNow(P) { return P.lsYearsGiven !== null ? P.lsYearsGiven : Math.max(0, Math.min(P.worked, Math.floor((NOWI - LS_START) / 12)) - (P.gapAll || 0) - (P.gapLs || 0)); }
 
-    function lsBalNowEst(P) { return P.lsWage * 12 * (0.06 + P.lsSelf) * lsYrsNow(P); }
+    function lsBalNowEst(P) { return P.lsWage * 12 * (PR.ls.employer_rate + P.lsSelf) * lsYrsNow(P); }
 
     function oldLump(P, R) {
       if (!P.old) return 0;
@@ -516,9 +524,12 @@
 
     /* ================= quick form ================= */
     function validate() {
+      var blank = function (v) { return v === undefined || v === null || String(v).trim() === ''; };
+      if (blank(S.birth)) return '出生年月還沒填（例如 1974-11）。';
       var A0 = age();
       if (A0 === null) return '出生年月請寫成 1974-11 這種格式。';
       if (A0 >= 65) return '這個工具算的是 65 歲以前退休，你已經 65 歲以上了。';
+      if (blank(S.workStart)) return '幾歲開始工作還沒填（例如 24）。';
       var ws = num(S.workStart);
       if (!isFinite(ws) || ws < 15 || ws > A0) return '幾歲開始工作請填 15 到 ' + A0 + ' 之間的數字。';
       var need = [[S.asset, '名下可自由動用的錢'], [S.inc, '每月實際入帳'], [S.spend, '每月基本生活費']];
@@ -558,6 +569,10 @@
       if (filled(pre.lsBal) && !(num(pre.lsBal) >= 0 && num(pre.lsBal) <= 100000)) return '勞退專戶餘額要填 0 以上的數字（單位：萬）。';
       if (filled(pre.lsWage) && !(W(pre.lsWage) > 0 && W(pre.lsWage) <= T_.LS_CAP + 1e-6)) return '勞退月提繳工資要大於 0，而且不會超過勞退提繳上限 ' + (T_.LS_CAP / 10000) + ' 萬。';
       if (filled(pre.self) && !(num(pre.self) >= 0 && num(pre.self) <= 6)) return '勞退自提要在 0% 到 6% 之間。';
+      /* 舊制的三個欄位：沒勾選舊制時不影響計算，但填了還是要是數字（v0.8.0；以前沒勾選就完全不檢查，「abc」會被當成一項有效的修改） */
+      if (filled(pre.oHire) && !isFinite(num(pre.oHire))) return '勞退舊制的到職年要填數字（西元年，例如 1998）。';
+      if (filled(pre.oYrs) && !isFinite(num(pre.oYrs))) return '勞退舊制年資要填數字。';
+      if (filled(pre.oWage) && !isFinite(num(pre.oWage))) return '勞退舊制的月平均工資要填數字（單位：萬）。';
       if (pre.sameCo !== undefined && pre.sameCo !== '' && !(num(pre.sameCo) >= 0 && num(pre.sameCo) <= 60)) return '在目前這家公司保勞保的年數要在 0 到 60 之間。';
       if (pre.w36 !== undefined && pre.w36 !== '' && !(W(pre.w36) > 0 && W(pre.w36) <= T_.LI_CAP + 1e-6)) return '退保前 3 年平均月投保薪資要大於 0，而且不會超過勞保投保薪資上限 ' + (T_.LI_CAP / 10000) + ' 萬。';
       if (pre.inf !== undefined && pre.inf !== '' && !(num(pre.inf) >= 0 && num(pre.inf) <= 10)) return '通膨要在 0% 到 10% 之間。';
@@ -694,6 +709,7 @@
     var A2 = {}; Object.keys(opt.assume || {}).forEach(function (k) { A2[k] = opt.assume[k]; });
     var inf = (sel.inf || 0) / 100;
     A2.infAdd = (A2.infAdd || 0) + inf;
+    A2.depCut = (A2.depCut || 0) + (sel.dep || 0) / 100;
     if (A2.rPre != null) A2.rPre = (1 + A2.rPre) / (1 + inf) - 1;     /* 測試用的實質報酬覆寫 */
     if (A2.rPost != null) A2.rPost = (1 + A2.rPost) / (1 + inf) - 1;
     if (A2.rLs != null) A2.rLs = (1 + A2.rLs) / (1 + inf) - 1;
@@ -703,13 +719,12 @@
       cut: -(sel.more || 0) * 12, extra: (sel.save || 0) * 12 };
     return { en: en, adj: adj, e: en.earliest(adj, opt.maxAge || 65) };
   }
-  function stressEarliest(inputs, sel, opt) { return scenario(inputs, sel, opt).e; }
 
   var api = {
-    VERSION: VERSION, DATA: DATA, LIFE: LIFE, pick: pick, STAGE_LABEL: STAGE_LABEL, migrateKid: migrateKid, DEFAULT_ASSUME: DEFAULT_ASSUME, PATHS: PATHS, GROUP: GROUP, GLABEL: GLABEL,
+    VERSION: VERSION, DATA: DATA,  pick: pick, STAGE_LABEL: STAGE_LABEL, migrateKid: migrateKid,  PATHS: PATHS, 
     create: create,
-    legalAge: legalAge, liMonthlyCalc: liMonthlyCalc, lsMonthlyCalc: lsMonthlyCalc, lifeYears: lifeYears, annuityFactor: annuityFactor,
-    npMonthlyCalc: npMonthlyCalc, oldEligible: oldEligible, oldUnits: oldUnits, loanBalance: loanBalance, lsGradeOf: lsGradeOf, liGradeOf: liGradeOf, stressEarliest: stressEarliest, scenario: scenario, GAP_SITS: GAP_SITS, gapYears: gapYears
+    legalAge: legalAge, liMonthlyCalc: liMonthlyCalc, lsMonthlyCalc: lsMonthlyCalc, lifeYears: lifeYears, 
+    npMonthlyCalc: npMonthlyCalc, oldEligible: oldEligible, oldUnits: oldUnits, loanBalance: loanBalance, lsGradeOf: lsGradeOf, liGradeOf: liGradeOf,  scenario: scenario, GAP_SITS: GAP_SITS
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SP5Engine = api;

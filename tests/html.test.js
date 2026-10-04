@@ -6,7 +6,11 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const { assert, suite } = require('./_helper');
-const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
+const page = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
+/* v0.8.0 起畫面程式拆到 src/app/（建置時接回去）：檢查文字與結構時，把它們放回 <script src="app.generated.js"> 的位置一起看 */
+const appDir = path.join(__dirname, '..', 'src', 'app');
+const appSrc = fs.readdirSync(appDir).filter((f) => /^\d\d-[\w-]+\.js$/.test(f)).sort().map((f) => fs.readFileSync(path.join(appDir, f), 'utf8')).join('\n');
+const html = page.replace('<script src="app.generated.js"></script>', () => '<script>\n' + appSrc + '\n</script>');
 const body = html.slice(html.indexOf('<body>'), html.indexOf('<script'));
 const S = suite('畫面結構');
 const t = S.test;
@@ -72,5 +76,7 @@ t('快速開始寫明「只算你自己負擔的那一份」與資料不會上�
 t('結果頁的長串假設仍保留「並假設配偶持續負擔其目前的家用份額」原文', () => assert.ok(/並假設配偶持續負擔其目前的家用份額/.test(html)));
 
 t('快速開始寫明適用範圍：只算勞保、勞退，公教軍人、農民不適用', () => assert.ok(/只算勞保、勞退；公務員、教師、軍人、農民的退休制度不同，結果不適用/.test(html)));
+
+t('快速開始的五個欄位沒有預填數字（範例只放在 placeholder）', () => { ['birth', 'workStart', 'asset', 'inc', 'spend'].forEach((k) => { const m = html.match(new RegExp('<input id="' + k + '"[^>]*>')); assert.ok(m, k); assert.ok(!/ value="/.test(m[0]), k + ' 不該有 value'); assert.ok(/placeholder="例如 /.test(m[0]), k + ' 要有例如'); }); });
 
 process.exit(S.run() ? 1 : 0);
