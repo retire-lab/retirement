@@ -176,12 +176,12 @@
     }).then(function (blob) {
       if (token !== startPdf.tok) return;
       stat('完成', 100);
-      return deliverPdf(blob, name).then(function () { closeModal(); toast('已產生 PDF：' + name + (pwOn ? '。密碼請自己記好，我們沒辦法幫你找回。' : '')); });
+      return deliverPdf(blob, name).then(function () { track('pdf_generate', { variant: anon ? 'anon' : 'full', encrypted: !!pwOn, mode: M.meta.compare ? 'compare' : 'single' }); closeModal(); toast('已產生 PDF：' + name + (pwOn ? '。密碼請自己記好，我們沒辦法幫你找回。' : '')); });
     }).catch(function (err) {
       if (token !== startPdf.tok) return;
       modal('沒辦法產生 PDF', '<div class="err">' + esc(err && err.message ? err.message : String(err)) + '</div><div class="muted" style="margin-top:6px">資料沒有上傳，也沒有遺失。可以再試一次。</div>', [{ label: '關閉', fn: function () {} }]);
     });
     return false;
   }
-  window.SP5App = { reportModel: reportModel, pdfFileName: pdfFileName, makePdf: makePdf, draftCheck: draftCheck, importFile: function (f) { return importFile(f); }, importText: function (t, n) { return importText(t, n); } };
+  window.SP5App = { reportModel: reportModel, pdfFileName: pdfFileName, makePdf: makePdf, draftCheck: draftCheck, importFile: function (f) { return importFile(f); }, importText: function (t, n) { return importText(t, n); }, track: function (n, p) { track(n, p); } };
 

@@ -57,7 +57,7 @@
     var name = bkFileName(), n = DB.list.length;
     var done = function (obj) {
       var blob = new Blob([JSON.stringify(obj, null, on ? 0 : 1)], { type: 'application/json' });
-      return deliverFile(blob, name, 'application/json').then(function () { closeModal(); toast('已匯出 ' + n + ' 個方案：' + name + (on ? '。密碼請自己記好，我們沒辦法幫你找回。' : '')); });
+      return deliverFile(blob, name, 'application/json').then(function () { track('backup_export', { encrypted: !!on }); closeModal(); toast('已匯出 ' + n + ' 個方案：' + name + (on ? '。密碼請自己記好，我們沒辦法幫你找回。' : '')); });
     };
     modal('正在匯出…', '<div class="muted">' + (on ? '加密中，大約需要一兩秒。' : '') + '資料只在這台裝置上處理，不會上傳。</div>', []);
     var p;
@@ -157,6 +157,7 @@
       var x = items[i], nm = DB.list.some(function (y) { return y.name === x.name; }) ? uniqName(x.name + '（匯入）') : uniqName(x.name);
       var id = newId(); DB.list.push({ id: id, name: nm, saved: x.saved, updated: x.updated || nowStr() }); added.push(nm); if (!first) first = id;
     });
+    track('backup_import');
     var msg = '已匯入 ' + added.length + ' 個方案：' + added.join('、');
     if (wasEmpty || !DB.active) { closeModal(); switchTo(first); toast(msg); return true; }   /* 新裝置：直接切到第一個匯入的方案 */
     if (saveDB()) toast(msg);

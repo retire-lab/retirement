@@ -41,7 +41,7 @@
     }
     else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); paintKids(); $('kby' + (S.kids.length - 1)).focus(); } }
     else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintAccum(); }
-    else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } S.ledger = false; S.phase = null; S.delta = null; adjReset(); S.panel = null;
+    else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } track('calculation_complete'); S.ledger = false; S.phase = null; S.delta = null; adjReset(); S.panel = null;
       if (!DB.list.length) { var id = newId(); DB.list.push({ id: id, name: '我的第一個方案', saved: getInputs(), updated: nowStr() }); DB.active = id; if (saveDB()) toast('已建立「我的第一個方案」，存在這台裝置'); }
       paintResult(); show('result'); }
     else if (b.id === 'back') { show('quick'); }
@@ -50,7 +50,7 @@
     else if (b.dataset.ypage != null) { S.ypage = +b.dataset.ypage; S.year = null; paintResult(); }
     else if (b.dataset.mb != null) { var cb = modal.cb && modal.cb[+b.dataset.mb]; var keep = cb && cb.fn && cb.fn() === false; if (!keep) closeModal(); }
     else if (b.id === 'saveBtn') { doSave(); paintResult(); }
-    else if (b.id === 'shareBtn') { openShare(); }
+    else if (b.id === 'shareBtn') { track('share_open'); openShare(); }
     else if (b.id === 'expAll') { openExport(); }
     else if (b.id === 'impBtn') { $('impFile').click(); }
     else if (b.id === 'openList') { paintList(); show('list'); }
@@ -148,7 +148,7 @@
     else if (b.dataset.mtab) { S.mapTab = b.dataset.mtab; S.phase = null; S.ledger = false; paintResult(); }
     else if (b.id === 'saveNew') { saveAsNew(); }
     else if (b.id === 'goOld') { S.panel = 'prec'; S.pf = S.pf || {}; S.pf.old = true; paintResult(); $('panelPrec').scrollIntoView({ block: 'start' }); }
-    else if (b.id === 'tgAdj' || b.id === 'tgPrec') { var want = b.id === 'tgAdj' ? 'adj' : 'prec'; S.panel = S.panel === want ? null : want; S.adjEdit = null; paintResult(); }
+    else if (b.id === 'tgAdj' || b.id === 'tgPrec') { var want = b.id === 'tgAdj' ? 'adj' : 'prec'; S.panel = S.panel === want ? null : want; if (S.panel) track(want === 'adj' ? 'adjust_open' : 'precision_open'); S.adjEdit = null; paintResult(); }
     else if (b.dataset.pa) { var pv = b.dataset.pa.split(':'); S.preDraft[pv[0]] = pv[1]; paintResult(); }
     else if (b.id === 'applyPre' || b.id === 'applyPre3' || b.id === 'clearPre') {
       var before = earliest(), Rb = before === null ? 65 : before, gb = gapText(evalR(profile(), Rb));
@@ -171,7 +171,7 @@
   var DEFAULTS = getInputs();
   window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
   /* 點「回報問題」的那一刻才填內容（版本、畫面、裝置）；連結本身預設就是寄信，程式出錯也點得開 */
-  document.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('a.fblink') : null; if (a) a.href = fbHref(); }, true);
+  document.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('a.fblink') : null; if (a) { a.href = fbHref(); track('feedback_click'); } }, true);
   document.addEventListener('keydown', function (e) {
     if ($('modal').hidden) return;
     if (e.key === 'Escape') { closeModal(); return; }
@@ -187,3 +187,4 @@
   if (active()) { setInputs(active().saved); if (!validate()) { paintResult(); show('result'); } else syncForm(); }
   else { paintAge(); paintKids(); paintAccum(); }
   showLoadErr();
+  gaInit();   /* 使用統計：只在正式網站載入（83-analytics.js） */
