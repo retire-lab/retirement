@@ -1,6 +1,6 @@
 {
   "name": "sp5-retirement-age",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "private": true,
   "description": "退休生命週期決策平台 Retirement Lifecycle Decision Platform（內部代號 SP5）",
   "scripts": {

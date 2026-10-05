@@ -170,6 +170,8 @@
 
   var DEFAULTS = getInputs();
   window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+  /* 點「回報問題」的那一刻才填內容（版本、畫面、裝置）；連結本身預設就是寄信，程式出錯也點得開 */
+  document.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('a.fblink') : null; if (a) a.href = fbHref(); }, true);
   document.addEventListener('keydown', function (e) {
     if ($('modal').hidden) return;
     if (e.key === 'Escape') { closeModal(); return; }

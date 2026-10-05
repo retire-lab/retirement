@@ -668,4 +668,22 @@ section('v0.9.2：每一種對話框都按得到（存成新方案之後按分�
   open('方案清單：清除這台裝置的資料',()=>a.click(d.getElementById('wipe')));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
+section('v0.9.4：回報問題');
+{ const env=mk(), {d}=env, a=act(env);
+  const top=d.getElementById('fbTop'), foot=d.getElementById('fbFoot');
+  check('快速開始：頁首與頁尾都有「回報問題」',!!top&&!!foot&&T(top.textContent)==='回報問題'&&T(foot.textContent)==='回報問題');
+  check('沒點之前就是可以寄信的連結（程式出錯也點得開）',/^mailto:hsuchen1@gmail\.com\?subject=/.test(top.getAttribute('href')));
+  tester(env);
+  check('結果頁也看得到（頁首、頁尾都在每個畫面）',!!d.getElementById('fbTop').closest('main')&&!d.getElementById('fbTop').closest('[hidden]')&&!d.getElementById('fbFoot').closest('[hidden]'));
+  openAdj(env); a.click(d.getElementById('fbFoot'));
+  const href=d.getElementById('fbFoot').getAttribute('href'), q=new URL(href.replace('mailto:','http://x/')).searchParams;
+  const subj=q.get('subject'), body=q.get('body');
+  check('點了之後：寄給 hsuchen1@gmail.com，主旨有版本號',/^mailto:hsuchen1@gmail\.com\?/.test(href)&&/^退休試算 回報問題（v\d+\.\d+\.\d+）$/.test(subj),subj);
+  check('內容自動帶入版本、畫面（結果頁、調調看打開）、裝置、日期',/版本：v\d/.test(body)&&/畫面：結果頁（調調看打開）/.test(body)&&/裝置：/.test(body)&&/日期：\d{4}-\d{2}-\d{2}/.test(body),body);
+  check('內容不會帶入使用者填的任何數字（出生年月、資產、收入、生活費）',!['1986-06','1986/06','500','4.5'].some(x=>body.includes(x))&&!/資產 \d|入帳 \d/.test(body),body);
+  check('內容提醒不用寫個資',/不用寫出生年月、資產這些個資/.test(body));
+  a.click(d.getElementById('openList')); a.click(d.getElementById('fbTop'));
+  check('在方案清單點：畫面寫「方案清單」',/畫面：方案清單/.test(new URL(d.getElementById('fbTop').getAttribute('href').replace('mailto:','http://x/')).searchParams.get('body')));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
 console.log('\n'+ok+' 通過，'+bad+' 失敗');

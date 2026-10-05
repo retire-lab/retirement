@@ -408,12 +408,15 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .top { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { details.card > summary::after { transition: none; } }
+.bhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.fblink { color: var(--accent); font-size: 13.5px; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; min-height: 32px; display: inline-flex; align-items: center; }
+.fbfoot { margin: 28px 0 18px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); text-align: center; } .fbfoot .fblink { margin-left: 6px; }
 </style>
 </head>
 <body>
 <main class="wrap">
 
-<header class="brand"><div class="bz">退休生命週期決策平台</div><div class="be">Retirement Lifecycle Decision Platform</div></header>
+<header class="brand"><div class="bhead"><div><div class="bz">退休生命週期決策平台</div><div class="be">Retirement Lifecycle Decision Platform</div></div><a class="fblink" id="fbTop" href="mailto:hsuchen1@gmail.com?subject=%E9%80%80%E4%BC%91%E8%A9%A6%E7%AE%97%20%E5%9B%9E%E5%A0%B1%E5%95%8F%E9%A1%8C">回報問題</a></div></header>
 
 <section id="quick">
   <h1>你最早幾歲可以退休？</h1>
@@ -502,6 +505,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 <section id="cmp" hidden></section>
 <div id="modal" class="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle"><h2 id="mTitle"></h2><div id="mBody"></div><div id="mBtns" class="mbtns"></div></div></div>
 <div id="toast" class="toast" role="status" hidden></div>
+<footer class="fbfoot">發現算錯、看不懂，或有任何想法？<a class="fblink" id="fbFoot" href="mailto:hsuchen1@gmail.com?subject=%E9%80%80%E4%BC%91%E8%A9%A6%E7%AE%97%20%E5%9B%9E%E5%A0%B1%E5%95%8F%E9%A1%8C">回報問題</a></footer>
 </main>
 
 <script src="data.generated.js"></script>

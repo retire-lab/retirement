@@ -23,6 +23,29 @@
     modal.inerted = set;
     var f = $('mBody').querySelector('input') || $('mBtns').querySelector('button'); if (f) f.focus();
   }
+  /* 回報問題（v0.9.4）：寄信給維護者。主旨與內容先填好版本、目前畫面、裝置，方便找問題。
+     絕不帶入使用者填的任何數字（資料只在這台裝置上） */
+  var FB_MAIL = 'hsuchen1@gmail.com';
+  function fbDevice() {
+    var u = navigator.userAgent || '';
+    var dev = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : /Linux/.test(u) ? 'Linux' : '其他裝置';
+    var br = /Edg\//.test(u) ? 'Edge' : /Line\//.test(u) ? 'LINE 內建瀏覽器' : /FBAN|FBAV|Instagram|Barcelona|Threads/.test(u) ? '社群 App 內建瀏覽器' : /CriOS|Chrome\//.test(u) ? 'Chrome' : /FxiOS|Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : '其他瀏覽器';
+    return dev + '・' + br;
+  }
+  function fbScreen() {
+    var on = function (id) { var el = $(id); return !!el && !el.hidden; };
+    var s = on('result') ? '結果頁' : on('list') ? '方案清單' : '快速開始';
+    if (s === '結果頁' && S.panel) s += '（' + (S.panel === 'adj' ? '調調看' : '提高準確度') + '打開）';
+    if (!$('modal').hidden) s += '，對話框「' + $('mTitle').textContent + '」';
+    return s;
+  }
+  function fbHref() {
+    var subject = '退休試算 回報問題（v' + EN0.VERSION + '）';
+    var body = '（請在這裡寫下你遇到的問題或想法）\n\n\n' +
+      '—— 以下自動帶入，方便找問題 ——\n版本：v' + EN0.VERSION + '\n畫面：' + fbScreen() + '\n裝置：' + fbDevice() + '\n日期：' + todayISO() + '\n\n' +
+      '不用寫出生年月、資產這些個資；如果問題跟某個數字有關，可以附上截圖（記得先遮住你不想給人看的部分）。';
+    return 'mailto:' + FB_MAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  }
   function closeModal() {
     $('modal').hidden = true; modal.cb = null;
     (modal.inerted || []).forEach(function (el) { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }); modal.inerted = [];
