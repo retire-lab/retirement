@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '1.0.1';
+  var VERSION = '1.0.2';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);
@@ -175,6 +175,12 @@
     function parseYM(v, lo, hi) { var m = /^(\d{4})\D?(\d{1,2})$/.exec(String(v || '').trim()); if (!m) return null; var y = +m[1], mo = +m[2]; if (mo < 1 || mo > 12 || y < lo || y > hi) return null; return { y: y, mo: mo }; }
 
     function birthP() { return parseYM(S.birth, 1930, 2010); }
+    /* v1.0.2：大筆收支的時間 → 第幾個月（從這個月起算）；when 'age'＝你幾歲、'ym'＝西元年月；填錯回傳 null */
+    function lumpT(x) {
+      if (!x) return null;
+      if (x.when === 'ym') { var d = parseYM(x.val, 1900, 2200); return d === null ? null : d.y * 12 + d.mo - 1 - NOWI; }
+      var a = num(x.val), t = isFinite(a) && a > 0 ? tOfAge(a) : null; return t === null || !isFinite(t) ? null : t;
+    }
 
     /* 勞退舊制的欄位：v0.5.7 起在 S.pre；舊存檔在最上層 */
     function OS() { return S.pre && S.pre.oldOn !== undefined && S.pre.oldOn !== null ? S.pre : S; }
@@ -244,6 +250,14 @@
       var worked = Math.max(0, A0m / 12 - num(S.workStart));
       var pre = S.pre, tE = mi(p.y + E, p.mo) - NOWI, gy = gapYears(pre.gaps);
       /* 子女：每個月的費用直接攤到那個月（年額 ÷ 12；9 月入學、隔年 8 月為止） */
+      /* v1.0.2：未來的大筆收支。每一筆 { name, kind: 'in'|'out', amt（萬，今天的購買力）, when: 'age'|'ym', val }；
+         夫妻的「另一半幾歲」由 coupleModel 先換成年月。換算成第 t 個月的淨額（收入正、支出負），超出計算範圍的不算 */
+      var lumps = { m: {}, list: [] };
+      if (ROLE !== 'person' && S.lumpsOn && Array.isArray(S.lumps)) S.lumps.forEach(function (x, i) {
+        var t = lumpT(x); if (t === null || t < 0 || t >= tE || !(num(x.amt) > 0)) return;
+        var v = W(x.amt) * (x.kind === 'in' ? 1 : -1);
+        lumps.m[t] = (lumps.m[t] || 0) + v; lumps.list.push({ t: t, v: v, name: String(x.name || '').trim() || ('第 ' + (i + 1) + ' 筆' + (v > 0 ? '大筆收入' : '大筆支出')), i: i });
+      });
       var kidM = new Array(Math.max(0, tE)).fill(0), kidN = new Array(Math.max(0, tE)).fill(0);   /* kidN：這個月有幾個孩子還在學（健保眷屬，v0.9.8） */
       if (S.kidsOn) S.kids.forEach(function (k) {
         var seen = {};
@@ -271,6 +285,8 @@
         w60: isFinite(num(pre.w60)) ? W(pre.w60) : liGradeOf(inc0, NOW, now.m),   /* 收入減少不影響：看的是最高 60 個月 */
         w36: isFinite(num(pre.w36)) ? W(pre.w36) : null,   /* 一次請領用「退保前 3 年」平均；沒填就用 w60 估算 */
         lsWage: lsGradeOf((isFinite(num(pre.lsWage)) ? W(pre.lsWage) : inc0) * incF, NOW, now.m),   /* 對應到月提繳分級表；收入減少時跟著降 */
+        floor: ROLE === 'person' || adj.noReserve ? 0 : (num(S.reserve) > 0 ? W(S.reserve) : 0),   /* v1.0.2：養老預備金（輸入頁，萬→元）：退休後存款任何時候都不低於這個數字；adj.noReserve＝算「不留的話」 */
+        lumpM: lumps.m, lumpList: lumps.list,   /* v1.0.2：未來的大筆收支（第 t 個月的淨額，元，今天的購買力） */
         gap0: gap1 > gap0 ? gap0 : 0, gap1: gap1 > gap0 ? gap1 : 0, spend75: ROLE === 'person' ? 0 : adj.spend75 || 0, t75: mi(p.y + PR.assumptions.late_life_age, p.mo) - NOWI,
         lsSelf: (num(pre.self) || 0) / 100,
         lsYearsGiven: isFinite(num(pre.lsYears)) ? num(pre.lsYears) : null,
@@ -395,6 +411,7 @@
       if (A.nhi !== false && !P.nhiDep && t >= Q.tR) n -= T_.NHI_SELF;
       if (Q.npMonths && t >= Q.np65T) n += Q.npMonthly;
       if (t === Q.tR) n += oldLump(P, Q.tR / 12 + P.A0y);
+      if (P.lumpM[t]) n += P.lumpM[t];   /* v1.0.2：大筆收支 */
       return n;
     }
     /* 一個月的明細（v0.9.7 拆成兩層）：
@@ -423,21 +440,22 @@
       return f;
     }
     function householdFlowsM(P, t) {
-      var f = { living: P.base + (t >= P.t75 ? P.spend75 : 0), loan: 0, prepay: 0, kid: (t >= 0 && t < P.kidM.length) ? P.kidM[t] : 0, par: t < P.parMonths ? P.par : 0 };
+      var lv = (P.lumpM && P.lumpM[t]) || 0;
+      var f = { living: P.base + (t >= P.t75 ? P.spend75 : 0), loan: 0, prepay: 0, kid: (t >= 0 && t < P.kidM.length) ? P.kidM[t] : 0, par: t < P.parMonths ? P.par : 0, lumpIn: lv > 0 ? lv : 0, lumpOut: lv < 0 ? -lv : 0 };
       P.loans.forEach(function (l) {
         if (l.payoffT !== null && t > l.payoffT) return;
         if (l.payoffT !== null && t === l.payoffT) { f.prepay += l.payoffAmt / defl(t); return; }
         if (t < l.months) f.loan += l.pay / defl(t);
       });
-      f.outflow = f.living + f.loan + f.prepay + f.kid + f.par;
-      f.net = -f.outflow;
+      f.outflow = f.living + f.loan + f.prepay + f.kid + f.par + f.lumpOut;
+      f.net = f.lumpIn - f.outflow;
       return f;
     }
     function flowsM(P, Q, t) {
       var p = personFlowsM(P, Q, t), h = householdFlowsM(P, t);
-      var f = { work: p.work, li: p.li, ls: p.ls, np: p.np, old: p.old, living: h.living, loan: h.loan, prepay: h.prepay, kid: h.kid, par: h.par, npPrem: p.npPrem, nhiPrem: p.nhiPrem };
-      f.inflow = f.work + f.li + f.ls + f.np + f.old;
-      f.outflow = f.living + f.loan + f.prepay + f.kid + f.par + f.npPrem + f.nhiPrem;
+      var f = { work: p.work, li: p.li, ls: p.ls, np: p.np, old: p.old, lumpIn: h.lumpIn, living: h.living, loan: h.loan, prepay: h.prepay, kid: h.kid, par: h.par, lumpOut: h.lumpOut, npPrem: p.npPrem, nhiPrem: p.nhiPrem };
+      f.inflow = f.work + f.li + f.ls + f.np + f.old + f.lumpIn;
+      f.outflow = f.living + f.loan + f.prepay + f.kid + f.par + f.npPrem + f.nhiPrem + f.lumpOut;
       f.net = f.inflow - f.outflow;
       return f;
     }
@@ -470,8 +488,8 @@
       var Q = pensions(P, R), B = W(S.asset), t, pre = null;
       /* 退休前：資產變負數就記下來（這個退休時點不可行）；負數不滾報酬 */
       for (t = 0; t < Q.tR; t++) { var a1 = B + netM(P, Q, t); if (a1 < 0 && pre === null) pre = t; B = a1 > 0 ? a1 * (1 + M_PRE) : a1; }
-      var need = 0;
-      for (t = P.tE - 1; t >= Q.tR; t--) need = Math.max(0, need / (1 + M_POST) - netM(P, Q, t));
+      var need = 0, fl = P.floor || 0;   /* v1.0.2：退休後每個月至少要有 floor（養老預備金；預設 0＝原本的算法） */
+      for (t = P.tE - 1; t >= Q.tR; t--) need = Math.max(fl, need / (1 + M_POST) - netM(P, Q, t));
       return { need: need, proj: B, gap: need - B, Q: Q, preExhaust: pre === null ? null : ageOfT(pre) };
     }
 
@@ -531,6 +549,7 @@
         var o = oldLump(P, ageOfT(t)); if (o) ev.push({ k: 'in', text: '舊制退休金一次領 ' + fmtW(o) });
       }
       if (Q.npMonths && t === Q.tR) ev.push({ k: 'out', text: '開始繳國保：每月 ' + fmtW(T_.NP_PREM) });
+      (P.lumpList || []).forEach(function (x) { if (x.t === t) ev.push({ k: x.v > 0 ? 'in' : 'out', text: x.name + '：一次' + (x.v > 0 ? '收入 ' : '付出 ') + fmtW(Math.abs(x.v)) }); });   /* v1.0.2 */
       if (A.nhi !== false && !P.nhiDep && t === Q.tR) ev.push({ k: 'out', text: '開始自付健保（第六類）：每月 ' + fmtW(T_.NHI_SELF) });
       if (Q.npMonths && t === Q.npEndT && Q.npEndT > Q.tR) ev.push({ k: 'out', text: '國保停繳' });
       if (Q.npMonths && t === Q.np65T) ev.push({ k: 'in', text: '國保年金開始：每月 ' + fmtW(Q.npMonthly) });
@@ -609,6 +628,15 @@
         kidGroups(st).forEach(function (g) { need.push([stageCostRaw(S.kids[i], g.g), '第 ' + (i + 1) + ' 個孩子「' + g.label + '」每年花幾萬']); });
       }
       for (var j = 0; j < need.length; j++) { var n = num(need[j][0]); if (!isFinite(n) || n < 0) return need[j][1] + '還沒填，或不是數字。'; }
+      /* v1.0.2：養老預備金（選填）、未來的大筆收支 */
+      if (ROLE !== 'person' && S.reserve !== undefined && String(S.reserve).trim() !== '' && !(num(S.reserve) >= 0)) return '養老預備金請填數字（萬），沒有就空白。';
+      if (ROLE !== 'person' && S.lumpsOn && Array.isArray(S.lumps)) for (var li = 0; li < S.lumps.length; li++) {
+        var lx = S.lumps[li], lab = '第 ' + (li + 1) + ' 筆大筆收支';
+        if (!(num(lx.amt) > 0)) return lab + '：金額還沒填，或不是數字（萬）。';
+        var lt = lumpT(lx);
+        if (lt === null) return lab + (lx.when === 'ym' ? '：時間請用西元年月，不用打 -（例如 2030 年 6 月就打 203006）。' : '：幾歲還沒填，或不是數字。');
+        if (lt < 0) return lab + '：時間要在今天以後。';
+      }
       var pre = S.pre || {}, lg = legalAge(birthP().y);
       if (pre.liClaim !== undefined && pre.liClaim !== '') {
         var lc = num(pre.liClaim);
@@ -678,6 +706,7 @@
     /* 事件：a 是發生時的年齡（含月），v 是每年的影響（今天的購買力） */
     function impactEvents(P, R, Q) {
       var ev = [], bI = bIdx();
+      (P.lumpList || []).forEach(function (x) { ev.push({ a: ageOfT(x.t), t: x.name, d: x.v > 0 ? 'lump' : 'lumpout', v: Math.abs(x.v) }); });   /* v1.0.2：大筆收支 */
       P.loans.forEach(function (l) {
         if (l.payoffT !== null) {
           ev.push({ a: ageOfT(l.payoffT), t: l.name + '提前一次還清', d: 'lumpout', v: l.payoffAmt / defl(l.payoffT), nom: l.payoffAmt });
@@ -809,7 +838,7 @@
       var hf = home.en.householdFlowsM(home.P, t), lf = opt.livingFactor ? opt.livingFactor(t) : 1;
       net += hf.net + (lf !== 1 ? hf.living * (1 - lf) : 0) + (opt.extra ? opt.extra(t) : 0);
       B = B + net;
-      if (t >= tR0) { if (B < min) min = B; if (B < 0 && firstNeg === null) firstNeg = t; }
+      if (t >= tR0) { if (B < min) min = B; if (B < (opt.floor || 0) && firstNeg === null) firstNeg = t; }   /* floor＝養老預備金：有人退休之後，存款不能低於它 */
       var r = t < tR0 ? mr.pre : mr.post;
       B = B > 0 ? B * (1 + r) : B;
     }
@@ -880,7 +909,7 @@
   function couple(members, home, B0, opt) {
     opt = opt || {};
     var r = coupleRules(members, home, opt), ex = opt.extra;
-    var h = household(members, home, B0, { H: r.H, livingFactor: r.livingFactor, premiumWaive: r.premiumWaive, extra: ex ? function (t) { return r.extra(t) + ex(t); } : r.extra });
+    var h = household(members, home, B0, { H: r.H, livingFactor: r.livingFactor, premiumWaive: r.premiumWaive, extra: ex ? function (t) { return r.extra(t) + ex(t); } : r.extra, floor: opt.floor });
     h.rules = r.detail; return h;
   }
 
@@ -897,16 +926,24 @@
     delete home.you; delete home.partner;
     var hp = home.pre || {};
     var mkPre = function (p, end) { return Object.assign({}, p || {}, { inf: hp.inf || '', dep: hp.dep || '', nhiDep: false, endAge: end ? String(end) : ((p && p.endAge) || '') }); };
-    var inA = Object.assign({}, home, { birth: you.birth, workStart: you.workStart, inc: you.inc, pre: mkPre(you.pre, sel.endA) });
     var inB = { birth: par.birth, workStart: par.workStart, inc: par.inc, asset: '0', spend: '0', house: false, car: false, kidsOn: false, parOn: false, kids: [{ bym: '', path: 'grad', costs: {} }], pre: mkPre(par.pre, sel.endB) };
     var assume = { infAdd: (sel.inf || 0) / 100, depCut: (sel.dep || 0) / 100 };
-    var A = create(inA, { now: now, assume: assume }), B = create(inB, { now: now, role: 'person', assume: assume });
-    A.sync(); B.sync();
+    var B = create(inB, { now: now, role: 'person', assume: assume }); B.sync();
+    /* v1.0.2：大筆收支「另一半幾歲」→ 用另一半的出生年月換成西元年月，再交給家庭 */
+    var lumps = (Array.isArray(home.lumps) ? home.lumps : []).map(function (x) {
+      if (!x || x.when !== 'page') return x;
+      var a = B.num(x.val), bp = /^(\d{4})\D?(\d{1,2})$/.exec(String(par.birth || '').trim());
+      if (!(a > 0) || !bp) return Object.assign({}, x, { when: 'ym', val: '' });
+      var idx = (+bp[1]) * 12 + (+bp[2]) - 1 + Math.round(a * 12);
+      return Object.assign({}, x, { when: 'ym', val: Math.floor(idx / 12) + '-' + ('0' + (idx % 12 + 1)).slice(-2) });
+    });
+    var inA = Object.assign({}, home, { lumps: lumps, birth: you.birth, workStart: you.workStart, inc: you.inc, pre: mkPre(you.pre, sel.endA) });
+    var A = create(inA, { now: now, assume: assume }); A.sync();
     var vA = A.validate(), vB = B.validate();
-    if (vA) return { error: vA, who: /名下|生活費|房貸|車貸|孩子|孝親/.test(vA) ? 'home' : 'you' };
+    if (vA) return { error: vA, who: /名下|生活費|房貸|車貸|孩子|孝親|預備金|大筆收支/.test(vA) ? 'home' : 'you' };
     if (vB) return { error: vB, who: 'partner' };
     var liF = sel.li != null ? sel.li / 100 : 1;
-    var PA = A.profile({ cut: -(sel.more || 0) * 10000 * 12, extra: (sel.save || 0) * 10000 * 12, spend75: (sel.spend || 0) * 10000, gap: sel.gapA || 0, incCut: sel.cutA || 0, liFactor: liF });
+    var PA = A.profile({ noReserve: !!sel.noReserve, cut: -(sel.more || 0) * 10000 * 12, extra: (sel.save || 0) * 10000 * 12, spend75: (sel.spend || 0) * 10000, gap: sel.gapA || 0, incCut: sel.cutA || 0, liFactor: liF });
     var PB = B.profile({ gap: sel.gapB || 0, incCut: sel.cutB || 0, liFactor: liF });
     var B0 = A.W(home.asset), maxR = PR.product.max_retire_age;
     var MA = Math.max(0, Math.round(maxR * 12) - PA.A0m), MB = Math.max(0, Math.round(maxR * 12) - PB.A0m);
@@ -917,7 +954,7 @@
     var QA = function (m) { return qA[m] || (qA[m] = A.pensions(PA, (PA.A0m + m) / 12)); }, QB = function (m) { return qB[m] || (qB[m] = B.pensions(PB, (PB.A0m + m) / 12)); };
     function run(ma, mb) {
       var k = ma + ',' + mb; if (memo[k]) return memo[k];
-      return (memo[k] = couple([{ en: A, P: PA, Q: QA(ma) }, { en: B, P: PB, Q: QB(mb) }], { en: A, P: PA }, B0, { extra: extra }));
+      return (memo[k] = couple([{ en: A, P: PA, Q: QA(ma) }, { en: B, P: PB, Q: QB(mb) }], { en: A, P: PA }, B0, { extra: extra, floor: PA.floor }));
     }
     var ok = function (ma, mb) { return run(ma, mb).ok; };
     /* 最小的 x（lo..hi）使 f(x) 成立；都不成立回傳 null */
@@ -960,15 +997,15 @@
     /* ===== 每個階段（v1.0.1）：把每個月的家庭現金流拆成明細，再依「哪些項目出現」切成階段 =====
        跟 household() 用同一套加總與利率；最後的存款必須等於 run().end（tests/couple-stages.test.js 把關）。
        金額都是今天的購買力（元／月）。一次領的錢只出現一個月，不切成一段，記在那一段的 lumps */
-    var IN_KEYS = ['wageA', 'wageB', 'liA', 'liB', 'lsA', 'lsB', 'npA', 'npB', 'oldA', 'oldB', 'survA', 'survB', 'lsBack'];
-    var OUT_KEYS = ['living', 'loan', 'kid', 'par', 'npPremA', 'npPremB', 'nhiA', 'nhiB', 'nhiDep'];
+    var IN_KEYS = ['wageA', 'wageB', 'liA', 'liB', 'lsA', 'lsB', 'npA', 'npB', 'oldA', 'oldB', 'survA', 'survB', 'lsBack', 'lumpIn'];
+    var OUT_KEYS = ['living', 'loan', 'kid', 'par', 'npPremA', 'npPremB', 'nhiA', 'nhiB', 'nhiDep', 'lumpOut'];
     function breakdown(ma, mb) {
       var qa = QA(ma), qb = QB(mb), h = run(ma, mb), r = h.rules, mr = A.mrates(), tR0 = Math.min(qa.tR, qb.tR), bal = B0, rows = [], t;
       for (t = 0; t < h.H; t++) {
         var pa = A.personFlowsM(PA, qa, t), pb = B.personFlowsM(PB, qb, t), hf = A.householdFlowsM(PA, t), lf = r.living[t];
         var o = { t: t, wageA: pa.work, wageB: pb.work, liA: pa.li, liB: pb.li, lsA: pa.ls, lsB: pb.ls, npA: pa.np, npB: pb.np, oldA: pa.old, oldB: pb.old,
           survA: r.survLI[0][t] + r.survNP[0][t], survB: r.survLI[1][t] + r.survNP[1][t], lsBack: r.lsLump[t],
-          living: hf.living * lf, loan: hf.loan + hf.prepay, kid: hf.kid, par: hf.par - (extra ? extra(t) : 0),
+          living: hf.living * lf, loan: hf.loan + hf.prepay, kid: hf.kid, par: hf.par - (extra ? extra(t) : 0), lumpIn: hf.lumpIn, lumpOut: hf.lumpOut,
           npPremA: pa.npPrem, npPremB: pb.npPrem, nhiA: r.waive[0][t] ? 0 : pa.nhiPrem, nhiB: r.waive[1][t] ? 0 : pb.nhiPrem, nhiDep: -r.nhiExtra[t],
           aliveA: t < PA.tE, aliveB: t < PB.tE, lf: lf, lumps: [] };
         if (qa.liLump && t === qa.liT) o.lumps.push(['liA', pa.li]);
@@ -977,6 +1014,7 @@
         if (qb.lsLump && t === qb.lsT && pb.ls) o.lumps.push(['lsB', pb.ls]);
         if (pa.old) o.lumps.push(['oldA', pa.old]); if (pb.old) o.lumps.push(['oldB', pb.old]);
         if (o.lsBack) o.lumps.push(['lsBack', o.lsBack]);
+        (PA.lumpList || []).forEach(function (x) { if (x.t === t) o.lumps.push([x.v > 0 ? 'lumpIn' : 'lumpOut', Math.abs(x.v), x.name]); });   /* v1.0.2：大筆收支 */
         o.inflow = IN_KEYS.reduce(function (x, k) { return x + o[k]; }, 0); o.outflow = OUT_KEYS.reduce(function (x, k) { return x + o[k]; }, 0); o.net = o.inflow - o.outflow;
         bal = bal + o.net; o.balAfterNet = bal;
         bal = bal > 0 ? bal * (1 + (t < tR0 ? mr.pre : mr.post)) : bal; o.bal = bal;
@@ -994,7 +1032,7 @@
         var o = rows[t], sg = sig(o);
         if (!cur || cur.sig !== sg) { cur = { sig: sg, s: t, e: t + 1, sum: {}, lumps: [], balStart: t ? rows[t - 1].bal : B0, aliveA: o.aliveA, aliveB: o.aliveB, lf: o.lf }; out.push(cur); } else cur.e = t + 1;
         IN_KEYS.concat(OUT_KEYS).forEach(function (k) { var v = lumpKey(o, k) ? 0 : o[k]; cur.sum[k] = (cur.sum[k] || 0) + v; });
-        o.lumps.forEach(function (x) { cur.lumps.push({ t: t, key: x[0], amt: x[1], ym: ym(t) }); });
+        o.lumps.forEach(function (x) { cur.lumps.push({ t: t, key: x[0], amt: x[1], ym: ym(t), name: x[2] || '' }); });
         cur.balEnd = o.bal; cur.minBal = Math.min(cur.minBal == null ? Infinity : cur.minBal, o.balAfterNet);
       }
       out.forEach(function (g, i) {

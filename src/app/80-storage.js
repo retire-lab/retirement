@@ -3,11 +3,12 @@
  * 產生 src/app.generated.js，再內嵌進 dist/index.html。 */
   /* ================= 方案（照 SP2 §1.8；存在這台裝置） ================= */
   var KEY = 'sp5:data', MAX = 10, CMP_MAX = 3;
-  var IN_KEYS = ['birth', 'workStart', 'asset', 'inc', 'spend', 'house', 'car', 'kidsOn', 'parOn', 'housePay', 'houseYrs', 'housePre', 'housePreAge', 'houseRate', 'carPay', 'carYrs', 'par', 'parMode', 'parYrs', 'kids', 'pre'];
+  var IN_KEYS = ['birth', 'workStart', 'asset', 'inc', 'spend', 'house', 'car', 'kidsOn', 'parOn', 'housePay', 'houseYrs', 'housePre', 'housePreAge', 'houseRate', 'carPay', 'carYrs', 'par', 'parMode', 'parYrs', 'kids', 'pre', 'reserve', 'lumpsOn', 'lumps'];   /* v1.0.2：養老預備金、未來的大筆收支 */
   var DB = { v: 1, active: null, list: [], cmp: null, showAll: false };
   /* 舊格式的輸入轉成新格式：子女費用三組 → 每個階段；勞退舊制從最上層搬到 pre */
   function migrateInputs(o) {
     if (!o) return o;
+    if (o.reserve == null) o.reserve = ''; o.lumpsOn = !!o.lumpsOn; if (!Array.isArray(o.lumps)) o.lumps = [];   /* v1.0.2：舊方案沒有這三個欄位；照 IN_KEYS 的順序補，比對「有沒有改過」時才會一致 */
     if (o.mode === 'couple') {   /* v1.0：夫妻方案 */
       if (o.kids) o.kids.forEach(function (k) { SP5Engine.migrateKid(k); });
       o.pre = o.pre || {}; ['you', 'partner'].forEach(function (w) { o[w] = o[w] || {}; o[w].pre = o[w].pre || {}; });

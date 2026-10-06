@@ -1,6 +1,14 @@
 /* src/app/60-result.js — 結果頁
  * 這個檔案不是獨立的模組：建置時 src/app/ 的檔案依檔名順序接起來，包在同一個函式裡（共用變數）。
  * 產生 src/app.generated.js，再內嵌進 dist/index.html。 */
+  /* v1.0.2：結果旁邊的說明。有填養老預備金：已保留多少、不留的話可以早多久；沒填：剛好夠的最低門檻，不是建議 */
+  function floorNote(en, P, e) {
+    if (P.floor > 0) {
+      var e0 = en.earliest({ noReserve: true }), d = e0 === null ? 0 : Math.round((e - e0) * 12);
+      return '<div class="floor"><b>已保留 ' + fmtW(P.floor) + '養老預備金</b>：退休後，存款任何時候都至少有 ' + fmtW(P.floor) + '。' + (d > 0 ? '<b>不留的話，可以早 ' + durStr(d) + '。</b>' : '') + '</div>';
+    }
+    return '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休年齡：照這個時間退休，錢剛好用到 ' + en.E() + ' 歲，幾乎沒有緩衝。想留緩衝，可以填「退休後想隨時留多少預備金」，或在「調調看」多存一點。</div>';
+  }
   function paintResult() {
     if (!S.preDraft) S.preDraft = JSON.parse(JSON.stringify(S.pre));
     bindEngine(EN0); EN.sync();
@@ -101,7 +109,7 @@
     var panel = S.panel === 'adj' ? '<div class="card tpanel" id="panelAdj">' + adjCardHtml(c) + '</div>' : S.panel === 'prec' ? '<div class="card tpanel" id="panelPrec">' + oldBox + precHtml(P) + '</div>' : '';
     $('result').innerHTML =
       '<div class="top"><button type="button" class="linkbtn" id="back">‹ 修改答案</button><span class="muted">v' + EN0.VERSION + '</span></div>' + scBarHtml() + pvbar +
-      (pv ? '<div class="card cmpcard">' + compareHtml(c) + note + '</div>' : '<div class="card hero">' + head + (eH !== null ? '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休年齡：照這個時間退休，錢剛好用到 ' + enH.E() + ' 歲，幾乎沒有緩衝。想留緩衝，可以晚一點退，或在「調調看」多存一點。</div>' : '') + note + '</div>') +
+      (pv ? '<div class="card cmpcard">' + compareHtml(c) + note + '</div>' : '<div class="card hero">' + head + (eH !== null ? floorNote(enH, PH, eH) : '') + note + '</div>') +
       twin + panel + curveHtml(c) +
       '<div class="card" id="mapCard"><h2>每個階段的收支</h2><div class="muted" style="margin-top:2px">' + (pv ? '上下兩條色條對照原始與調整後。' : '') + '色條的長度依時間長短；點下面每一段看發生的事。金額都是今天的購買力。</div>' +
         strips + phaseLegend() + mtabs + '<div class="muted" style="margin-top:8px">' + (pv ? (tab === 'adj' ? '調整後：' : '原始：') : '') + '以 ' + ageText(Rdisp) + '（' + ymText(Rdisp, true) + '）退休來看</div>' + mapBody + '</div>' +

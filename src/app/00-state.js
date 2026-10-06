@@ -25,6 +25,7 @@
     house: false, car: false, kidsOn: false, parOn: false,
     housePay: '', houseYrs: '', housePre: false, housePreAge: '', houseRate: '', parMode: 'keep', parYrs: '', carPay: '', carYrs: '', par: '',
     kids: [{ bym: '', path: 'grad', costs: {} }],
+    reserve: '', lumpsOn: false, lumps: [],   /* v1.0.2：養老預備金（萬）、未來的大筆收支 */
     ledger: false,
     pre: { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', liClaim: '', self: '0', endAge: '', nhiDep: false, inf: '', dep: '', oldOn: false, oHire: '', oYrs: '', oWage: '', gaps: [], liMode: '', liPre09: false, sex: '', sameCo: '', w36: '' } };
   var $ = function (id) { return document.getElementById(id); };

@@ -108,6 +108,14 @@
   }
   /* 外來資料：只取認得的欄位、轉成該有的型別（以空白的預設輸入為範本）；長度設上限 */
   function bkStr(v, max) { return v == null ? '' : String(typeof v === 'object' ? '' : v).slice(0, max || 40); }
+  /* v1.0.2：大筆收支清單：最多 20 筆，每筆只收已知欄位；when 只接受 age／ym（夫妻多一個 page＝另一半幾歲） */
+  function bkLumps(arr, couple) {
+    return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) {
+      x = x && typeof x === 'object' ? x : {};
+      var w = x.when === 'ym' || (couple && x.when === 'page') ? x.when : 'age';
+      return { name: bkStr(x.name, 20), kind: x.kind === 'in' ? 'in' : 'out', amt: bkStr(x.amt, 12), when: w, val: bkStr(x.val, 12) };
+    });
+  }
   function sanitizeInputs(raw) {
     raw = raw && typeof raw === 'object' ? raw : {};
     if (raw.mode === 'couple') {   /* v1.0：夫妻方案。我們家的欄位沿用單人的白名單；兩個人各自只收基本資料與 pre 裡已知的欄位 */
@@ -120,11 +128,13 @@
       };
       return { mode: 'couple', asset: h.asset, spend: h.spend, house: h.house, housePay: h.housePay, houseYrs: h.houseYrs, car: false, carPay: '', carYrs: '', kidsOn: h.kidsOn, kids: h.kids,
         parOn: h.parOn, par: h.par, parMode: h.parMode, parYrs: h.parYrs, pre: { inf: h.pre.inf || '', dep: h.pre.dep || '' }, you: person(raw.you), partner: person(raw.partner, true),
+        reserve: bkStr(raw.reserve, 12), lumpsOn: !!raw.lumpsOn, lumps: bkLumps(raw.lumps, true),   /* v1.0.2 */
         carsOn: !!raw.carsOn, cars: (Array.isArray(raw.cars) ? raw.cars : []).slice(0, 4).map(function (c) { c = c && typeof c === 'object' ? c : {}; return { pay: bkStr(c.pay, 20), yrs: bkStr(c.yrs, 20) }; }) };
     }
     var T = DEFAULTS, out = {};
     IN_KEYS.forEach(function (k) {
       if (k === 'kids') { out.kids = (Array.isArray(raw.kids) ? raw.kids : []).slice(0, 6).map(function (x) { x = x && typeof x === 'object' ? x : {}; var c = {}, rc = x.costs && typeof x.costs === 'object' ? x.costs : {}; Object.keys(rc).slice(0, 12).forEach(function (g) { if (/^[a-z0-9]{1,8}$/.test(g)) c[g] = bkStr(rc[g], 10); }); return { bym: bkStr(x.bym, 10), path: bkStr(x.path, 10), costs: c }; }); if (!out.kids.length) out.kids = JSON.parse(JSON.stringify(T.kids)); return; }
+      if (k === 'lumps') { out.lumps = bkLumps(raw.lumps, false); return; }   /* v1.0.2 */
       if (k === 'pre') {
         var rp = raw.pre && typeof raw.pre === 'object' ? raw.pre : {}, p = {};
         Object.keys(T.pre).forEach(function (pk) {

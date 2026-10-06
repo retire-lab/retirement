@@ -71,11 +71,39 @@
   }
   function syncForm() {
     document.querySelectorAll('#quick input[data-k]').forEach(function (el) { el.value = S[el.dataset.k] == null ? '' : S[el.dataset.k]; });
-    ['house', 'car', 'kidsOn', 'parOn'].forEach(function (k) { var b = document.querySelector('[data-chip="' + k + '"]'); if (b) b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; });
+    ['house', 'car', 'kidsOn', 'parOn', 'lumpsOn'].forEach(function (k) { var b = document.querySelector('[data-chip="' + k + '"]'); if (b) b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; });
+    paintLumps(); paintResv();
     $('housePre').checked = !!S.housePre; $('sec-housePre').hidden = !S.housePre; paintPrepay();
     document.querySelectorAll('[name=parMode]').forEach(function (r) { r.checked = r.value === (S.parMode || 'keep'); });
     if (!S.kids || !S.kids.length) S.kids = [{ bym: '', path: 'grad', costs: {} }];
     paintKids(); paintAge(); paintAccum(); showErr('');
+  }
+  /* ===== v1.0.2：未來的大筆收支清單（單人、夫妻共用同一份畫面）=====
+     o.box：外框樣式；o.input(i, 欄位) → 輸入框的屬性；o.btn(i, 欄位, 值)、o.del(i) → 按鈕的屬性；o.add：「再加一筆」的屬性；o.people（2＝夫妻）；o.names */
+  function lumpsHtml(list, o) {
+    var seg = function (i, f, cur, opts, label) {
+      return '<div class="seg" role="group" aria-label="' + label + '">' + opts.map(function (x) { return '<button type="button" ' + o.btn(i, f, x[0]) + ' aria-pressed="' + (cur === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    };
+    var row = function (lab, id, attr, val, ph, unit, mode) {
+      return '<div class="qf"><label class="qlab" for="' + id + '">' + lab + '</label><div class="qin"><input id="' + id + '" type="text" inputmode="' + (mode || 'decimal') + '" ' + attr + ' value="' + esc(String(val == null ? '' : val)) + '" placeholder="' + ph + '">' + (unit ? '<span class="u">' + unit + '</span>' : '') + '</div></div>';
+    };
+    var whens = [['ym', '某年某月'], ['age', o.names[0] + '幾歲']].concat(o.people === 2 ? [['page', o.names[1] + '幾歲']] : []);
+    return list.map(function (x, i) {
+      var id = o.idp + i, ym = x.when === 'ym';
+      return '<div class="' + o.box + '"><div class="cou-kidh"><b>第 ' + (i + 1) + ' 筆</b><button type="button" class="linkbtn" ' + o.del(i) + ' aria-label="刪除第 ' + (i + 1) + ' 筆大筆收支">刪除</button></div>' +
+        row('名稱', id + 'n', o.input(i, 'name'), x.name, '例如 換車、孩子第一桶金、儲蓄險到期', '', 'text') +
+        '<div class="qlab" style="margin-top:8px">收入還是支出</div>' + seg(i, 'kind', x.kind || 'out', [['out', '支出'], ['in', '收入']], '收入還是支出') +
+        row('金額', id + 'a', o.input(i, 'amt'), x.amt, '例如 80', '萬') + '<div class="qhint">用今天的購買力填，系統自己換算。</div>' +
+        '<div class="qlab" style="margin-top:8px">什麼時候</div>' + seg(i, 'when', x.when || 'age', whens, '什麼時候') +
+        row(ym ? '西元年月' : '幾歲', id + 'w', o.input(i, 'val'), x.val, ym ? '西元年月，不用打 -' : '例如 60', ym ? '' : '歲', 'numeric') + '</div>';
+    }).join('') + (list.length < 20 ? '<button type="button" class="linkbtn" ' + o.add + '>＋ 再加一筆</button>' : '');
+  }
+  function newLump() { return { name: '', kind: 'out', amt: '', when: 'age', val: '' }; }
+  /* 養老預備金的參考按鈕：用剛填的生活費算半年、一年 */
+  function reserveChips(spend, cur, attr) {   /* attr(值) → 按鈕的屬性 */
+    var m = num(spend); if (!(m > 0)) return '';
+    var r = function (x) { return String(Math.round(x * 10) / 10); };
+    return '<div class="chips">' + [['半年生活費', m * 6], ['一年生活費', m * 12]].map(function (x) { return '<button type="button" class="chip" ' + attr(r(x[1])) + ' aria-pressed="' + (String(cur) === r(x[1])) + '">' + x[0] + ' ' + r(x[1]) + ' 萬</button>'; }).join('') + '</div><div class="qhint">參考用：用你上面填的生活費算，按了才填進去。</div>';
   }
   function show(view) { ['quick', 'couple', 'result', 'list', 'cmp'].forEach(function (v) { $(v).hidden = v !== view; }); window.scrollTo(0, 0); }
   function scBarHtml() {

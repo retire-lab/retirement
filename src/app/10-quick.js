@@ -47,6 +47,10 @@
     var n = box.querySelector('.knote'); n.textContent = r.note; n.className = 'knote' + (r.on ? ' on' : '');
     box.querySelector('.kst').innerHTML = r.html;
   }
+  function paintLumps() { if (!Array.isArray(S.lumps)) S.lumps = []; if (S.lumpsOn && !S.lumps.length) S.lumps.push(newLump());
+    $('lumps').innerHTML = lumpsHtml(S.lumps, { box: 'kid', idp: 'lp', people: 1, names: ['你'], add: 'id="addLump"',
+      input: function (i, f) { return 'data-lk="' + i + '.' + f + '"'; }, btn: function (i, f, v) { return 'data-lkset="' + i + '.' + f + '.' + v + '"'; }, del: function (i) { return 'data-lkdel="' + i + '"'; } }); }
+  function paintResv() { $('resvChips').innerHTML = reserveChips(S.spend, S.reserve, function (v) { return 'data-resv="' + v + '"'; }); }
   function paintKids() {
     $('kids').innerHTML = S.kids.map(function (k, i) {
       return '<div class="kid" data-kidbox="' + i + '"><div class="kidtop">' +

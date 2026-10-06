@@ -48,6 +48,10 @@ if (process.argv.includes('--update')) {
   process.exit(0);
 }
 const gold = JSON.parse(fs.readFileSync(FILE, 'utf8')), bad = [];
+/* v1.0.2：flowsM 多了 lumpIn、lumpOut 兩個欄位（大筆收支）。沒有大筆收支時它們都是 0；比對時去掉加總為 0 的欄位，
+   兩邊才是同一套項目（新增一個永遠是 0 的欄位，不算改變計算結果） */
+const dropZero = (r) => { if (r && typeof r === 'object') { Object.keys(r).forEach((k) => { const x = r[k]; if (x && Array.isArray(x.tot)) x.tot = x.tot.filter((e) => !/=0$/.test(e)); }); } return r; };
+gold.results.forEach(dropZero); now.forEach(dropZero);
 let same = 0;
 for (let i = 0; i < N; i++) { const b0 = bad.length; cmp(gold.results[i], now[i], '第 ' + i + ' 組', bad); if (bad.length === b0) same++; }
 const valid = gold.results.filter((x) => !x.invalid).length;

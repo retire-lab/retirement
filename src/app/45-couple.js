@@ -5,7 +5,7 @@
   var CP = { inp: null, id: null, tab: 'you', view: 'input', mode: 'you', P: null, mon: null, sel: {}, panel: null, ptab: 'you', atab: 'you', err: null, M0: null, M: null };
   var CP_COL = { work: '#2f7a3c', gap: '#9cc68f', retired: '#c4761a', pension: '#3e7b93' };   /* 到了「活到」之後不畫：線結束，另一條繼續走 */
   function cpBlank() {
-    return { mode: 'couple', asset: '', spend: '', house: false, housePay: '', houseYrs: '', car: false, carPay: '', carYrs: '', carsOn: false, cars: [{ pay: '', yrs: '' }], kidsOn: false, kids: [{ bym: '', path: 'uni', costs: {} }],
+    return { mode: 'couple', asset: '', spend: '', house: false, housePay: '', houseYrs: '', car: false, carPay: '', carYrs: '', carsOn: false, cars: [{ pay: '', yrs: '' }], reserve: '', lumpsOn: false, lumps: [], kidsOn: false, kids: [{ bym: '', path: 'uni', costs: {} }],
       parOn: false, par: '', parMode: 'keep', parYrs: '', pre: { inf: '', dep: '' },
       you: { name: '你', birth: '', workStart: '', inc: '', pre: {} }, partner: { name: '另一半', birth: '', workStart: '', inc: '', pre: {}, parOn: false, par: '', parMode: 'keep', parYrs: '' } };
   }
@@ -51,6 +51,7 @@
   function cpBuild() {
     CP.M0 = SP5Engine.coupleModel(CP.inp, {});
     CP.M = Object.keys(CP.sel).length ? SP5Engine.coupleModel(CP.inp, { sel: CP.sel }) : CP.M0;
+    CP.Mnr = !CP.M.error && CP.M.PA.floor > 0 ? SP5Engine.coupleModel(CP.inp, { sel: Object.assign({}, CP.sel, { noReserve: true }) }) : null;   /* v1.0.2：算「不留預備金的話」 */
   }
 
   /* ---------- 輸入：三個頁籤 ---------- */
@@ -90,6 +91,14 @@
         keys.map(function (key) { return cpIn('kids.' + i + '.costs.' + key, SP5Engine.STAGE_LABEL[key] || key, '萬', '例如 5'); }).join('') + '</div>';
     }).join('') + (I.kids.length < 6 ? '<button type="button" class="linkbtn" id="cpKidAdd">＋ 再加一個孩子</button>' : '');
   }
+  /* v1.0.2：未來的大筆收支（錢合併算，不用分是誰的；時間可以用年月、你幾歲、另一半幾歲） */
+  function cpLumpsHtml() {
+    var I = CP.inp; if (!I.lumpsOn) return '';
+    if (!Array.isArray(I.lumps) || !I.lumps.length) I.lumps = [newLump()];
+    return '<div class="muted" style="margin-top:12px"><b>未來的大筆收支</b>：錢合併算，不用分是誰的，只要決定什麼時候發生。</div>' +
+      lumpsHtml(I.lumps, { box: 'cou-kid', idp: 'cqlp', people: 2, names: [cpName('you'), cpName('partner')], add: 'id="cpLumpAdd"',
+        input: function (i, f) { return 'data-cpk="lumps.' + i + '.' + f + '"'; }, btn: function (i, f, v) { return 'data-cplkset="' + i + '.' + f + '.' + v + '"'; }, del: function (i) { return 'data-cplkdel="' + i + '"'; } });
+  }
   /* 車貸：夫妻常常各有一台，可以加好幾台 */
   function cpCarsHtml() {
     var I = CP.inp; if (!I.carsOn) return '';
@@ -104,8 +113,9 @@
     var I = CP.inp;
     return '<div class="card"><div class="sechead"><h2>我們家共有的</h2></div><div class="muted">全部填全家的總數。</div>' +
       cpIn('asset', '名下可自由動用的錢（兩人合計）', '萬', '例如 300') + cpIn('spend', '每月基本生活費（全家）', '萬', '例如 7') +
-      '<div class="muted" style="margin-top:12px"><b>以後會結束的支出</b></div><div class="chips">' + cpChip('house', '房貸') + cpChip('carsOn', '車貸') + cpChip('kidsOn', '孩子') + '</div>' +
-      (I.house ? cpIn('housePay', '房貸每月繳', '萬', '例如 2') + cpIn('houseYrs', '房貸還剩', '年', '例如 20') : '') + cpCarsHtml() + cpKidsHtml() +
+      cpIn('reserve', '退休後想隨時留多少預備金<span class="opt">（選填）</span>', '萬', '沒有就空白') + '<div class="qhint">退休後，存款任何時候都不低於這個數字。萬一生病、出國玩，隨時有錢可以拿。</div><div id="cpResv">' + reserveChips(I.spend, I.reserve, function (v) { return 'data-cpresv="' + v + '"'; }) + '</div>' +
+      '<div class="muted" style="margin-top:12px"><b>以後會結束的支出</b></div><div class="chips">' + cpChip('house', '房貸') + cpChip('carsOn', '車貸') + cpChip('kidsOn', '孩子') + cpChip('lumpsOn', '大筆收支') + '</div>' +
+      (I.house ? cpIn('housePay', '房貸每月繳', '萬', '例如 2') + cpIn('houseYrs', '房貸還剩', '年', '例如 20') : '') + cpCarsHtml() + cpKidsHtml() + cpLumpsHtml() +
 '</div>';
   }
   function cpGoHtml() {
@@ -156,16 +166,21 @@
   function cpPosText(mode, m) { return mode === 'tog' ? CP.M.ym(m) + '（' + cpName('you') + ' ' + cpAge('you', m) + '）' : cpAge(mode === 'you' ? 'you' : 'partner', m); }
   /* 最低門檻 ≠ 建議（外部評論 P1）：剩的錢少於全家 low_buffer_months 個月的生活費，就講清楚這是剛好夠的門檻、幾乎沒有緩衝 */
   function cpFloorHtml(d) {
+    var fl = CP.M.PA.floor;
+    if (fl > 0) {   /* v1.0.2：有填養老預備金 */
+      var nr = CP.Mnr ? CP.Mnr.plans() : null, a = cpStart0(CP.P, CP.mode), b = nr ? cpStart0(nr, CP.mode) : null, dm = a !== null && b !== null ? a - b : 0;
+      return '<div class="floor"><b>已保留 ' + fmtW(fl) + '養老預備金</b>：退休後，存款任何時候都至少有 ' + fmtW(fl) + '。' + (dm > 0 ? '<b>不留的話，這種安排最早可以提前 ' + durStr(dm) + '。</b>' : '') + '</div>';
+    }
     var low = d.left < CP.M.PA.base * PR0.product.low_buffer_months;
-    return low ? '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休時間：兩人都到設定歲數時只剩 ' + fmtW(Math.max(0, d.left)) + '，幾乎沒有緩衝。想留緩衝，往右拉晚一點退，或在「調調看」多存一點。</div>'
+    return low ? '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休時間：兩人都到設定歲數時只剩 ' + fmtW(Math.max(0, d.left)) + '，幾乎沒有緩衝。想留緩衝，可以填「退休後想隨時留多少預備金」，或往右拉晚一點退。</div>'
       : '<div class="muted" style="margin-top:6px">兩人都到設定歲數時還剩 ' + fmtW(d.left) + '。</div>';
   }
   /* ===== 每個階段（v1.0.1）：引擎的 stages() 切好的每一段，每個月進來、出去多少，存款怎麼變 ===== */
   function cpStageLabels() {
     var y = esc(cpName('you')), q = esc(cpName('partner'));
     return {
-      inn: { wageA: y + '的薪水', wageB: q + '的薪水', liA: y + '的勞保', liB: q + '的勞保', lsA: y + '的勞退', lsB: q + '的勞退', npA: y + '的國保年金', npB: q + '的國保年金', oldA: y + '的勞退舊制', oldB: q + '的勞退舊制', survA: y + '領的遺屬年金', survB: q + '領的遺屬年金', lsBack: '勞退專戶餘額回到家裡' },
-      out: { living: '生活費', loan: '房貸、車貸', kid: '孩子', par: '孝親費', npPremA: y + '的國保保費', npPremB: q + '的國保保費', nhiA: y + '的健保（第六類）', nhiB: q + '的健保（第六類）', nhiDep: '健保眷屬費' },
+      inn: { wageA: y + '的薪水', wageB: q + '的薪水', liA: y + '的勞保', liB: q + '的勞保', lsA: y + '的勞退', lsB: q + '的勞退', npA: y + '的國保年金', npB: q + '的國保年金', oldA: y + '的勞退舊制', oldB: q + '的勞退舊制', survA: y + '領的遺屬年金', survB: q + '領的遺屬年金', lsBack: '勞退專戶餘額回到家裡', lumpIn: '大筆收入' },
+      out: { living: '生活費', loan: '房貸、車貸', kid: '孩子', par: '孝親費', npPremA: y + '的國保保費', npPremB: q + '的國保保費', nhiA: y + '的健保（第六類）', nhiB: q + '的健保（第六類）', nhiDep: '健保眷屬費', lumpOut: '大筆支出' },
       add: { liA: y + '開始領勞保', liB: q + '開始領勞保', lsA: y + '開始領勞退', lsB: q + '開始領勞退', npA: y + '開始領國保年金', npB: q + '開始領國保年金', survA: y + '開始領遺屬年金', survB: q + '開始領遺屬年金',
         npPremA: y + '開始繳國保', npPremB: q + '開始繳國保', nhiDep: '健保依附在工作的那位名下', nhiA: y + '自己投保健保', nhiB: q + '自己投保健保' },
       rem: { wageA: y + '退休', wageB: q + '退休', kid: '孩子的教育費結束', loan: '貸款繳完', par: '孝親費結束', npPremA: y + '的國保停繳', npPremB: q + '的國保停繳', lsA: y + '的勞退月退領完', lsB: q + '的勞退月退領完' }
@@ -196,7 +211,10 @@
         var dn = net(g) - net(prev);
         (evAt[g.s] = evAt[g.s] || []).push({ t: g.s, text: ch.join('、'), impact: Math.abs(dn) >= 500 ? '每年收支' + (dn > 0 ? '多 ' : '少 ') + money(Math.abs(dn) * 12) : '', cls: dn < 0 ? 'down' : 'up' });   /* 跟單人一樣寫「每年」 */
       }
-      g.lumps.forEach(function (x) { (evAt[x.t] = evAt[x.t] || []).push({ t: x.t, text: (L.inn[x.key] || x.key) + (x.key === 'lsBack' ? '' : '（一次領）'), impact: '這個月一次收入 ' + money(x.amt), cls: 'up' }); });
+      g.lumps.forEach(function (x) {   /* 一次領、勞退餘額回家、大筆收支（v1.0.2：用使用者取的名字；支出寫「一次付出」） */
+        var isL = x.key === 'lumpIn' || x.key === 'lumpOut', out = x.key === 'lumpOut';
+        (evAt[x.t] = evAt[x.t] || []).push({ t: x.t, text: isL ? esc(x.name) : (L.inn[x.key] || x.key) + (x.key === 'lsBack' ? '' : '（一次領）'), impact: '這個月一次' + (out ? '付出 ' : '收入 ') + money(x.amt), cls: out ? 'down' : 'up' });
+      });
     });
     list.forEach(function (x) {
       var b0 = x.s ? rows[x.s - 1].bal : M.B0, b1 = rows[x.e - 1].bal, net = 0, lo = null;
@@ -394,7 +412,7 @@
     var P = CP.P = M.plans(), maxR = PR0.product.max_retire_age;
     var acts = '<div class="cou-acts"><button type="button" id="cpTgAdj" aria-expanded="' + (CP.panel === 'adj') + '">調調看</button><button type="button" id="cpTgPrec" aria-expanded="' + (CP.panel === 'prec') + '">提高準確度</button></div>' +
       (CP.panel === 'adj' ? cpAdjHtml() : CP.panel === 'prec' ? cpPrecHtml() : '');
-    var tail = '<div class="assume">不靠投資・存款 ' + pct2(M.A.rates().dep) + '・通膨 ' + pct(M.A.rates().inf) + '・錢合併算・算到兩人都到各自的「活到」・沒工作的一方依法依附健保・只剩一位之後生活費降到 ' + Math.round(PR0.assumptions.living_after_death * 100) + '%、遺屬年金擇一取高、勞退專戶餘額回到家裡・制度資料核對 ' + esc(PR0.verified.at) + '</div>' +
+    var tail = '<div class="assume">不靠投資・存款 ' + pct2(M.A.rates().dep) + '・通膨 ' + pct(M.A.rates().inf) + '・錢合併算・算到兩人都到各自的「活到」・沒工作的一方依法依附健保・只剩一位之後生活費降到 ' + Math.round(PR0.assumptions.living_after_death * 100) + '%、遺屬年金擇一取高、勞退專戶餘額回到家裡' + (M.PA.floor > 0 ? '・養老預備金 ' + fmtW(M.PA.floor) : '') + (M.PA.lumpList.length ? '・大筆收支 ' + M.PA.lumpList.length + ' 筆' : '') + '・制度資料核對 ' + esc(PR0.verified.at) + '</div>' +
       '<div class="muted" style="margin-top:6px">夫妻版的 PDF 報告之後提供。</div>';
     if (!P.youFirst && !P.together && !P.partnerFirst) {
       var w = M.describe(M.MA, M.MB);
@@ -456,6 +474,10 @@
     }
     if (ds.cptab) { CP.tab = ds.cptab; cpPaint(); return; }
     if (ds.cpchip) { cpSet(ds.cpchip, !cpGet(ds.cpchip)); cpPaint(); return; }
+    if (b.id === 'cpLumpAdd') { I.lumps.push(newLump()); cpPaint(); return; }
+    if (ds.cplkset) { var lq = ds.cplkset.split('.'); I.lumps[+lq[0]][lq[1]] = lq[2]; cpPaint(); return; }
+    if (ds.cplkdel != null) { I.lumps.splice(+ds.cplkdel, 1); if (!I.lumps.length) I.lumpsOn = false; cpPaint(); return; }
+    if (ds.cpresv != null) { I.reserve = ds.cpresv; cpPaint(); return; }
     if (b.id === 'cpCarAdd') { I.cars.push({ pay: '', yrs: '' }); cpPaint(); return; }
     if (ds.cpcardel) { I.cars.splice(+ds.cpcardel, 1); cpPaint(); return; }
     if (b.id === 'cpKidAdd') { I.kids.push({ bym: '', path: 'uni', costs: {} }); cpPaint(); return; }
@@ -492,7 +514,7 @@
   document.addEventListener('input', function (e) {
     var el = e.target; if (!el || !el.closest || !el.closest('#couple')) return;
     if (el.id === 'cpRange') { CP.mon = +el.value; el.setAttribute('aria-valuetext', cpPosText(CP.mode, CP.mon)); $('cpOut').innerHTML = cpSlideOut(); $('cpStages').innerHTML = cpStagesHtml(cpDescAt(CP.M, CP.mode, CP.mon)); return; }
-    if (el.dataset.cpk) { cpSet(el.dataset.cpk, el.value); if (CP.view === 'input') cpRefreshInputBits(); }
+    if (el.dataset.cpk) { cpSet(el.dataset.cpk, el.value); if (CP.view === 'input') cpRefreshInputBits(); if ((el.dataset.cpk === 'spend' || el.dataset.cpk === 'reserve') && $('cpResv')) $('cpResv').innerHTML = reserveChips(CP.inp.spend, CP.inp.reserve, function (v) { return 'data-cpresv="' + v + '"'; }); }
   });
   document.addEventListener('change', function (e) {
     var el = e.target; if (!el || !el.closest || !el.closest('#couple')) return;

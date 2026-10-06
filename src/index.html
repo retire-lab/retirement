@@ -456,6 +456,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .cou-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .cou-b2 { display: block; font-size: 21px; }
 .cou-say { margin-top: 6px; font-size: 14px; }
+.qlab .opt { font-weight: 400; color: var(--muted); }
 /* 最低門檻 ≠ 建議（單人、夫妻共用） */
 .floor { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--bg-sub, #f1f0ec); font-size: 13px; line-height: 1.6; }
 .cou-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
@@ -496,6 +497,9 @@ details.card[open] > summary::after { transform: rotate(90deg); }
     <div class="qf"><label class="qlab" for="spend">每月基本生活費</label>
       <div class="qin"><input id="spend" type="text" inputmode="decimal" data-k="spend" placeholder="例如 4"><span class="u">萬</span></div>
       <div class="qhint">只算<b>你自己拿出來的部分</b>，不含房貸、車貸、子女、孝親（下一步另外問）。</div></div>
+    <div class="qf"><label class="qlab" for="reserve">退休後想隨時留多少預備金<span class="opt">（選填）</span></label>
+      <div class="qin"><input id="reserve" type="text" inputmode="decimal" data-k="reserve" placeholder="沒有就空白"><span class="u">萬</span></div>
+      <div class="qhint">退休後，存款任何時候都不低於這個數字。萬一生病、出國玩，隨時有錢可以拿。</div><div id="resvChips"></div></div>
   </div>
 
   <div class="card">
@@ -506,6 +510,12 @@ details.card[open] > summary::after { transform: rotate(90deg); }
       <button type="button" class="tile" data-chip="car" aria-pressed="false"><span class="ic">🚗</span><b>車貸</b></button>
       <button type="button" class="tile" data-chip="kidsOn" aria-pressed="false"><span class="ic">🎓</span><b>子女</b></button>
       <button type="button" class="tile" data-chip="parOn" aria-pressed="false"><span class="ic">🧓</span><b>孝親</b></button>
+      <button type="button" class="tile" data-chip="lumpsOn" aria-pressed="false"><span class="ic">💰</span><b>大筆收支</b></button>
+    </div>
+    <div class="sub" id="sec-lumpsOn" hidden>
+      <div class="t">未來的大筆收支</div>
+      <div class="qhint" style="margin-top: 0">某一年會有一筆比較大的錢進出：換車、整修房子、出國、孩子第一桶金、儲蓄險到期……</div>
+      <div id="lumps"></div>
     </div>
 
     <div class="sub" id="sec-house" hidden>

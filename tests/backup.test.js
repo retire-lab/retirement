@@ -17,7 +17,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms || 30));
 const X = 'X"\'><i id=xss></i>';
 
 const blank = () => ({ birth: '', workStart: '', asset: '', inc: '', spend: '', house: false, car: false, kidsOn: false, parOn: false, housePay: '', houseYrs: '', housePre: false, housePreAge: '', houseRate: '', carPay: '', carYrs: '', par: '', parMode: 'keep', parYrs: '',
-  kids: [{ bym: '', path: 'grad', costs: {} }], pre: { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', liClaim: '', self: '0', endAge: '', nhiDep: false, inf: '', dep: '', oldOn: false, oHire: '', oYrs: '', oWage: '', gaps: [], liMode: '', liPre09: false, sex: '', sameCo: '', w36: '' } });
+  kids: [{ bym: '', path: 'grad', costs: {} }], pre: { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', liClaim: '', self: '0', endAge: '', nhiDep: false, inf: '', dep: '', oldOn: false, oHire: '', oYrs: '', oWage: '', gaps: [], liMode: '', liPre09: false, sex: '', sameCo: '', w36: '' } , reserve: '', lumpsOn: false, lumps: [] });   /* v1.0.2：存檔格式多了養老預備金、大筆收支 */
 const mkIn = (o, pre) => { const b = blank(); Object.assign(b, o); Object.assign(b.pre, pre || {}); return b; };
 const A_IN = mkIn({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', house: true, housePay: '2', houseYrs: '10', kidsOn: true, kids: [{ bym: '2018-03', path: 'uni', costs: { ele: '2', jun: '2', sen: '2', uni: '3' } }] }, { liYears: '15', gaps: [{ sit: 'parental', y: '1', m: '0' }] });
 const B_IN = mkIn({ birth: '1974-11', workStart: '25', asset: '450', inc: '9', spend: '4' });

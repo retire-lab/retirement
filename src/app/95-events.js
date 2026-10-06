@@ -7,7 +7,8 @@
     if (t.dataset.pre) { if (t.type !== 'checkbox') S.preDraft[t.dataset.pre] = t.value; refreshPending(); return; }
     if (t.dataset.gapy != null) { S.preDraft.gaps[+t.dataset.gapy].y = t.value; refreshPending(); return; }
     if (t.dataset.gapm != null) { S.preDraft.gaps[+t.dataset.gapm].m = t.value; refreshPending(); return; }
-    if (t.dataset.k) { S[t.dataset.k] = t.value; if (t.dataset.k === 'birth') paintAge(); showErr(''); paintAccum(); if (/^house/.test(t.dataset.k) || t.dataset.k === 'birth') paintPrepay(); }
+    if (t.dataset.k) { S[t.dataset.k] = t.value; if (t.dataset.k === 'birth') paintAge(); if (t.dataset.k === 'spend' || t.dataset.k === 'reserve') paintResv(); showErr(''); paintAccum(); if (/^house/.test(t.dataset.k) || t.dataset.k === 'birth') paintPrepay(); }
+    else if (t.dataset.lk) { var lk = t.dataset.lk.split('.'); S.lumps[+lk[0]][lk[1]] = t.value; showErr(''); }   /* v1.0.2：大筆收支（打字不重畫，游標不跑掉） */
     else if (t.dataset.kidby != null) { var i = +t.dataset.kidby; S.kids[i].bym = t.value; paintKid(i); showErr(''); paintAccum(); }
     else if (t.dataset.group) { var kk = S.kids[+t.dataset.kid]; kk.costs[t.dataset.group] = t.value; if (kk.copied) delete kk.copied[t.dataset.group]; var cp = t.parentNode.parentNode.querySelector('.cp'); if (cp) cp.remove(); showErr(''); paintAccum(); }
   });
@@ -32,13 +33,17 @@
   }, true);
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
-    if (b.dataset.chip) { var k = b.dataset.chip; S[k] = !S[k]; b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; showErr(''); paintAccum(); }
+    if (b.dataset.chip) { var k = b.dataset.chip; S[k] = !S[k]; b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; showErr(''); paintAccum(); if (k === 'lumpsOn') paintLumps(); }
     else if (b.dataset.same) {
       var sp = b.dataset.same.split(':'), kd = S.kids[+sp[0]], v = kd.costs[sp[2]] || '';
       kd.costs[sp[1]] = v; if (kd.copied) delete kd.copied[sp[1]];
       var inp = $('k' + sp[0] + sp[1]); if (inp) { inp.value = v; var cp0 = inp.parentNode.parentNode.querySelector('.cp'); if (cp0) cp0.remove(); }
       showErr(''); paintAccum();
     }
+    else if (b.id === 'addLump') { S.lumps.push(newLump()); paintLumps(); }
+    else if (b.dataset.lkset) { var lp = b.dataset.lkset.split('.'); S.lumps[+lp[0]][lp[1]] = lp[2]; paintLumps(); showErr(''); }
+    else if (b.dataset.lkdel != null) { S.lumps.splice(+b.dataset.lkdel, 1); if (!S.lumps.length) { S.lumpsOn = false; syncForm(); } else paintLumps(); }
+    else if (b.dataset.resv != null) { S.reserve = b.dataset.resv; $('reserve').value = S.reserve; paintResv(); showErr(''); }
     else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); paintKids(); $('kby' + (S.kids.length - 1)).focus(); } }
     else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintAccum(); }
     else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } track('calculation_complete'); S.ledger = false; S.phase = null; S.delta = null; adjReset(); S.panel = null;

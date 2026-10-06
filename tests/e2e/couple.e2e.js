@@ -187,6 +187,60 @@ section('車貸：可以有好幾台');
   check('車貸測試沒有執行錯誤', T5.errs.length === 0 && T6.errs.length === 0, T5.errs.concat(T6.errs).join('|'));
 }
 
+section('v1.0.2：養老預備金與未來的大筆收支（單人）');
+{
+  const U = mk(); const f = (id, v) => { const el = U.d.getElementById(id); el.value = v; el.dispatchEvent(new U.W.Event('input', { bubbles: true })); };
+  check('快速開始：生活費底下有「退休後想隨時留多少預備金（選填）」，預設空白', !!U.q('#reserve') && U.q('#reserve').value === '' && /選填/.test(U.txt('label[for="reserve"]')));
+  check('生活費還沒填：沒有參考按鈕', !U.q('[data-resv]'));
+  f('birth', '197805'); f('workStart', '24'); f('asset', '450'); f('inc', '9'); f('spend', '4');
+  check('填了生活費 4 萬：參考按鈕「半年生活費 24 萬」「一年生活費 48 萬」', /半年生活費 24 萬/.test(U.txt('#resvChips')) && /一年生活費 48 萬/.test(U.txt('#resvChips')));
+  U.click('[data-resv="48"]');
+  check('按「一年生活費」：填進 48', U.q('#reserve').value === '48' && U.q('[data-resv="48"]').getAttribute('aria-pressed') === 'true');
+  U.click('#go');
+  check('結果：55 歲 5 個月；已保留 48 萬養老預備金，不留的話可以早 4 個月', /55 歲 5 個月/.test(U.txt('.hero .age')) && /已保留 48 萬養老預備金.*不留的話，可以早 4 個月/.test(U.txt('.hero')), U.txt('.hero').slice(0, 200));
+  check('假設清單寫出養老預備金', /養老預備金 48 萬/.test(U.txt('#result')));
+  check('存進方案：reserve＝48', JSON.parse(U.W.localStorage.getItem('sp5:data')).list[0].saved.reserve === '48');
+  U.click('#back'); U.click('[data-chip="lumpsOn"]');
+  check('按「大筆收支」：出現一筆空白的（名稱、收入或支出、金額、什麼時候）', !U.q('#sec-lumpsOn').hidden && U.d.querySelectorAll('[data-lkdel]').length === 1 && /收入還是支出/.test(U.txt('#lumps')) && /什麼時候/.test(U.txt('#lumps')));
+  const lk = (k, v) => { const el = U.q('[data-lk="0.' + k + '"]'); el.value = v; el.dispatchEvent(new U.W.Event('input', { bubbles: true })); };
+  lk('name', '換車'); lk('amt', '80'); lk('val', '60');
+  U.click('#go');
+  check('60 歲換車 80 萬：結果變晚', !/55 歲 5 個月/.test(U.txt('.hero .age')), U.txt('.hero .age'));
+  U.click('#back'); U.click('[data-lkset="0.kind.in"]');
+  check('切成「收入」：按鈕標成按下', U.q('[data-lkset="0.kind.in"]').getAttribute('aria-pressed') === 'true' && U.q('[data-lk="0.amt"]').value === '80');
+  U.click('[data-lkset="0.when.ym"]');
+  check('時間改用「某年某月」：提示改成西元年月', /西元年月，不用打 -/.test(U.q('[data-lk="0.val"]').placeholder));
+  lk('val', '209901'); U.click('#go');
+  check('年月超出計算範圍：照算（不算進去），不會壞', !!U.q('.hero') && U.errs.length === 0);
+  U.click('#back'); lk('val', '2020-01'); U.click('#go');
+  check('年月在今天以前：留在輸入頁、寫出第幾筆', !U.q('#quick').hidden && /第 1 筆大筆收支：時間要在今天以後/.test(U.txt('#quick')), U.txt('#quick .err'));
+  U.click('[data-lkdel="0"]');
+  check('刪掉最後一筆：大筆收支收起來', U.q('#sec-lumpsOn').hidden && U.q('[data-chip="lumpsOn"]').getAttribute('aria-pressed') === 'false');
+  check('單人新功能沒有執行錯誤', U.errs.length === 0, U.errs.join('|'));
+}
+
+section('v1.0.2：養老預備金與未來的大筆收支（夫妻）');
+{
+  const V = mk(); V.click('[data-mode="couple"]'); fillAll(V);
+  check('我們家：生活費底下有預備金與參考按鈕（全家 7 萬 → 42、84 萬）', !!V.q('[data-cpk="reserve"]') && /半年生活費 42 萬/.test(V.txt('#cpResv')) && /一年生活費 84 萬/.test(V.txt('#cpResv')));
+  V.click('[data-cpresv="84"]');
+  check('按「一年生活費」：填進 84', V.q('[data-cpk="reserve"]').value === '84');
+  V.click('#cpGo');
+  check('結果：你先退 50 歲 6 個月、一起退 2044/01', /50 歲 6 個月/.test(V.txt('[data-cpmode="you"]')) && /2044\/01/.test(V.txt('[data-cpmode="tog"]')), V.txt('.cou-seg'));
+  check('說明：已保留 84 萬養老預備金，不留的話這種安排最早可以提前 10 個月', /已保留 84 萬養老預備金.*不留的話，這種安排最早可以提前 10 個月/.test(V.txt('#cpOut')), V.txt('#cpOut').slice(0, 300));
+  check('假設那行寫出養老預備金', /養老預備金 84 萬/.test(V.txt('.assume')));
+  V.click('#cpEdit'); V.click('[data-cptab="home"]'); V.click('[data-cpchip="lumpsOn"]');
+  check('大筆收支的「什麼時候」有三個選項：某年某月、你幾歲、另一半幾歲', V.d.querySelectorAll('[data-cplkset^="0.when."]').length === 3 && /另一半幾歲/.test(V.txt('#couple')));
+  V.type('lumps.0.name', '儲蓄險到期'); V.click('[data-cplkset="0.kind.in"]'); V.type('lumps.0.amt', '150'); V.click('[data-cplkset="0.when.page"]'); V.type('lumps.0.val', '55');
+  V.click('#cpGo');
+  let found = false; const nph = V.d.querySelectorAll('#cpStages .phc').length;
+  for (let i = 0; i < nph && !found; i++) { V.click('[data-cpphase="' + i + '"]'); if (/2043\/07.*儲蓄險到期.*這個月一次收入 150 萬/.test(V.txt('#cpStages .phrow.open'))) found = true; }
+  check('每個階段：2043/07（另一半 55 歲）儲蓄險到期，這個月一次收入 150 萬', found);
+  V.click('#cpEdit'); V.click('[data-cptab="home"]'); V.type('lumps.0.amt', ''); V.click('#cpGo');
+  check('金額沒填：停在我們家，寫出第幾筆', !!V.q('[data-cptab="home"][aria-pressed="true"]') && /第 1 筆大筆收支：金額還沒填/.test(V.txt('#couple')), V.txt('#couple .err'));
+  check('夫妻新功能沒有執行錯誤', V.errs.length === 0, V.errs.join('|'));
+}
+
 section('切換模式：不會弄丟方案，單人和夫妻不會互相覆蓋（v1.0.1，使用者回報）');
 {
   const T8 = mk(); T8.click('[data-mode="couple"]'); fillAll(T8); T8.click('#cpGo');
