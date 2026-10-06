@@ -142,6 +142,40 @@
     return low ? '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休時間：兩人都到設定歲數時只剩 ' + fmtW(Math.max(0, d.left)) + '，幾乎沒有緩衝。想留緩衝，往右拉晚一點退，或在「調調看」多存一點。</div>'
       : '<div class="muted" style="margin-top:6px">兩人都到設定歲數時還剩 ' + fmtW(d.left) + '。</div>';
   }
+  /* ===== 每個階段（v1.0.1）：引擎的 stages() 切好的每一段，每個月進來、出去多少，存款怎麼變 ===== */
+  function cpStageLabels() {
+    var y = esc(cpName('you')), q = esc(cpName('partner'));
+    return {
+      inn: { wageA: y + '的薪水', wageB: q + '的薪水', liA: y + '的勞保', liB: q + '的勞保', lsA: y + '的勞退', lsB: q + '的勞退', npA: y + '的國保年金', npB: q + '的國保年金', oldA: y + '的勞退舊制', oldB: q + '的勞退舊制', survA: y + '領的遺屬年金', survB: q + '領的遺屬年金', lsBack: '勞退專戶餘額回到家裡' },
+      out: { living: '生活費', loan: '房貸、車貸', kid: '孩子', par: '孝親費', npPremA: y + '的國保保費', npPremB: q + '的國保保費', nhiA: y + '的健保（第六類）', nhiB: q + '的健保（第六類）', nhiDep: '健保眷屬費' },
+      add: { liA: y + '開始領勞保', liB: q + '開始領勞保', lsA: y + '開始領勞退', lsB: q + '開始領勞退', npA: y + '開始領國保年金', npB: q + '開始領國保年金', survA: y + '開始領遺屬年金', survB: q + '開始領遺屬年金',
+        npPremA: y + '開始繳國保', npPremB: q + '開始繳國保', nhiDep: '健保依附在工作的那位名下', nhiA: y + '自己投保健保', nhiB: q + '自己投保健保' },
+      rem: { wageA: y + '退休', wageB: q + '退休', kid: '孩子的教育費結束', loan: '貸款繳完', par: '孝親費結束', npPremA: y + '的國保停繳', npPremB: q + '的國保停繳', lsA: y + '的勞退月退領完', lsB: q + '的勞退月退領完' }
+    };
+  }
+  function cpStagesHtml(d) {
+    if (!d) return '';
+    var st = CP.M.stages(d.ma, d.mb).stages, L = cpStageLabels(), y = esc(cpName('you')), q = esc(cpName('partner'));
+    var money = function (v) { return fmtW(Math.round(v)); };
+    var rows = st.map(function (g, i) {
+      var ch = [];
+      if (i === 0) ch.push('現在');
+      g.removed.forEach(function (k) { if (L.rem[k] && !((k.slice(-1) === 'A' && g.diedA) || (k.slice(-1) === 'B' && g.diedB))) ch.push(L.rem[k]); });
+      if (g.diedA) ch.push(y + '到了「活到」的年紀'); if (g.diedB) ch.push(q + '到了「活到」的年紀'); if (g.livingDrop) ch.push('生活費降到 ' + Math.round(g.lf * 100) + '%');
+      g.added.forEach(function (k) { if (L.add[k]) ch.push(L.add[k]); });
+      var list = function (map) {
+        var ks = Object.keys(map).filter(function (k) { return g.avg[k] > 0.5; });
+        return ks.length ? ks.map(function (k) { return '<div>' + map[k] + '<b>' + money(g.avg[k]) + '</b></div>'; }).join('') : '<div class="muted">沒有</div>';
+      };
+      var tin = Object.keys(L.inn).reduce(function (x, k) { return x + (g.avg[k] || 0); }, 0), tout = Object.keys(L.out).reduce(function (x, k) { return x + (g.avg[k] || 0); }, 0);
+      var lumps = g.lumps.length ? '<div class="cou-lump">' + g.lumps.map(function (x) { return x.ym + '　' + (L.inn[x.key] || x.key) + (x.key === 'lsBack' ? '' : '（一次領）') + ' <b>' + money(x.amt) + '</b>'; }).join('<br>') + '</div>' : '';
+      var ages = (g.aliveA ? y + ' ' + Math.floor(g.ageA) + ' 歲' : '') + (g.aliveA && g.aliveB ? '、' : '') + (g.aliveB ? q + ' ' + Math.floor(g.ageB) + ' 歲' : '');
+      return '<details class="cou-stg"><summary><span class="cou-stgym">' + g.ymS + '～' + g.ymE + '・' + durStr(g.months) + '（' + ages + '）</span><b>' + ch.join('、') + '</b>' +
+        '<span class="cou-stgbal">存款 ' + money(Math.max(0, g.balStart)) + ' → ' + money(Math.max(0, g.balEnd)) + '<em class="cou-stgmore">明細 ›</em></span></summary>' +
+        '<div class="cou-io"><div><div class="muted">每月進來 <b>' + money(tin) + '</b></div>' + list(L.inn) + '</div><div><div class="muted">每月出去 <b>' + money(tout) + '</b></div>' + list(L.out) + '</div></div>' + lumps + '</details>';
+    }).join('');
+    return '<h2>每個階段</h2><div class="muted">兩個人的錢合在一起：每一段每個月進來多少、出去多少，存款怎麼變。金額是今天的購買力，點開看明細。</div>' + rows;
+  }
   function cpSlideOut() {
     var M = CP.M, P = CP.P, mode = CP.mode, m = CP.mon, d = cpDescAt(M, mode, m), y = esc(cpName('you')), q = esc(cpName('partner'));
     if (!d) return '<div class="cou-say cou-warn">這個組合不夠。</div>';
@@ -249,7 +283,8 @@
       '<div class="card" id="cpSlider"><h2>三種安排</h2><div class="muted">選一種，再用滑桿往後調。</div>' + segHtml +
       '<label class="qlab" for="cpRange" style="margin-top:14px;display:block">' + lab + '</label>' +
       '<input type="range" id="cpRange" min="' + R.lo + '" max="' + R.hi + '" step="1" value="' + CP.mon + '" aria-valuetext="' + esc(cpPosText(CP.mode, CP.mon)) + '">' +
-      '<div class="cou-rg"><span>' + loT + '</span><span>' + hiT + '</span></div><div id="cpOut">' + cpSlideOut() + '</div></div>' + acts + tail;
+      '<div class="cou-rg"><span>' + loT + '</span><span>' + hiT + '</span></div><div id="cpOut">' + cpSlideOut() + '</div></div>' +
+      '<div class="card" id="cpStages">' + cpStagesHtml(cpDescAt(M, CP.mode, CP.mon)) + '</div>' + acts + tail;
   }
   function cpPaint() { $('couple').innerHTML = CP.view === 'input' ? cpInputHtml() : cpResultHtml(); }
   function cpRefreshInputBits() {
@@ -317,7 +352,7 @@
   });
   document.addEventListener('input', function (e) {
     var el = e.target; if (!el || !el.closest || !el.closest('#couple')) return;
-    if (el.id === 'cpRange') { CP.mon = +el.value; el.setAttribute('aria-valuetext', cpPosText(CP.mode, CP.mon)); $('cpOut').innerHTML = cpSlideOut(); return; }
+    if (el.id === 'cpRange') { CP.mon = +el.value; el.setAttribute('aria-valuetext', cpPosText(CP.mode, CP.mon)); $('cpOut').innerHTML = cpSlideOut(); $('cpStages').innerHTML = cpStagesHtml(cpDescAt(CP.M, CP.mode, CP.mon)); return; }
     if (el.dataset.cpk) { cpSet(el.dataset.cpk, el.value); if (CP.view === 'input') cpRefreshInputBits(); }
   });
   document.addEventListener('change', function (e) {

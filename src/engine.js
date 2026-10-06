@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.0.1';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);
@@ -957,7 +957,60 @@
     }
     /* 換算比例：這一方多做 12 個月，另一方可以早幾個月 */
     function exchange(who, m) { var x = best(who, m), y = m + 12 <= (who === 'you' ? MA : MB) ? best(who, m + 12) : null; return x === null || y === null ? null : x - y; }
-    return { ok: true, A: A, B: B, PA: PA, PB: PB, MA: MA, MB: MB, B0: B0, run: run, feasible: ok, best: best, plans: plans, describe: describe, exchange: exchange, ageOf: ageOf, ym: ym,
+    /* ===== 每個階段（v1.0.1）：把每個月的家庭現金流拆成明細，再依「哪些項目出現」切成階段 =====
+       跟 household() 用同一套加總與利率；最後的存款必須等於 run().end（tests/couple-stages.test.js 把關）。
+       金額都是今天的購買力（元／月）。一次領的錢只出現一個月，不切成一段，記在那一段的 lumps */
+    var IN_KEYS = ['wageA', 'wageB', 'liA', 'liB', 'lsA', 'lsB', 'npA', 'npB', 'oldA', 'oldB', 'survA', 'survB', 'lsBack'];
+    var OUT_KEYS = ['living', 'loan', 'kid', 'par', 'npPremA', 'npPremB', 'nhiA', 'nhiB', 'nhiDep'];
+    function breakdown(ma, mb) {
+      var qa = QA(ma), qb = QB(mb), h = run(ma, mb), r = h.rules, mr = A.mrates(), tR0 = Math.min(qa.tR, qb.tR), bal = B0, rows = [], t;
+      for (t = 0; t < h.H; t++) {
+        var pa = A.personFlowsM(PA, qa, t), pb = B.personFlowsM(PB, qb, t), hf = A.householdFlowsM(PA, t), lf = r.living[t];
+        var o = { t: t, wageA: pa.work, wageB: pb.work, liA: pa.li, liB: pb.li, lsA: pa.ls, lsB: pb.ls, npA: pa.np, npB: pb.np, oldA: pa.old, oldB: pb.old,
+          survA: r.survLI[0][t] + r.survNP[0][t], survB: r.survLI[1][t] + r.survNP[1][t], lsBack: r.lsLump[t],
+          living: hf.living * lf, loan: hf.loan + hf.prepay, kid: hf.kid, par: hf.par - (extra ? extra(t) : 0),
+          npPremA: pa.npPrem, npPremB: pb.npPrem, nhiA: r.waive[0][t] ? 0 : pa.nhiPrem, nhiB: r.waive[1][t] ? 0 : pb.nhiPrem, nhiDep: -r.nhiExtra[t],
+          aliveA: t < PA.tE, aliveB: t < PB.tE, lf: lf, lumps: [] };
+        if (qa.liLump && t === qa.liT) o.lumps.push(['liA', pa.li]);
+        if (qb.liLump && t === qb.liT) o.lumps.push(['liB', pb.li]);
+        if (qa.lsLump && t === qa.lsT && pa.ls) o.lumps.push(['lsA', pa.ls]);
+        if (qb.lsLump && t === qb.lsT && pb.ls) o.lumps.push(['lsB', pb.ls]);
+        if (pa.old) o.lumps.push(['oldA', pa.old]); if (pb.old) o.lumps.push(['oldB', pb.old]);
+        if (o.lsBack) o.lumps.push(['lsBack', o.lsBack]);
+        o.inflow = IN_KEYS.reduce(function (x, k) { return x + o[k]; }, 0); o.outflow = OUT_KEYS.reduce(function (x, k) { return x + o[k]; }, 0); o.net = o.inflow - o.outflow;
+        bal = bal + o.net; o.balAfterNet = bal;
+        bal = bal > 0 ? bal * (1 + (t < tR0 ? mr.pre : mr.post)) : bal; o.bal = bal;
+        rows.push(o);
+      }
+      return { rows: rows, end: bal, H: h.H };
+    }
+    function stages(ma, mb) {
+      var br = breakdown(ma, mb), rows = br.rows, out = [], cur = null, t;
+      var lumpKey = function (o, k) { return o.lumps.some(function (x) { return x[0] === k; }); };
+      var sig = function (o) {
+        return IN_KEYS.concat(OUT_KEYS).filter(function (k) { return o[k] > 0.5 && !lumpKey(o, k); }).join(',') + '|' + o.aliveA + o.aliveB + '|' + o.lf;
+      };
+      for (t = 0; t < rows.length; t++) {
+        var o = rows[t], sg = sig(o);
+        if (!cur || cur.sig !== sg) { cur = { sig: sg, s: t, e: t + 1, sum: {}, lumps: [], balStart: t ? rows[t - 1].bal : B0, aliveA: o.aliveA, aliveB: o.aliveB, lf: o.lf }; out.push(cur); } else cur.e = t + 1;
+        IN_KEYS.concat(OUT_KEYS).forEach(function (k) { var v = lumpKey(o, k) ? 0 : o[k]; cur.sum[k] = (cur.sum[k] || 0) + v; });
+        o.lumps.forEach(function (x) { cur.lumps.push({ t: t, key: x[0], amt: x[1], ym: ym(t) }); });
+        cur.balEnd = o.bal; cur.minBal = Math.min(cur.minBal == null ? Infinity : cur.minBal, o.balAfterNet);
+      }
+      out.forEach(function (g, i) {
+        var n = g.e - g.s; g.months = n; g.ymS = ym(g.s); g.ymE = ym(g.e - 1); g.avg = {};
+        Object.keys(g.sum).forEach(function (k) { g.avg[k] = g.sum[k] / n; });
+        g.keys = g.sig.split('|')[0].split(',').filter(Boolean);
+        var prev = i ? out[i - 1] : null;
+        g.added = prev ? g.keys.filter(function (k) { return prev.keys.indexOf(k) < 0; }) : [];
+        g.removed = prev ? prev.keys.filter(function (k) { return g.keys.indexOf(k) < 0; }) : [];
+        g.diedA = prev && prev.aliveA && !g.aliveA; g.diedB = prev && prev.aliveB && !g.aliveB; g.livingDrop = prev && prev.lf === 1 && g.lf < 1;
+        g.ageA = ageOf('you', g.s); g.ageB = ageOf('partner', g.s);
+        delete g.sig; delete g.sum;
+      });
+      return { stages: out, end: br.end, H: br.H };
+    }
+    return { ok: true, A: A, B: B, PA: PA, PB: PB, MA: MA, MB: MB, B0: B0, run: run, feasible: ok, best: best, plans: plans, describe: describe, breakdown: breakdown, stages: stages, exchange: exchange, ageOf: ageOf, ym: ym,
       monthOfAge: function (who, age) { var P0 = who === 'you' ? PA : PB; return Math.round(age * 12) - P0.A0m; } };
   }
 

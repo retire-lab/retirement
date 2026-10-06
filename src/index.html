@@ -456,6 +456,16 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .cou-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .cou-b2 { display: block; font-size: 21px; }
 .cou-say { margin-top: 6px; font-size: 14px; }
+/* 夫妻：每個階段（v1.0.1） */
+.cou-stg { border-top: 1px solid var(--line); padding: 10px 0; }
+.cou-stg summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.cou-stgym, .cou-stgbal { font-size: 13px; color: var(--muted); }
+.cou-stgbal { display: flex; justify-content: space-between; }
+.cou-stgmore { font-style: normal; color: var(--accent); }
+.cou-stg[open] .cou-stgmore { visibility: hidden; }
+.cou-io { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; font-size: 13px; }
+.cou-io > div > div { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; }
+.cou-lump { margin-top: 8px; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--bg-sub); }
 /* 最低門檻 ≠ 建議（單人、夫妻共用） */
 .floor { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--bg-sub, #f1f0ec); font-size: 13px; line-height: 1.6; }
 .cou-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
