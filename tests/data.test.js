@@ -8,21 +8,36 @@ const S = suite('資料檔');
 const t = S.test;
 const today = new Date().toISOString().slice(0, 10);
 
-t('平均餘命表：60 到 85 歲每一歲都有', () => { for (let a = 60; a <= 85; a++) assert.ok(D.life.some((r) => r.age === a), '缺 ' + a + ' 歲'); });
-t('平均餘命表：沒有重複的年齡', () => assert.strictEqual(new Set(D.life.map((r) => r.age)).size, D.life.length));
-t('平均餘命表：採計值 = 生命表數字四捨五入', () => D.life.forEach((r) => assert.strictEqual(r.T, Math.round(r.ex_111), r.age + ' 歲：' + r.ex_111 + ' → ' + r.T)));
-t('平均餘命表：隨年齡遞減（生命表）、不增加（採計值）', () => {
-  const L = D.life.slice().sort((a, b) => a.age - b.age);
-  for (let i = 1; i < L.length; i++) { assert.ok(L[i].ex_111 < L[i - 1].ex_111, L[i].age + ' 歲'); assert.ok(L[i].T <= L[i - 1].T, L[i].age + ' 歲'); }
+/* 生命表（v0.9.9：有生效日、表的年度另成一欄，不再寫在欄位名稱裡） */
+const lifeSets = {}; D.life.forEach((r) => { (lifeSets[r.effective] = lifeSets[r.effective] || []).push(r); });
+t('平均餘命表：欄位是 effective、table_year、age、life_expectancy、T（年度不在欄位名稱裡）', () => D.life.forEach((r) => ['effective', 'table_year', 'age', 'life_expectancy', 'T'].forEach((k) => assert.ok(r[k] !== undefined && r[k] !== '', k))));
+t('平均餘命表：每一組（同一個生效日）60 到 85 歲每一歲都有、沒有重複', () => Object.values(lifeSets).forEach((L) => { for (let a = 60; a <= 85; a++) assert.ok(L.some((r) => r.age === a), '缺 ' + a); assert.strictEqual(new Set(L.map((r) => r.age)).size, L.length); }));
+t('平均餘命表：同一組只用同一年度的生命表', () => Object.values(lifeSets).forEach((L) => assert.strictEqual(new Set(L.map((r) => r.table_year)).size, 1)));
+t('平均餘命表：採計值 = 生命表數字四捨五入', () => D.life.forEach((r) => assert.strictEqual(r.T, Math.round(r.life_expectancy), r.age + ' 歲')));
+t('平均餘命表：年紀越大餘命越短', () => Object.values(lifeSets).forEach((L0) => {
+  const L = L0.slice().sort((a, b) => a.age - b.age);
+  for (let i = 1; i < L.length; i++) { assert.ok(L[i].life_expectancy < L[i - 1].life_expectancy, L[i].age + ' 歲'); assert.ok(L[i].T <= L[i - 1].T, L[i].age + ' 歲'); }
+}));
+t('勞退年金化利率與生命表：生效日一一對應，而且用同一年度的生命表', () => {
+  const effL = Object.keys(lifeSets).sort(), effA = D.lsAnnuity.map((r) => r.effective).sort();
+  assert.deepStrictEqual(effA, effL); D.lsAnnuity.forEach((r) => assert.strictEqual(r.table_year, lifeSets[r.effective][0].table_year));
 });
+t('勞退年金化利率：在合理範圍（0.5%–5%），單位是 %；目前 1.1473%（110–112 年平均）', () => { D.lsAnnuity.forEach((r) => assert.ok(r.rate > 0.5 && r.rate < 5, r.rate)); assert.strictEqual(SP5.pick(D.lsAnnuity, 2026, 10).rate, 1.1473); });
 t('平均餘命表：抽查勞保局公布值（60 歲 23 年、65 歲 19 年、70 歲 16 年）', () => {
   assert.strictEqual(SP5.lifeYears(60), 23); assert.strictEqual(SP5.lifeYears(65), 19); assert.strictEqual(SP5.lifeYears(70), 16);
 });
-['np', 'nhi', 'caps', 'deposit'].forEach((k) => {
+['np', 'nhi', 'caps', 'deposit', 'nhiEmp', 'npBen', 'lsAnnuity', 'life'].forEach((k) => {
   t(k + '：至少一列，生效日格式 YYYY-MM-DD', () => { assert.ok(D[k].length > 0); D[k].forEach((r) => assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(r.effective), r.effective)); });
   t(k + '：至少有一列已經生效（不能全是未來的表）', () => assert.ok(D[k].some((r) => r.effective <= today)));
   t(k + '：每一列都寫了來源', () => D[k].forEach((r) => assert.ok(String(r.source || '').length > 4)));
-  t(k + '：生效日不重複', () => assert.strictEqual(new Set(D[k].map((r) => r.effective)).size, D[k].length));
+  if (k !== 'life') t(k + '：生效日不重複', () => assert.strictEqual(new Set(D[k].map((r) => r.effective)).size, D[k].length));   /* 生命表一個生效日有多列（每個年齡一列） */
+});
+t('健保（受僱者）：115 年費率 5.17%、投保金額最低 29,500（＝最低工資）、最高 313,000', () => {
+  const r = SP5.pick(D.nhiEmp, 2026, 10); assert.strictEqual(r.rate, 5.17); assert.strictEqual(r.insured_min, 29500); assert.strictEqual(r.insured_max, 313000);
+  assert.strictEqual(SP5.pick(D.liGrades.filter((g) => g.grade === 1), 2026, 10).monthly_wage, r.insured_min);   /* 第 1 級跟勞保一樣都是最低工資 */
+});
+t('國保遺屬年金最低保障：113 年起 4,049，109～112 年 3,772（每 4 年依 CPI 調整）', () => {
+  assert.strictEqual(SP5.pick(D.npBen, 2026, 10).survivor_min, 4049); assert.strictEqual(SP5.pick(D.npBen, 2023, 12).survivor_min, 3772);
 });
 t('國保：115 年月投保金額 21,103、自付 1,329（= 21,103 × 10.5% × 60%，四捨五入）', () => {
   const r = SP5.pick(D.np, 2026, 10); assert.strictEqual(r.insured_amount, 21103); assert.strictEqual(r.self_monthly, 1329);
@@ -66,7 +81,12 @@ t('params.li_lump：一次領規則有來源、取得日期、第 58 條第 2 �
   const L = D.params.li_lump; assert.ok(L.source && /第 58 條/.test(L.source) && L.retrieved);
   assert.strictEqual(L.conditions.length, 4); assert.strictEqual(L.cap_months, 45); assert.strictEqual(L.cap_months_with_after60, 50);
 });
-t('params：勞退年金化利率在合理範圍（0.5%–5%）', () => { const r = D.params.ls_annuity_rate.value; assert.ok(r > 0.005 && r < 0.05); });
+/* v0.9.9 資料治理：每個 params 區塊都要回答「你是誰、從哪來、屬於哪一種」 */
+const CATS = ['legal', 'product_rule', 'model_assumption', 'meta'];
+t('params：每個區塊都標了 category（legal／product_rule／model_assumption／meta）', () => Object.keys(D.params).filter((x) => typeof D.params[x] === 'object').forEach((x) => assert.ok(CATS.includes(D.params[x].category), x + '：' + D.params[x].category)));
+t('params：legal、product_rule、model_assumption 的區塊都有 source', () => Object.keys(D.params).filter((x) => typeof D.params[x] === 'object' && D.params[x].category !== 'meta').forEach((x) => assert.ok(String(D.params[x].source || '').length > 4, x)));
+t('params：不再放有生效日、會逐年調整的年度資料（那些一律放 data/*.csv）', () => ['ls_annuity_rate', 'nhi_supplementary'].forEach((x) => assert.ok(!(x in D.params), x)));
+t('資料：每張 CSV 都有 effective（生效日）或是年齡表的一部分', () => Object.keys(D).filter((x) => Array.isArray(D[x])).forEach((x) => assert.ok(D[x].every((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.effective)), x)));
 t('params：勞保兩式與減給展延參數齊全', () => ['min_years', 'f1_rate', 'f1_add', 'f2_rate', 'adjust_per_year', 'adjust_max_years'].forEach((k) => assert.ok(typeof D.params.li[k] === 'number', k)));
 t('params：每一項都有來源', () => Object.entries(D.params).forEach(([k, v]) => { if (k !== 'version') assert.ok(v.source, k + ' 缺來源'); }));
 t('params.verified：最後核對日期是合法日期，而且不是未來', () => { const v = D.params.verified; assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(v.at), v.at); const d = new Date(v.at + 'T00:00:00'); assert.ok(isFinite(d.getTime()) && d.getTime() <= Date.now(), v.at); });
@@ -92,4 +112,14 @@ t('暫定的數字有標記（caps 的 status），提醒要確認', () => asser
   t('CSV：data/ 裡所有資料檔都通過檢查', () => fs.readdirSync(path.join(__dirname, '..', 'data')).filter((f) => f.endsWith('.csv')).forEach((f) => assert.ok(csv(f).length > 0, f)));
 }
 
+/* v0.9.9：說明文字（note）不准用中文再寫一次同一組已有的數值（數值改了說明不會跟著改）；法條條號「第 N 條／項／款」是引用，不算 */
+t('params：說明文字不重寫同一組裡已有的數值（單一來源）', () => {
+  const P = D.params, bad = [];
+  const nums = (o, acc) => { if (o && typeof o === 'object') { for (const k in o) { if (/note|source/.test(k)) continue; nums(o[k], acc); } } else if (typeof o === 'number') { acc.add(String(o)); if (o > 0 && o < 1) acc.add(String(+(o * 100).toFixed(4))); } else if (typeof o === 'string' && /^\d{4}-\d{2}/.test(o)) { acc.add(o.slice(0, 4)); acc.add(String(+o.slice(5, 7))); } return acc; };
+  const notes = (o, p, out) => { if (o && typeof o === 'object') for (const k in o) { const v = o[k]; if (typeof v === 'string' && /note/.test(k)) out.push([p + '.' + k, v]); else notes(v, p + '.' + k, out); } return out; };
+  for (const g in P) { if (!P[g] || typeof P[g] !== 'object') continue; const vals = nums(P[g], new Set());
+    notes(P[g], g, []).forEach(([path, txt]) => { const toks = (txt.replace(/第\s*\d+(?:\s*[、，]\s*\d+)*\s*[條項款目]/g, '').replace(/(\d),(\d{3})/g, '$1$2').match(/\d+(?:\.\d+)?/g) || []);
+      const hit = [...new Set(toks.filter((x) => vals.has(String(+x))))]; if (hit.length) bad.push(path + '：' + hit.join('、')); }); }
+  assert.deepStrictEqual(bad, []);
+});
 process.exit(S.run() ? 1 : 0);

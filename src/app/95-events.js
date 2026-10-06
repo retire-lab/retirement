@@ -127,7 +127,7 @@
         if (yy > 1900 && mm >= 1 && mm <= 12) { var ra = EN0.ageOfT(EN0.mi(yy, mm) - EN0.NOWI); if (ra >= EN0.fromAge() - 1e-9 && ra <= ADJ_MAX + 1e-9) aj2.ret = ra; else { toast('要在現在到 ' + ADJ_MAX + ' 歲之間'); return; } }
         else { toast('請輸入正確的年和月'); return; }
       }
-      else if (ek === 'end') { if (vv >= 66 && vv <= 105) aj2.end = Math.round(vv) === EN0.E() ? null : Math.round(vv); }
+      else if (ek === 'end') { if (vv >= LAW.endMin && vv <= LAW.endMax) aj2.end = Math.round(vv) === EN0.E() ? null : Math.round(vv); }
       else if (isFinite(vv)) { var dir = +($('ed-dir') || {}).value || 1, val = Math.round(vv) * dir; aj2[ek] = ek === 'more' ? Math.max(-W(S.spend), val) : Math.max(-W(S.inc), val); }
       S.adjEdit = null; adjChanged(); paintResult();
     }
@@ -150,6 +150,11 @@
     else if (b.id === 'goOld') { S.panel = 'prec'; S.pf = S.pf || {}; S.pf.old = true; paintResult(); $('panelPrec').scrollIntoView({ block: 'start' }); }
     else if (b.id === 'tgAdj' || b.id === 'tgPrec') { var want = b.id === 'tgAdj' ? 'adj' : 'prec'; S.panel = S.panel === want ? null : want; if (S.panel) track(want === 'adj' ? 'adjust_open' : 'precision_open'); S.adjEdit = null; paintResult(); }
     else if (b.dataset.pa) { var pv = b.dataset.pa.split(':'); S.preDraft[pv[0]] = pv[1]; paintResult(); }
+    else if (b.dataset.depstep) {   /* 存款利率加減：從目前的值（沒填＝預設）走一格，碰到上下限就停；回到預設就清空（＝用預設） */
+      var DI = PR0.deposit_input, def = Math.round(EN0.rates().depDefault * 1000) / 10, dd = S.preDraft.dep, cv = dd === '' || dd == null || !isFinite(+dd) ? def : +dd;
+      var nv = Math.min(DI.max, Math.max(DI.min, Math.round((cv + DI.step * +b.dataset.depstep) * 100) / 100));
+      S.preDraft.dep = Math.abs(nv - def) < 1e-9 ? '' : String(nv); paintResult();
+    }
     else if (b.id === 'applyPre' || b.id === 'applyPre3' || b.id === 'clearPre') {
       var before = earliest(), Rb = before === null ? 65 : before, gb = gapText(evalR(profile(), Rb));
       var prevPre = S.pre, dcA = draftCheck(), oldDraft = JSON.parse(JSON.stringify(S.preDraft || {}));
@@ -159,11 +164,11 @@
       EN.sync();
       S.preDraft = JSON.parse(JSON.stringify(S.pre));
       var nBad = 0; if (b.id !== 'clearPre') Object.keys(dcA.bad).forEach(function (k) { S.preDraft[k] = oldDraft[k]; nBad++; });   /* 填錯的留在欄位裡繼續顯示錯誤 */
-      var after = earliest(), lab = function (x) { return x === null ? '65 歲還不夠' : ageText(x); };
+      var after = earliest(), lab = function (x) { return x === null ? LAW.maxR + ' 歲還不夠' : ageText(x); };
       S.delta = { before: before, after: after, Rb: Rb, gb: gb }; adjReset();
       toast((b.id === 'clearPre' ? '已改回估算' : '已套用') + '：最快 ' + lab(after) + (nBad ? '；' + nBad + ' 項有錯，沒有套用' : ''));
-      if (nBad) S.panel = 'prec';
-      S.panel = null; S.ledger = false; S.phase = null; paintResult(); window.scrollTo(0, 0);
+      S.panel = nBad ? 'prec' : null;   /* 有欄位填錯：面板保持打開，錯誤顯示在欄位下面（v0.9.6 修正：原本下一行又把面板關掉） */
+      S.ledger = false; S.phase = null; paintResult(); window.scrollTo(0, 0);
     }
     else if (b.id === 'ledgerBtn') { S.ledger = !S.ledger; paintResult(); }
   });

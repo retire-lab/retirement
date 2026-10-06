@@ -11,7 +11,7 @@
     var lab = {}; SP5Engine.GAP_SITS.forEach(function (g) { lab[g[0]] = g[1]; });
     return n.map(function (g) { return (lab[g.sit] || g.sit) + ' ' + durStr(g.y * 12 + g.m); }).join('；');
   }
-  var RPT_PRE = [['liYears', '勞保年資'], ['w60', '平均月投保薪資'], ['liClaim', '勞保請領年齡'], ['liMode', '勞保怎麼領'], ['w36', '退保前 3 年平均月投保薪資'], ['liPre09', '2009 年前有勞保年資'], ['sex', '勞保登記的性別'], ['sameCo', '在目前這家公司保勞保幾年'],
+  var RPT_PRE = [['liYears', '勞保年資'], ['w60', '平均月投保薪資'], ['liClaim', '勞保請領年齡'], ['liMode', '勞保怎麼領'], ['w36', '退保前 ' + LAW.w36 / 12 + ' 年平均月投保薪資'], ['liPre09', '' + LAW.lumpYear + ' 年前有勞保年資'], ['sex', '勞保登記的性別'], ['sameCo', '在目前這家公司保勞保幾年'],
     ['lsBal', '勞退專戶餘額'], ['lsWage', '勞退月提繳工資'], ['lsYears', '勞退提繳年資'], ['self', '勞退自提'], ['oldOn', '勞退舊制'], ['oHire', '勞退舊制到職年'], ['oYrs', '勞退舊制年資'], ['oWage', '勞退舊制平均工資'],
     ['gaps', '工作空窗'], ['nhiDep', '健保'], ['inf', '通膨'], ['dep', '存款利率']];
   var RPT_OPTIONAL = { w36: 1, liPre09: 1, sex: 1, sameCo: 1, oHire: 1, oYrs: 1, oWage: 1 };
@@ -59,10 +59,10 @@
     var P = en.profile(); if (en.liLumpElig(P).state !== 'yes') return null;
     var e = en.earliest(), c = en.liCompare(P, e !== null ? e : 65); if (c.elig !== 'yes' || c.none) return null;
     var k = c.monthly.kind;
-    return { lumpTitle: '一次領', lumpLines: [ageText(c.lump.age) + '領 ' + fmtW(c.lump.amt), (Math.round(c.lump.months * 100) / 100) + ' 個月 × ' + (c.lump.w36 != null ? '退保前 3 年平均' : '平均月投保薪資') + '；之後不能保國保'],
+    return { lumpTitle: '一次領', lumpLines: [ageText(c.lump.age) + '領 ' + fmtW(c.lump.amt), (Math.round(c.lump.months * 100) / 100) + ' 個月 × ' + (c.lump.w36 != null ? '退保前 ' + LAW.w36 / 12 + ' 年平均' : '平均月投保薪資') + '；之後不能保國保'],
       monTitle: k === 'onetime' ? '老年一次金' : k === 'combined' ? '月領（併計國保）' : '月領',
-      monLines: [k === 'onetime' ? ageText(c.monthly.age) + '領 ' + fmtW(c.monthly.oneAmt) : ageText(c.monthly.age) + '起每月 ' + fmtW(c.monthly.amt), c.monthly.npMonths ? '退休到開始領之前繳國保；65 歲起國保每月 ' + fmtW(c.monthly.npMonthly) : '不用繳國保'],
-      sentence: liSentence(c), note: c.lump.w36 != null ? '一次領用你填的退保前 3 年平均月投保薪資。' : '一次領法定用退保前 3 年的平均投保薪資，這裡以平均月投保薪資估算。' };
+      monLines: [k === 'onetime' ? ageText(c.monthly.age) + '領 ' + fmtW(c.monthly.oneAmt) : ageText(c.monthly.age) + '起每月 ' + fmtW(c.monthly.amt), c.monthly.npMonths ? '退休到開始領之前繳國保；' + LAW.npAge + ' 歲起國保每月 ' + fmtW(c.monthly.npMonthly) : '不用繳國保'],
+      sentence: liSentence(c), note: c.lump.w36 != null ? '一次領用你填的退保前 ' + LAW.w36 / 12 + ' 年平均月投保薪資。' : '一次領法定用退保前 ' + LAW.w36 / 12 + ' 年的平均投保薪資，這裡以平均月投保薪資估算。' };
   }
   function reportModel() {
     var X = C.ctx; if (!X) return null;
@@ -76,8 +76,8 @@
       M.results = { rows: sink.filter(function (r) { if (r.sec) { inRes = r.sec === '結果'; return false; } return inRes && r.label; }) };
     } else {
       var e = X.e, ev = evalR(P, X.Rorig);
-      M.results = { rows: [{ label: '最快退休', v: e !== null ? [ageText(e), ymText(e)] : ['65 歲還不夠'], big: true }, { label: '需要有', v: [fmtW(ev.need)] }, { label: '退休時會有', v: [fmtW(ev.proj)] },
-        { label: '夠用到', v: [EN0.E() + ' 歲'] }, { label: '橋接期', v: [e !== null && e < 60 - 1e-9 ? durStr(monthsBetween(e, 60)) : '沒有'] }, { label: '錢夠不夠', v: [gapText(ev)] }],
+      M.results = { rows: [{ label: '最快退休', v: e !== null ? [ageText(e), ymText(e)] : [LAW.maxR + ' 歲還不夠'], big: true }, { label: '需要有', v: [fmtW(ev.need)] }, { label: '退休時會有', v: [fmtW(ev.proj)] },
+        { label: '夠用到', v: [EN0.E() + ' 歲'] }, { label: '橋接期', v: [e !== null && e < LAW.lsAge - 1e-9 ? durStr(monthsBetween(e, LAW.lsAge)) : '沒有'] }, { label: '錢夠不夠', v: [gapText(ev)] }],
         notes: htmlBlocks(C.heroHtml).filter(function (l) { return /。$/.test(l); }) };
     }
     var lo = ledger(P, X.Rorig);

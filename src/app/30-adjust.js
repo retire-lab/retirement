@@ -5,12 +5,12 @@
      調整都只存在 S.adj，不改輸入；有調整時另建一份情境引擎（SP5Engine.scenario），整頁換成那個版本，
      頂端標示「你正在看」，按「回到原本」清掉。主結果（EN0）永遠不變。 */
   function pct(x) { return (Math.round(x * 1000) / 10).toString().replace(/\.0$/, '') + '%'; }
-  var STEP_MONEY = 2000, ADJ_MAX = 80;
+  var STEP_MONEY = 2000, ADJ_MAX = LAW.stressMax;
   /* 萬一……：每項都是加減按鈕 [key, 標籤, 每格, 最小, 最大, 說明] */
   var WI_STEPS = [
     ['gap', '收入中斷多久', 1, 0, 3, '從明年起，每格 1 年。期間沒有薪水，要自己繳國保、健保'],
     ['cut', '收入減少多少', 10, 0, 30, '從現在到退休，每格 10%'],
-    ['spend', '晚年每月多花多少', 1, 0, 3, '從 75 歲起，每格 1 萬，例如醫療、長照'],
+    ['spend', '晚年每月多花多少', 1, 0, 3, '從 ' + LAW.late + ' 歲起，每格 1 萬，例如醫療、長照'],
     ['inf', '通膨', 1, 0, 3, '每格 1%'],
     ['dep', '存款利率', 0.5, 0, 1.5, '每格降 0.5 個百分點，退休前後都降。跟通膨上升不一樣：房貸每月固定，不會因此變輕'],
     ['li', '勞保只領到', 10, 50, 100, '每格 10%，不是預測勞保會砍']
@@ -20,8 +20,10 @@
   function adjReset() { S.adj = null; S.adjEdit = null; S.phase = null; S.ledger = false; S.year = null; S.ypage = null; }
   function adjChanged() { S.phase = null; S.ledger = false; S.year = null; S.ypage = null; }
   function infBase() { return Math.round(EN0.rates().inf * 1000) / 10; }
-  function depBase() { return Math.round(EN0.rates().dep * 1000) / 10; }
-  function depAfter(v) { return Math.round(Math.max(0, depBase() - v) * 10) / 10; }
+  /* 存款利率可以自己填到小數第二位（v0.9.6），所以這三個都保留兩位小數 */
+  function pct2(x) { return (Math.round(x * 10000) / 100).toString() + '%'; }
+  function depBase() { return Math.round(EN0.rates().dep * 10000) / 100; }
+  function depAfter(v) { return Math.round(Math.max(0, depBase() - v) * 100) / 100; }
 
   function wiLabel(k, v) { return ({ li: '勞保只領 ' + v + '%', inf: '通膨 ' + (Math.round((infBase() + v) * 10) / 10) + '%', dep: '存款利率 ' + depAfter(v) + '%', gap: '收入中斷 ' + v + ' 年', cut: '收入少 ' + v + '%', spend: '晚年每月多花 ' + v + ' 萬' })[k]; }
   /* 萬一……每一項現在的顯示值 */
@@ -47,7 +49,7 @@
   }
   function adjSel() { var a = adjState(), w = a.wi; return { li: w.li, inf: w.inf, dep: w.dep, gap: w.gap, cut: w.cut, spend: w.spend, more: a.more, save: a.save, end: a.end }; }
   function gapText(ev) { return ev.preExhaust !== null ? '退休前就用完' : ev.gap <= 0 ? '多出 ' + fmtW(-ev.gap) : '還差 ' + fmtW(ev.gap); }
-  function bridgeText(e) { return e !== null && e < 60 - 1e-9 ? '60 歲以前退休，要靠存款撐 ' + durStr(monthsBetween(e, 60)) + '，勞退 60 歲才能領。' : ''; }
+  function bridgeText(e) { return e !== null && e < LAW.lsAge - 1e-9 ? LAW.lsAge + ' 歲以前退休，要靠存款撐 ' + durStr(monthsBetween(e, LAW.lsAge)) + '，勞退 ' + LAW.lsAge + ' 歲才能領。' : ''; }
 
   /* 想在幾歲退休：按 + 或 − 對齊整歲（滿幾歲的生日） */
   function retSnap(cur, d) { var whole = Math.abs(cur - Math.round(cur)) < 1e-6; return d < 0 ? (whole ? Math.round(cur) - 1 : Math.floor(cur)) : (whole ? Math.round(cur) + 1 : Math.ceil(cur)); }
@@ -102,6 +104,6 @@
       stepper('more', '每月花費', moreV, '每格 2,000，點中間可以直接輸入', a.more !== 0, a.more - STEP_MONEY >= -base, true) +
       stepper('save', '每月多存', saveV, '每格 2,000，點中間可以直接輸入', a.save !== 0, a.save - STEP_MONEY >= -inc, true) +
       '</div></details>' + agOpen('wi', '萬一……', wiSum) + '<div class="muted" style="margin-top:0">你控制不了，但可能發生的事</div>' +
-      stepper('end', '活到', endV + ' 歲', '每格 1 歲，點中間可以直接輸入', a.end !== null, endV > 66, endV < 105) +
+      stepper('end', '活到', endV + ' 歲', '每格 1 歲，點中間可以直接輸入', a.end !== null, endV > LAW.endMin, endV < LAW.endMax) +
       wi + '</div></details></div>';
   }

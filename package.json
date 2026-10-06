@@ -1,12 +1,12 @@
 {
   "name": "sp5-retirement-age",
-  "version": "0.9.4",
+  "version": "0.9.9",
   "private": true,
   "description": "退休生命週期決策平台 Retirement Lifecycle Decision Platform（內部代號 SP5）",
   "scripts": {
-    "test": "node tests/engine.test.js && node tests/rules.test.js && node tests/persona.test.js && node tests/data.test.js && node tests/html.test.js && node tests/acceptance.test.js && node tests/official.test.js && node tests/boundary.test.js && node tests/deadcode.test.js",
+    "test": "node tests/engine.test.js && node tests/rules.test.js && node tests/persona.test.js && node tests/data.test.js && node tests/html.test.js && node tests/acceptance.test.js && node tests/official.test.js && node tests/boundary.test.js && node tests/deadcode.test.js && node tests/timeline.test.js && node tests/couple.test.js && node tests/golden.test.js",
     "build": "node scripts/build.js",
-    "test:ui": "node tests/e2e/ui.e2e.js && node tests/backup.test.js && node tests/a11y.test.js",
+    "test:ui": "node tests/e2e/ui.e2e.js && node tests/backup.test.js && node tests/a11y.test.js && node tests/semantic.test.js",
     "test:pdf": "node tests/pdf.test.js",
     "font": "python3 scripts/build-font.py",
     "check": "npm run lint && npm test && npm run build && npm run test:ui && npm run test:pdf",

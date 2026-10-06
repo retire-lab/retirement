@@ -46,6 +46,8 @@
       '不用寫出生年月、資產這些個資；如果問題跟某個數字有關，可以附上截圖（記得先遮住你不想給人看的部分）。';
     return 'mailto:' + FB_MAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   }
+  /* 存款利率的來源（v0.9.6）：沒填＝臺銀一年期定存牌告；填了＝使用者自己設定 */
+  function depSrc() { return S.pre && S.pre.dep !== '' && S.pre.dep != null ? '你設定的' : '一年期定存'; }
   function closeModal() {
     $('modal').hidden = true; modal.cb = null;
     (modal.inerted || []).forEach(function (el) { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }); modal.inerted = [];

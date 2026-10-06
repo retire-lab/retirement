@@ -37,7 +37,10 @@ module.exports = function loadData() {
     caps: csv('caps.csv'),
     lsGrades: csv('ls_wage_grades.csv'),
     liGrades: csv('li_wage_grades.csv'),
-    deposit: csv('deposit_rate.csv')
+    deposit: csv('deposit_rate.csv'),
+    nhiEmp: csv('nhi_employee.csv'),     /* v0.9.8：健保費率、投保金額最低與最高級（夫妻模式的眷屬保費） */
+    npBen: csv('np_benefits.csv'),       /* v0.9.8：國保遺屬年金最低保障（每 4 年依 CPI 調整） */
+    lsAnnuity: csv('ls_annuity.csv')     /* v0.9.9：勞退月退休金的年金化利率（與生命表同一個生效日） */
   };
 };
 module.exports.csv = csv;   // 測試用：可以指定資料夾

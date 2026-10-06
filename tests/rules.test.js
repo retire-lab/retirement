@@ -271,9 +271,7 @@ t('壓力測試：勞保打折只影響勞保年金（勞保 50% 的月領剛好
   near(en.pensions(P2, 60).liMonthly, en.pensions(P1, 60).liMonthly * 0.5, 1e-6);
   near(en.pensions(P2, 60).lsMonthly, en.pensions(P1, 60).lsMonthly, 1e-6);
 });
-t('壓力測試：舊的 stress: true 仍等於勞保 80%（相容）', () => {
-  const en = SP5.create(stIn, { now: stNow }); assert.strictEqual(en.earliest({ stress: true }), en.earliest({ liFactor: 0.8 }));
-});
+/* v0.9.9：舊的 stress: true（勞保 80%）相容路徑已移除——畫面自 v0.8.0 起不再傳這個參數 */
 t('壓力測試：報酬率少 1% 不影響勞退基金（勞退月領不變）', () => {
   // 0% 通膨下比較：自己的報酬少 1%，勞退專戶與月退金額不應改變
   const as = { inf: 0, rPre: 0.03, rPost: 0.02, rLs: 0.01, pensions: true, np: true, nhi: true };
@@ -710,6 +708,20 @@ t('用語：勞退停發寫成「專戶領完」，不寫「停發」', () => {
   const en = engine({ birth: '1966-10', asset: '1500' }), P = en.profile(), Q = en.pensions(P, 60);
   const txt = en.impactEvents(P, 60, Q).map((e) => e.t).join('｜') + en.eventsAt(P, Q, Q.lsEndT).map((e) => e.text).join('｜');
   assert.ok(/專戶領完/.test(txt) && !/停發/.test(txt), txt);
+});
+
+/* 勞保局 2026-10-06 說明：領了勞保老年給付就不能再參加國保（112.10.1 起），但已繳的國保年資保留，65 歲仍可依該年資領國保老年年金 */
+t('領了勞保老年給付後國保停繳，但已繳的國保年資保留、65 歲照領（勞保局 2026-10-06 說明；112.10.1 起）', () => {
+  /* 1970-05 生、30 歲開始工作（2009 年前有年資）、50 歲退休（勞保年資 20 年），選一次請領：要用第 2 款等到 55 歲 */
+  const en = engine({ birth: '1970-05', workStart: '30', asset: '900', inc: '6', spend: '3', pre: { liMode: 'lump', liPre09: true } }), P = en.profile(), Q = en.pensions(P, 50);
+  assert.strictEqual(Q.tR, en.tOfAge(50)); assert.strictEqual(Q.liT, en.tOfAge(55), '一次請領在 55 歲');
+  assert.strictEqual(Q.npEndT, Q.liT, '國保在開始領勞保的那個月停繳');
+  assert.strictEqual(Q.npMonths, 60, '50～55 歲繳了 5 年國保');
+  assert.strictEqual(Math.round(Q.npMonthly), Math.round(21103 * 5 * 0.013), '65 歲起國保年金按已繳的 5 年、B 式計算（21,103 × 5 × 1.3% ≈ 1,372）');
+  let premAfter = 0, npPaid = 0;
+  for (let t = 0; t < P.tE; t++) { const f = en.personFlowsM(P, Q, t); if (t >= Q.liT && f.npPrem > 0) premAfter++; if (t >= Q.np65T && f.np > 0) npPaid++; }
+  assert.strictEqual(premAfter, 0, '領了勞保之後沒有任何一個月繳國保');
+  assert.strictEqual(npPaid, P.tE - Q.np65T, '65 歲起每個月都有國保年金');
 });
 
 process.exit(S.run() ? 1 : 0);

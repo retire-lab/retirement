@@ -1,7 +1,7 @@
 /* src/app/50-precision.js — 提高準確度
  * 這個檔案不是獨立的模組：建置時 src/app/ 的檔案依檔名順序接起來，包在同一個函式裡（共用變數）。
  * 產生 src/app.generated.js，再內嵌進 dist/index.html。 */
-  var PRE_LABEL = { inf: '通膨', dep: '存款利率', liClaim: '請領年齡', liYears: '勞保年資', w60: '平均月投保薪資', lsBal: '專戶餘額', lsWage: '月提繳工資', lsYears: '提繳年資', self: '自提', oldOn: '勞退舊制', oHire: '到職年', oYrs: '舊制年資', oWage: '平均工資', gaps: '工作空窗', liMode: '勞保怎麼領', liPre09: '2009 年前有勞保年資', sex: '勞保登記的性別', sameCo: '同一家公司年資', w36: '退保前 3 年平均', nhiDep: '健保', endAge: '算到幾歲' };
+  var PRE_LABEL = { inf: '通膨', dep: '存款利率', liClaim: '請領年齡', liYears: '勞保年資', w60: '平均月投保薪資', lsBal: '專戶餘額', lsWage: '月提繳工資', lsYears: '提繳年資', self: '自提', oldOn: '勞退舊制', oHire: '到職年', oYrs: '舊制年資', oWage: '平均工資', gaps: '工作空窗', liMode: '勞保怎麼領', liPre09: '' + LAW.lumpYear + ' 年前有勞保年資', sex: '勞保登記的性別', sameCo: '同一家公司年資', w36: '退保前 ' + LAW.w36 / 12 + ' 年平均', nhiDep: '健保', endAge: '算到幾歲' };
   var PRE_GROUP = { base: ['inf', 'dep'], li: ['liClaim', 'liMode', 'liPre09', 'sex', 'sameCo', 'w36', 'liYears', 'w60'], ls: ['lsBal', 'lsWage', 'lsYears', 'self'], old: ['oldOn', 'oHire', 'oYrs', 'oWage'], gap: ['gaps'], nhi: ['nhiDep'] };
   function gapNorm(list) { return (list || []).map(function (g) { return { sit: g.sit, y: +g.y || 0, m: +g.m || 0 }; }).filter(function (g) { return g.y || g.m; }); }
   function gapStatus(list) { var n = gapNorm(list), mo = n.reduce(function (t, g) { return t + g.y * 12 + g.m; }, 0); return n.length ? n.length + ' 段・共 ' + durStr(mo) : '沒有'; }
@@ -96,35 +96,35 @@
     var en = SP5Engine.create(inp); if (en.validate()) return ''; en.sync();
     var P = en.profile(), e = en.earliest(), R = e !== null ? e : 65, Q = en.pensions(P, R);
     if (Q.liMode !== 'onetime' && Q.liMode !== 'combined') return '';
-    var y = Math.round(Q.liYears * 10) / 10, np = Math.round(Math.max(0, 65 - R) * 10) / 10;
-    if (Q.liMode === 'combined') return '<div class="limsg u15">你退休時勞保年資 ' + y + ' 年，未滿 15 年；加上退休後到 65 歲的國保年資 ' + np + ' 年，合計滿 15 年，<b>' + ageText(Q.liClaim) + '可以月領勞保年金 ' + fmtW(Q.liMonthly) + '</b>。' +
+    var y = Math.round(Q.liYears * 10) / 10, np = Math.round(Math.max(0, LAW.npAge - R) * 10) / 10;
+    if (Q.liMode === 'combined') return '<div class="limsg u15">你退休時勞保年資 ' + y + ' 年，未滿 ' + LAW.liMin + ' 年；加上退休後到 ' + LAW.npAge + ' 歲的國保年資 ' + np + ' 年，合計滿 ' + LAW.npComb + ' 年，<b>' + ageText(Q.liClaim) + '可以月領勞保年金 ' + fmtW(Q.liMonthly) + '</b>。' +
       '<span>只用勞保年資算，不能提前、延後，所以上面的請領年齡不適用；國保年金另外算。你也可以選擇領老年一次金，但領了就不能再併計國保年資改月領。（勞保條例第 58 條、勞動部說明）</span></div>';
-    return '<div class="limsg u15">你退休時勞保年資 ' + y + ' 年，未滿 15 年，加上國保年資也不滿 15 年，<b>' + ageText(Q.liClaim) + '可以領老年一次金 ' + fmtW(Q.liLump) + '</b>。' +
-      '<span>每年 1 個月 × 平均月投保薪資，60 歲以後的年資最多算 5 年；要先退保、到法定年齡才能領，所以上面的請領年齡不適用。（勞保條例第 58 條、勞保局給付標準）</span></div>';
+    return '<div class="limsg u15">你退休時勞保年資 ' + y + ' 年，未滿 ' + LAW.liMin + ' 年，加上國保年資也不滿 ' + LAW.npComb + ' 年，<b>' + ageText(Q.liClaim) + '可以領老年一次金 ' + fmtW(Q.liLump) + '</b>。' +
+      '<span>每年 ' + LAW.oneMpy + ' 個月 × 平均月投保薪資，' + LAW.after + ' 歲以後的年資最多算 ' + LAW.afterMax + ' 年；要先退保、到法定年齡才能領，所以上面的請領年齡不適用。（勞保條例第 58 條、勞保局給付標準）</span></div>';
   }
   function liLumpHtml(d) {
     var inp = JSON.parse(JSON.stringify(getInputs())); inp.pre = JSON.parse(JSON.stringify(draftCheck().eff));
     var en = SP5Engine.create(inp); if (en.validate()) return ''; en.sync();
     var P = en.profile(), el = en.liLumpElig(P), e = en.earliest(), R = e !== null ? e : 65;
     var head = '<div class="row lihow"><div class="f">怎麼領</div>';
-    if (el.state === 'no') return head + '<div class="limsg">你只能月領。<span>你在 2009 年以後才開始工作；2009 年以後才第一次保勞保的人，不能選一次領（勞保條例第 58 條）。</span></div></div>';
-    if (el.state === 'unknown') return head + '<div class="limsg warn">還無法判斷你能不能選一次領。<span>要 2009 年以前就有勞保年資才能選。請到勞保局 e 化服務系統查「個人年資」，把勞保年資填在下面就會自動判斷；年資比較短的話，查過之後在這裡確認。</span>' +
-      '<label class="check"><input type="checkbox" data-pre="liPre09"' + (d.liPre09 ? ' checked' : '') + '><span>我查過了，2009 年以前就有勞保年資</span></label></div></div>';
+    if (el.state === 'no') return head + '<div class="limsg">你只能月領。<span>你在 ' + LAW.lumpYear + ' 年以後才開始工作；' + LAW.lumpYear + ' 年以後才第一次保勞保的人，不能選一次領（勞保條例第 58 條）。</span></div></div>';
+    if (el.state === 'unknown') return head + '<div class="limsg warn">還無法判斷你能不能選一次領。<span>要 ' + LAW.lumpYear + ' 年以前就有勞保年資才能選。請到勞保局 e 化服務系統查「個人年資」，把勞保年資填在下面就會自動判斷；年資比較短的話，查過之後在這裡確認。</span>' +
+      '<label class="check"><input type="checkbox" data-pre="liPre09"' + (d.liPre09 ? ' checked' : '') + '><span>我查過了，' + LAW.lumpYear + ' 年以前就有勞保年資</span></label></div></div>';
     var mode = d.liMode === 'lump' ? 'lump' : '', Q = en.pensions(P, R), yrs = Q.liYears, c = en.liCompare(P, R);
-    var out = head + '<div class="liok">' + (el.by === 'confirmed' ? '你確認過 2009 年以前就有勞保年資' : '你 2009 年以前就有勞保年資') + '，可以選一次領（勞保條例第 58 條）。</div>' +
-      (el.by === 'confirmed' ? '<label class="check"><input type="checkbox" data-pre="liPre09" checked><span>我查過了，2009 年以前就有勞保年資</span></label>' : '') +
+    var out = head + '<div class="liok">' + (el.by === 'confirmed' ? '你確認過 ' + LAW.lumpYear + ' 年以前就有勞保年資' : '你 ' + LAW.lumpYear + ' 年以前就有勞保年資') + '，可以選一次領（勞保條例第 58 條）。</div>' +
+      (el.by === 'confirmed' ? '<label class="check"><input type="checkbox" data-pre="liPre09" checked><span>我查過了，' + LAW.lumpYear + ' 年以前就有勞保年資</span></label>' : '') +
       '<div class="seg" role="group" aria-label="勞保怎麼領"><button type="button" data-pa="liMode:" aria-pressed="' + (mode === '') + '">月領</button><button type="button" data-pa="liMode:lump" aria-pressed="' + (mode === 'lump') + '">一次領</button></div>' +
-      '<div class="row"><label class="f" for="pW36">退保前 3 年平均月投保薪資（萬，選填）</label><input id="pW36" type="text" inputmode="decimal" data-pre="w36" value="' + esc(d.w36 || '') + '" placeholder="沒填就用 ' + (P.w60 / 10000).toFixed(2) + ' 估算"></div>' +
-      '<div class="purpose">只用來算一次請領的金額：法定是用退保前 3 年（36 個月）的平均，不是最高 60 個月。退休前幾年降薪或改兼職的人，兩者會差很多。勞保局 e 化服務系統查得到。</div></div>';
+      '<div class="row"><label class="f" for="pW36">退保前 ' + LAW.w36 / 12 + ' 年平均月投保薪資（萬，選填）</label><input id="pW36" type="text" inputmode="decimal" data-pre="w36" value="' + esc(d.w36 || '') + '" placeholder="沒填就用 ' + (P.w60 / 10000).toFixed(2) + ' 估算"></div>' +
+      '<div class="purpose">只用來算一次請領的金額：法定是用退保前 ' + LAW.w36 / 12 + ' 年（' + LAW.w36 + ' 個月）的平均，不是最高 ' + LAW.liAvg + ' 個月。退休前幾年降薪或改兼職的人，兩者會差很多。勞保局 e 化服務系統查得到。</div></div>';
     /* 只在會改變答案時才問：年資未滿 15 年才問性別；50 歲以前退休才問同一家公司的年資 */
-    var askSex = yrs < 15 - 1e-9 && R < 60 - 1e-9, askCo = R < 50 - 1e-9;
+    var askSex = yrs < LAW.C2.min_years - 1e-9 && R < LAW.C1.min_age - 1e-9, askCo = R < LAW.C4.min_age - 1e-9;
     if (askSex || askCo) {
-      out += '<div class="liq"><div class="muted" style="margin-top:0">' + (askSex ? '你退休時勞保年資未滿 15 年，' : '你打算 50 歲以前退休，') + '下面' + (askSex && askCo ? '兩題' : '這題') + '可能會讓一次領更早。都是選填。</div>';
+      out += '<div class="liq"><div class="muted" style="margin-top:0">' + (askSex ? '你退休時勞保年資未滿 ' + LAW.C2.min_years + ' 年，' : '你打算 ' + LAW.C4.min_age + ' 歲以前退休，') + '下面' + (askSex && askCo ? '兩題' : '這題') + '可能會讓一次領更早。都是選填。</div>';
       if (askSex) out += '<div class="f" style="margin-top:10px">勞保登記的性別（選填）</div><div class="seg" role="group" aria-label="勞保登記的性別">' +
         [['M', '男'], ['F', '女'], ['', '不填']].map(function (o) { return '<button type="button" data-pa="sex:' + o[0] + '" aria-pressed="' + ((d.sex || '') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
-        '<div class="purpose">只用來判斷勞保一次領最早幾歲能領：勞保條例第 58 條規定，女性年資滿 1 年、55 歲就能一次領，男性要 60 歲。不影響其他計算。</div>';
+        '<div class="purpose">只用來判斷勞保一次領最早幾歲能領：勞保條例第 58 條規定，女性年資滿 ' + LAW.C1.min_years + ' 年、' + LAW.C1.min_age_female + ' 歲就能一次領，男性要 ' + LAW.C1.min_age + ' 歲。不影響其他計算。</div>';
       if (askCo) out += '<div class="row"><label class="f" for="pSc">在目前這家公司保勞保幾年（選填）</label><input id="pSc" type="text" inputmode="decimal" data-pre="sameCo" value="' + esc(d.sameCo || '') + '" placeholder="例如 20"></div>' +
-        '<div class="purpose">只用來判斷勞保一次領最早幾歲能領：勞保條例第 58 條規定，在同一家公司保滿 25 年，不論幾歲都能一次領。不影響其他計算。</div>';
+        '<div class="purpose">只用來判斷勞保一次領最早幾歲能領：勞保條例第 58 條規定，在同一家公司保滿 ' + LAW.C3.same_unit_years + ' 年，不論幾歲都能一次領。不影響其他計算。</div>';
       out += '</div>';
     }
     if (c.elig === 'yes' && !c.none) out += liCompareHtml(en, c);
@@ -154,10 +154,10 @@
     var sentence = liSentence(c);
     return '<div class="licmp"><b>一次領和月領，累計各拿多少</b><div class="muted" style="margin-top:2px">含國保；今天的購買力，以實質存款利率折算到退休那個月</div>' +
       '<div class="li2"><div class="lb lump"><b>一次領</b><div>' + ageText(c.lump.age) + '領 <b>' + fmtW(c.lump.amt) + '</b></div><small>' + (Math.round(c.lump.months * 100) / 100) + ' 個月 × 平均月投保薪資；之後不能保國保</small></div>' +
-      '<div class="lb mon"><b>' + (c.monthly.kind === 'onetime' ? '老年一次金' : c.monthly.kind === 'combined' ? '月領（併計國保）' : '月領') + '</b><div>' + (c.monthly.kind === 'onetime' ? ageText(c.monthly.age) + '領 <b>' + fmtW(c.monthly.oneAmt) + '</b>' : ageText(c.monthly.age) + '起每月 <b>' + fmtW(c.monthly.amt) + '</b>') + '</div><small>' + (c.monthly.npMonths ? '退休到開始領之前繳國保；65 歲起國保每月 ' + fmtW(c.monthly.npMonthly) : '不用繳國保') + '</small></div></div>' + svg +
+      '<div class="lb mon"><b>' + (c.monthly.kind === 'onetime' ? '老年一次金' : c.monthly.kind === 'combined' ? '月領（併計國保）' : '月領') + '</b><div>' + (c.monthly.kind === 'onetime' ? ageText(c.monthly.age) + '領 <b>' + fmtW(c.monthly.oneAmt) + '</b>' : ageText(c.monthly.age) + '起每月 <b>' + fmtW(c.monthly.amt) + '</b>') + '</div><small>' + (c.monthly.npMonths ? '退休到開始領之前繳國保；' + LAW.npAge + ' 歲起國保每月 ' + fmtW(c.monthly.npMonthly) : '不用繳國保') + '</small></div></div>' + svg +
       '<div class="clg"><span><i class="lg lil"></i>一次領</span><span><i class="lg lim"></i>' + (c.monthly.kind === 'onetime' ? '老年一次金' : '月領') + '</span></div>' +
       '<div class="lisent">' + sentence + '</div>' +
-      '<div class="purpose">' + (c.lump.w36 !== null && c.lump.w36 !== undefined ? '一次領用你填的退保前 3 年平均（' + fmtW(c.lump.w36) + '）。' : '一次領法定用「退保前 3 年」的平均投保薪資，這裡以你填的平均月投保薪資估算；可以在上面填實際數字。') + '一次領之後不能再參加國民年金保險（2023 年 10 月起），國保已一起算進去。一次領一經核付就不能改。女性、在同一家公司保滿 25 年，或從事危險、需要強體力的特殊工作的人，可能更早就能一次領，請以勞保局為準。</div></div>';
+      '<div class="purpose">' + (c.lump.w36 !== null && c.lump.w36 !== undefined ? '一次領用你填的退保前 ' + LAW.w36 / 12 + ' 年平均（' + fmtW(c.lump.w36) + '）。' : '一次領法定用「退保前 ' + LAW.w36 / 12 + ' 年」的平均投保薪資，這裡以你填的平均月投保薪資估算；可以在上面填實際數字。') + '一次領之後不能再參加國民年金保險（' + LAW.npBanSince[0] + ' 年 ' + (+LAW.npBanSince[1]) + ' 月起），國保已一起算進去。一次領一經核付就不能改。女性、在同一家公司保滿 ' + LAW.C3.same_unit_years + ' 年，或從事危險、需要強體力的特殊工作的人，可能更早就能一次領，請以勞保局為準。</div></div>';
   }
   function preEstimates(P) {
     return { legal: EN.legal(), dep: Math.round(EN.rates().depDefault * 1000) / 10, endAge: EN.E_DEF,
@@ -166,6 +166,19 @@
   }
   function precHtml(P) {
     var depDef = Math.round(EN.rates().depDefault * 1000) / 10;
+    /* 存款利率（v0.9.6）：加減按鈕＋自己填；每格 0.2%，範圍 0.5%～2.5%（data/params.json 的 deposit_input）。
+       超過 2% 提醒高利活存有金額上限；超出範圍由引擎的 validate 擋下並說明 */
+    var depStepper = function (d, def) {
+      var DI = PR0.deposit_input, cur = d.dep === '' || d.dep == null ? def : +d.dep, ok = isFinite(cur);
+      var dec = !ok || cur > DI.min + 1e-9, inc = !ok || cur < DI.max - 1e-9;
+      var warn = ok && cur > DI.warn_above && cur <= DI.max ? '<div class="depwarn">高利活存通常有金額上限（例如前 ' + LAW.hyCap + ' 萬），全部存款都拿到這個利率的情況不多。</div>' : '';
+      return '<div class="stg2"><div class="stl">存款利率（每年）</div><div class="sts">本平台不算投資：名下可自由動用的錢，假設都放在銀行。預設 ' + def + '% 是臺灣銀行一年期定存牌告；錢放活存的話，大約 ' + LAW.demand[0] + '～' + LAW.demand[1] + '%。</div>' +
+        '<div class="deprow">' +
+        (dec ? '<button type="button" class="stb" data-depstep="-1" aria-label="存款利率減 ' + DI.step + '%">−</button>' : '<span class="stb-sp" aria-hidden="true"></span>') +
+        '<span class="depin"><input id="pDep" type="text" inputmode="decimal" data-pre="dep" aria-label="存款利率（%）" value="' + esc(d.dep === '' || d.dep == null ? String(def) : d.dep) + '"><span aria-hidden="true">%</span></span>' +
+        (inc ? '<button type="button" class="stb" data-depstep="1" aria-label="存款利率加 ' + DI.step + '%">+</button>' : '<span class="stb-sp" aria-hidden="true"></span>') +
+        '</div><div class="sts">每格 ' + DI.step + '%，也可以直接輸入，範圍 ' + DI.min + '%～' + DI.max + '%。</div>' + warn + '</div>';
+    };
     var paGroup = function (key, label, opts, cur, sub) { return '<div class="stg2"><div class="stl">' + label + '</div>' + (sub ? '<div class="sts">' + sub + '</div>' : '') + '<div class="chips" style="margin-top:4px">' + opts.map(function (o) { return '<button type="button" class="chip" data-pa="' + key + ':' + o[0] + '" aria-pressed="' + (o[0] === cur) + '">' + o[1] + '</button>'; }).join('') + '</div></div>'; };
     var fold = function (key, title, status, inner) {
       var open = S.preErr || (S.pf && S.pf[key]);
@@ -185,26 +198,25 @@
 
       (S.preErr ? '<div class="err" style="margin-top:8px">' + esc(S.preErr) + '</div>' : '') +
       '<h3 class="ph3">基本假設</h3><div class="chgs" data-chg="base" hidden></div><div class="muted">這兩個會改變上面的主結果。</div>' +
-      paGroup('inf', '通膨（每年）', [['2', '2%（預設）'], ['2.5', '2.5%'], ['3', '3%']], d.inf === '' || d.inf == null ? '2' : String(d.inf)) +
-      paGroup('dep', '存款利率（每年）', [['0.8', '0.8% 活存'], [String(depDef), depDef + '% 一年定存（預設）'], ['2', '2.0% 優利定存']], d.dep === '' || d.dep == null ? String(depDef) : String(d.dep),
-        '本平台不算投資：名下可自由動用的錢，假設都放在銀行。預設是臺灣銀行一年期定存牌告。') +
+      paGroup('inf', '通膨（每年）', LAW.infOpts.map(function (v) { return [String(v), v + '%' + (v === LAW.infDef ? '（預設）' : '')]; }), d.inf === '' || d.inf == null ? String(LAW.infDef) : String(d.inf)) +
+      depStepper(d, depDef) +
       (function () { var i = (d.inf === '' || d.inf == null ? 2 : +d.inf) / 100, r = (d.dep === '' || d.dep == null ? depDef : +d.dep) / 100, real = (1 + r) / (1 + i) - 1;
         return '<div class="realr ' + (real < 0 ? 'neg' : 'pos') + '"><span>扣掉通膨後，你的錢每年</span><b>' + (real < 0 ? '-' + pct(-real) + '（慢慢縮水）' : '+' + pct(real)) + '</b></div>'; })() +
       '<h3 class="ph3">你的實際資料</h3><div class="muted">登入勞保局 e 化服務系統查得到。沒填的用估算值（灰字）。</div>' +
       fold('gap', '工作空窗', gapStatus(S.pre.gaps), gapHtml(d.gaps || [])) +
       fold('li', '勞保老年年金', (liN ? liN + ' 項估算' : '已填') + '・' + (Qb.liMode === 'lump' ? ageText(Qb.liClaim) + '一次領' : Qb.liMode === 'onetime' ? ageText(Qb.liClaim) + '老年一次金' : Qb.liMode === 'combined' ? ageText(Qb.liClaim) + '月領（併計國保）' : claimTxt),
             '<div class="row"><label class="f" for="pLc">幾歲開始領（可以提早到 ' + (lg - 5) + ' 歲）</label><select id="pLc" data-pre="liClaim">' + opts + '</select>' +
-      '<div class="muted" style="margin-top:4px">要先離職退保才能領，所以不會早於你退休的時間。早領每年少 4%（按月計），但可以縮短只靠資產的那段。</div></div>' + liUnder15Html(d) + liLumpHtml(d) +
+      '<div class="muted" style="margin-top:4px">要先離職退保才能領，所以不會早於你退休的時間。早領每年少 ' + LAW.adj + '%（按月計），但可以縮短只靠資產的那段。</div></div>' + liUnder15Html(d) + liLumpHtml(d) +
       '<div class="g2 row">' + f('pLy', 'liYears', '勞保年資（年）', '估算 ' + Math.round(P.liYearsNow)) + f('pW', 'w60', '平均月投保薪資（萬）', '估算 ' + (P.w60 / 10000).toFixed(2)) + '</div>') +
       fold('ls', '勞退新制', lsN ? lsN + ' 項估算' : '已填',
       '<div class="g2 row">' + f('pB', 'lsBal', '專戶目前餘額（萬）', '估算 ' + Math.round(lsBalNowEst(P) / 10000)) + f('pLw', 'lsWage', '月提繳工資（萬）', '估算 ' + (P.lsWage / 10000).toFixed(2)) + '</div>' +
       '<div class="g2 row">' + f('pLs', 'lsYears', '實際提繳年資（年）', '估算 ' + Math.round(Math.max(0, Math.min(P.worked, (EN.NOWI - (2005 * 12 + 6)) / 12)))) +
       '<div><label class="f" for="pS">自提</label><select id="pS" data-pre="self">' + [0, 1, 2, 3, 4, 5, 6].map(function (v) { return '<option value="' + v + '"' + (String(v) === String(d.self) ? ' selected' : '') + '>' + v + '%</option>'; }).join('') + '</select></div></div>' +
-      '<div class="muted" style="margin-top:4px">實際提繳滿 15 年才能月領，不到 15 年只能一次領（勞工退休金條例第 24 條）。換過工作、中斷過的年資會合併計算。</div>') +
+      '<div class="muted" style="margin-top:4px">實際提繳滿 ' + LAW.lsMin + ' 年才能月領，不到 ' + LAW.lsMin + ' 年只能一次領（勞工退休金條例第 24 條）。換過工作、中斷過的年資會合併計算。</div>') +
       fold('old', '勞退舊制', S.pre.oldOn ? esc(S.pre.oYrs) + ' 年・平均工資 ' + esc(S.pre.oWage) + ' 萬' : '沒有',
-        '<label class="check row"><input type="checkbox" data-pre="oldOn"' + (d.oldOn ? ' checked' : '') + '><span>2005 年 7 月以前就在現在這家公司，有保留勞退舊制年資</span></label>' +
+        '<label class="check row"><input type="checkbox" data-pre="oldOn"' + (d.oldOn ? ' checked' : '') + '><span>' + LAW.lsStart[0] + ' 年 ' + (+LAW.lsStart[1]) + ' 月以前就在現在這家公司，有保留勞退舊制年資</span></label>' +
         '<div class="g3 row">' + f('pOh', 'oHire', '到職年', '例如 1999') + f('pOy', 'oYrs', '舊制年資（年）', '例如 6') + f('pOw', 'oWage', '退休時月平均工資（萬）', '例如 8') + '</div>' +
-        '<div class="muted" style="margin-top:4px">勾了才會算。年資可以填小數（4 年 6 個月填 4.5）；平均工資是退休前 6 個月、含經常性津貼的平均，用今天的物價估。符合自請退休條件時由公司一次發給，沒符合就是 0。</div>') +
+        '<div class="muted" style="margin-top:4px">勾了才會算。年資可以填小數（4 年 6 個月填 4.5）；平均工資是退休前 ' + LAW.oldAvg + ' 個月、含經常性津貼的平均，用今天的物價估。符合自請退休條件時由公司一次發給，沒符合就是 0。</div>') +
       fold('nhi', '健保', S.pre.nhiDep ? '依附眷屬' : '第六類自付',
       '<label class="check row"><input type="checkbox" data-pre="nhiDep"' + (d.nhiDep ? ' checked' : '') + '><span>退休後可以依附在職的配偶或子女，當健保眷屬</span></label>' +
       '<div class="muted" style="margin-top:4px">沒勾：退休後以第六類自付，每月 ' + EN.T.NHI_SELF.toLocaleString('en-US') + ' 元。勾了：不用自己繳。</div><div class="purpose">只用來判斷退休後要不要自己繳健保費。</div>') +

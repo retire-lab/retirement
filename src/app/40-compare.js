@@ -49,7 +49,7 @@
     /* 結果：調整後那欄的退休時間 = 你選的年紀，沒選就是它自己的最快 */
     html += sec('結果');
     var e = c.e, ea = pv.ea, Ro = c.Rshow, Ra = c.Radj;
-    var t0 = e === null ? '65 歲還不夠' : ageText(e) + '<small>' + ymText(e, true) + '（最快）</small>';
+    var t0 = e === null ? LAW.maxR + ' 歲還不夠' : ageText(e) + '<small>' + ymText(e, true) + '（最快）</small>';
     var dt = function (x, y) { var dm = monthsBetween(y, x); return dm === 0 ? ['不變', ''] : dm > 0 ? ['↑ 早 ' + durStr(dm), 'good'] : ['↓ 晚 ' + durStr(-dm), 'bad']; };
     if (ret !== null) {
       var d0 = e !== null ? dt(e, ret) : ['', ''];
@@ -57,10 +57,10 @@
       html += G('退休時間', '<b class="big' + (e === null ? ' warn' : '') + '">' + t0 + '</b>', '<b class="big">' + ageText(ret) + '<small>' + ymText(ret, true) + '（你選的）</small></b>', 'first', d0[0], d0[1]);
       if (adjOther()) {
         var t1 = ea === null ? ADJ_MAX + ' 歲還不夠' : ageText(ea), d1 = e !== null && ea !== null ? dt(e, ea) : ['', ''];
-        html += G('最快可以', e === null ? '65 歲還不夠' : ageText(e), t1, '', d1[0], d1[1]);
+        html += G('最快可以', e === null ? LAW.maxR + ' 歲還不夠' : ageText(e), t1, '', d1[0], d1[1]);
       }
     } else {
-      var t1b = ea === null ? ADJ_MAX + ' 歲還不夠' : ageText(ea) + '<small>' + ymText(ea, true) + (ea > 65 + 1e-9 ? '・超過 65 歲' : '') + '</small>';
+      var t1b = ea === null ? ADJ_MAX + ' 歲還不夠' : ageText(ea) + '<small>' + ymText(ea, true) + (ea > LAW.maxR + 1e-9 ? '・超過 ' + LAW.maxR + ' 歲' : '') + '</small>';
       var d1b = e !== null && ea !== null ? dt(e, ea) : e === null && ea !== null ? ['↑ 變成算得出來', 'good'] : ['', ''];
       html += G('最快退休', '<b class="big' + (e === null ? ' warn' : '') + '">' + t0 + '</b>', '<b class="big">' + t1b + '</b>', 'first', d1b[0], d1b[1]);
     }
@@ -71,15 +71,15 @@
     html += G('退休時會有', e !== null || ret !== null ? fmtW(g0.proj) : '—', pa !== null ? fmtW(pa) : '—');
     html += G('夠用到', EN0.E() + ' 歲', pv.en.E() + ' 歲');
     var Rb = ret !== null ? ret : ea;
-    html += G('橋接期', e !== null && e < 60 - 1e-9 ? durStr(monthsBetween(e, 60)) : '沒有', Rb !== null && Rb < 60 - 1e-9 ? durStr(monthsBetween(Rb, 60)) : '沒有');
+    html += G('橋接期', e !== null && e < LAW.lsAge - 1e-9 ? durStr(monthsBetween(e, LAW.lsAge)) : '沒有', Rb !== null && Rb < LAW.lsAge - 1e-9 ? durStr(monthsBetween(Rb, LAW.lsAge)) : '沒有');
     var dg = (-g1o.gap) - (-g0.gap), lab = ret !== null ? '錢夠不夠' : '在 ' + ageText(Ro) + '退休';
     var need = g1o.gap > 0 && g1o.preExhaust === null ? fillGap(pv, ret !== null ? Ra : Ro) : null;
     html += G(lab, gapText(g0), gapText(g1o), need ? '' : 'last', Math.abs(dg) < 5000 ? '不變' : (dg > 0 ? '↑ 多 ' : '↓ 少 ') + fmtW(Math.abs(dg)), Math.abs(dg) < 5000 ? '' : dg > 0 ? 'good' : 'bad');
     if (need) html += G('要補上', '', need, 'last fill');
-    /* 年齡上限的說法（v0.9.0）：原始那欄找最快退休只找到 65 歲，調整後那欄找到 80 歲；資產都算到 E 歲。出現「還不夠」時說清楚 */
+    /* 年齡上限的說法（v0.9.0）：原始那欄找最快退休只找到 ' + LAW.maxR + ' 歲，調整後那欄找到 80 歲；資產都算到 E 歲。出現「還不夠」時說清楚 */
     var short = e === null || (pv && pv.ea === null);
     html += '<div class="cmpnote">需要有：在那個時間退休，那天手上要有多少錢，才夠用到 ' + EN0.E() + ' 歲（今天的購買力）。' +
-      (short ? '<br>「還不夠」的意思：原始那欄找最快退休只找到 65 歲，調整後那欄找到 ' + ADJ_MAX + ' 歲；兩邊的錢都算到 ' + EN0.E() + ' 歲。' : '') + '</div>';
+      (short ? '<br>「還不夠」的意思：原始那欄找最快退休只找到 ' + LAW.maxR + ' 歲，調整後那欄找到 ' + ADJ_MAX + ' 歲；兩邊的錢都算到 ' + EN0.E() + ' 歲。' : '') + '</div>';
     return html;
   }
   /* 你的錢會怎麼走：每年年底資產（今天的購買力）；有座標軸、退休時間的垂直線（原始灰、調整後藍）、用完的地方標紅 */
@@ -87,9 +87,9 @@
   function curveWords(rows, R, proj) {
     var ex = rows.exhaust != null ? rows.exhaust : null, last = rows.length ? rows[rows.length - 1] : null, E = EN0.E();
     var min = null; rows.forEach(function (r) { if (r.a >= Math.floor(R) && (min === null || r.end < min.end)) min = r; });
-    var bridge = R < 60 - 1e-9;
-    var say = ex !== null ? '照這樣，資產會在 ' + ageText(ex) + '用完' + (bridge ? '；最吃緊的是 ' + Math.floor(R + 1e-9) + '～60 歲只靠資產的這段。' : '。')
-      : bridge ? '退休後到 60 歲勞退開始前只靠資產，下降最快；之後年金補上，下降變慢。到 ' + E + ' 歲還剩 ' + fmtW(last ? last.end : 0) + '。'
+    var bridge = R < LAW.lsAge - 1e-9;
+    var say = ex !== null ? '照這樣，資產會在 ' + ageText(ex) + '用完' + (bridge ? '；最吃緊的是 ' + Math.floor(R + 1e-9) + '～' + LAW.lsAge + ' 歲只靠資產的這段。' : '。')
+      : bridge ? '退休後到 ' + LAW.lsAge + ' 歲勞退開始前只靠資產，下降最快；之後年金補上，下降變慢。到 ' + E + ' 歲還剩 ' + fmtW(last ? last.end : 0) + '。'
       : '退休後年金補上大部分支出，資產慢慢下降；到 ' + E + ' 歲還剩 ' + fmtW(last ? last.end : 0) + '。';
     var aria = '現在 ' + fmtW(W(S.asset)) + '；' + ageText(R) + '退休時 ' + fmtW(proj) + '；' +
       (min ? '最低點 ' + min.a + ' 歲那一年 ' + (min.end < 0 ? '不足 ' + fmtW(-min.end) : fmtW(min.end)) + '；' : '') +

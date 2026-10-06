@@ -3,11 +3,8 @@
   "verified": {
     "at": "2026-10-03",
     "note": "最後一次逐項核對制度數字與官方來源的日期（不是各制度的生效日）。超過一年沒核對，畫面會提醒。",
-    "source": "逐項對照 data/SOURCES.md 列出的官方來源"
-  },
-  "ls_annuity_rate": {
-    "value": 0.011473,
-    "source": "勞保局 0018437：110–112 年新制勞退平均保證收益率"
+    "source": "逐項對照 data/SOURCES.md 列出的官方來源",
+    "category": "meta"
   },
   "li": {
     "min_years": 15,
@@ -17,7 +14,16 @@
     "adjust_per_year": 0.04,
     "adjust_max_years": 5,
     "adjust_partial_year": "按月比例（勞保局整合試算 0109187，2026-10-02 實測：61 歲 3 個月請領減給 15%）",
-    "source": "勞保局 0109187 整合試算說明；0019821 老年年金給付"
+    "source": "勞保局 0109187 整合試算說明；0019821 老年年金給付",
+    "category": "legal",
+    "legal_age": {
+      "base_roc_year": 46,
+      "base_age": 60,
+      "max_age": 65,
+      "note": "勞保老年年金法定請領年齡依出生年次逐年提高：base_roc_year 年次以前為 base_age 歲，之後每晚一年出生加 1 歲，最高 max_age 歲",
+      "source": "勞工保險條例第 58 條第 5 項"
+    },
+    "avg_salary_months": 60
   },
   "ls": {
     "employer_rate": 0.06,
@@ -25,28 +31,58 @@
     "claim_age": 60,
     "new_system_start": "2005-07",
     "accumulation": "每月月底提繳、按月複利（勞動部個人退休金試算表實測為月底提繳、年內單利、年底複利；10 年相差約 0.007%）",
-    "source": "勞工退休金條例第 24 條（工作年資以實際提繳退休金之年資為準）；勞保局 0005595"
+    "source": "勞工退休金條例第 24 條（工作年資以實際提繳退休金之年資為準）；勞保局 0005595",
+    "category": "legal",
+    "self_max": 6,
+    "self_max_note": "勞工自願提繳的上限是每月工資的 self_max %（勞工退休金條例第 14 條第 3 項）",
+    "payout_every_months": 3,
+    "payout_note": "月退休金每 payout_every_months 個月發一次（按季發放，每季末月月底前）"
   },
   "np": {
     "b_rate": 0.013,
-    "source": "勞保局 0014336；已領勞保老年年金者僅能依 B 式（衛福部社會保險司問答）"
+    "source": "勞保局 0014336；已領勞保老年年金者僅能依 B 式（衛福部社會保險司問答）",
+    "category": "legal",
+    "claim_age": 65,
+    "claim_age_note": "國保：claim_age 歲起領老年年金；退休後到 claim_age 歲（或開始領勞保，取早）要繳國保保費"
   },
   "old": {
     "half_year_rule": "未滿半年以半年計；滿半年以一年計",
     "units_first15": 2,
     "units_after15": 1,
     "max_units": 45,
-    "source": "勞動基準法第 53、55 條；勞工退休金條例第 11 條"
-  },
-  "nhi_supplementary": {
-    "rate": 0.0211,
-    "threshold": 20000,
-    "used": false,
-    "source": "健保署 cp-4516 補充保險費計算公式（未納入試算）"
+    "source": "勞動基準法第 53、55 條；勞工退休金條例第 11 條",
+    "category": "legal",
+    "first_years": 15,
+    "eligibility": [
+      {
+        "min_years": 15,
+        "min_age": 55
+      },
+      {
+        "min_years": 25,
+        "min_age": 0
+      },
+      {
+        "min_years": 10,
+        "min_age": 60
+      },
+      {
+        "min_years": 0,
+        "min_age": 65
+      }
+    ],
+    "eligibility_note": "勞基法第 53 條自請退休、第 54 條雇主強制退休的年資與年齡條件，數值見 eligibility（任一列符合即可）",
+    "avg_wage_months": 6,
+    "avg_wage_note": "勞基法第 2 條：平均工資＝退休前 avg_wage_months 個月工資總額 ÷ 總日數",
+    "half_year": {
+      "below_months": 6,
+      "partial": 0.5,
+      "note": "勞基法第 55 條：年資未滿半年以半年計（不足 below_months 個月的零頭算 partial 年），滿半年以一年計"
+    }
   },
   "li_lump": {
     "eligible_if_insured_before": "2009-01",
-    "eligible_note": "98年1月1日（2009/1/1）勞保年金施行前有保險年資者，才能選擇一次請領老年給付；之後才初次加保者不得選擇",
+    "eligible_note": "勞保年金施行（eligible_if_insured_before）前有保險年資者，才能選擇一次請領老年給付；之後才初次加保者不得選擇",
     "first_years": 15,
     "months_per_year_first": 1,
     "months_per_year_after": 2,
@@ -79,7 +115,10 @@
     "not_modeled": "第 5 款（具有危險、堅強體力等特殊性質之工作合計滿 5 年、年滿 55 歲退職）不納入：SP5 不問職業",
     "np_after_claim": "112年10月1日（2023/10/1）起領取勞保老年給付者，不論年資或金額，皆不得再參加國民年金保險",
     "source": "勞工保險條例第 58 條第 2 項（全國法規資料庫 N0050001）；勞保局 0004856 請領資格、0100397 一次請領老年給付試算說明；勞保局 0108917 請領勞保老年給付對國保權益影響",
-    "retrieved": "2026-10-03"
+    "retrieved": "2026-10-03",
+    "category": "legal",
+    "after_age": 60,
+    "np_after_claim_since": "2023-10"
   },
   "li_onetime": {
     "applies_if_years_below": 15,
@@ -91,9 +130,105 @@
       "min_total_years": 15,
       "claim_age": 65,
       "no_early_or_late": true,
-      "note": "勞保年資未滿 15 年，加計國保有效年資滿 15 年，65 歲可選擇請領勞保老年年金；金額只用勞保年資算，國保另外按國保年資算；老年一次金已核付者不能再併計"
+      "note": "勞保年資未達月領門檻，加計國保有效年資達 min_total_years 年，claim_age 歲可選擇請領勞保老年年金；金額只用勞保年資算，國保另外按國保年資算；老年一次金已核付者不能再併計"
     },
     "source": "勞保局 0004857 給付標準（老年一次金）；勞動部 1607/1632/1640/80998（國保、勞保年資併計）；勞工保險條例第 58 條",
-    "retrieved": "2026-10-03"
+    "retrieved": "2026-10-03",
+    "category": "legal",
+    "after_age": 60
+  },
+  "deposit_input": {
+    "min": 0.5,
+    "max": 2.5,
+    "step": 0.2,
+    "warn_above": 2.0,
+    "note": "「提高準確度」的存款利率（%）：加減每格 step，可直接輸入，範圍 min～max；超過 warn_above 提醒高利活存多有金額上限；max 以上視為投資報酬，不在不靠投資的底線內。行情說明見 market_note",
+    "source": "產品決策（2026-10 Threads 公測回饋，見 docs/system-design.md 11.1）；預設值仍為 data/deposit_rate.csv（臺灣銀行一年期定存牌告）。行情參考為二手整理，銀行常調整",
+    "category": "product_rule",
+    "demand_deposit_range": [
+      0.5,
+      0.8
+    ],
+    "high_yield_cap_example_wan": 10,
+    "market_note": "畫面上的行情說明：一般活存的利率區間（demand_deposit_range）、高利活存額度上限的例子（high_yield_cap_example_wan，單位萬）。市場行情會變，只用於說明文字，不參與計算；整理時間見 source"
+  },
+  "nhi_dependent": {
+    "employee_share": 0.3,
+    "max_dependents": 3,
+    "note": "健保眷屬（夫妻模式）：無職業的配偶與子女應以眷屬身分隨同有工作的一方投保，不得自行投保第六類（全民健康保險法第 2、12 條；施行細則第 18 條的家暴等例外不在試算範圍）。受僱者自付保費＝投保金額 × 費率 × employee_share ×（本人＋眷屬人數），眷屬超過 max_dependents 人以 max_dependents 人計。費率與投保金額上下限在 data/nhi_employee.csv（每年隨最低工資調整）；投保金額以每月實際入帳代替並夾在上下限之間。兩人都沒有工作時：一人投保第六類當戶長，另一人與子女依附。子女視為依附在較晚退休的那一位名下",
+    "source": "全民健康保險法第 2、10、12 條（眷屬資格、應隨同被保險人投保）；衛福部全民健康保險爭議審定（無職業配偶應以眷屬身分投保，不得選擇第 6 類第 2 目）；受僱者自付 30%、眷屬超過 3 口以 3 口計",
+    "category": "legal"
+  },
+  "survivor": {
+    "li": {
+      "ratio": 0.5,
+      "min_monthly": 3000,
+      "spouse_min_age": 55,
+      "note": "勞保老年年金領取期間死亡，配偶年滿 spouse_min_age 歲、婚姻滿一年且每月工作收入未超過投保薪資第一級者，可領遺屬年金＝老年年金 × ratio，最低 min_monthly（同一順序多人時另有加發，試算只算配偶）。與自己的老年年金只能擇一，試算取高。過世者若是一次請領，沒有遺屬年金。試算以「沒有工作」代替收入門檻；勞保年金施行前有年資者遺屬另可選差額金，試算不算",
+      "source": "勞工保險條例第 63 條、第 63 條之 1、第 63 條之 2、第 65 條之 3；勞保局說明"
+    },
+    "np": {
+      "ratio": 0.5,
+      "spouse_min_age": 55,
+      "note": "國保領取老年年金期間死亡，配偶年滿 spouse_min_age 歲且婚姻滿一年者，可領遺屬年金＝老年年金 × ratio；最低保障在 data/np_benefits.csv（每 4 年依 CPI 調整）；與自己的國保老年年金擇一，試算取高",
+      "source": "國民年金法第 40 條、第 42 條；衛福部國民年金問答"
+    },
+    "ls_remaining": {
+      "note": "已領月退休金者於平均餘命前死亡，停止給付，個人專戶結算賸餘金額由遺屬或指定請領人領回（試算：過世那個月一次回到家裡；第 25 條年金保險的提繳不算）",
+      "source": "勞工退休金條例第 26 條"
+    },
+    "source": "勞工保險條例第 63 條、第 63 條之 1、第 63 條之 2、第 65 條之 3；國民年金法第 40 條、第 42 條；勞工退休金條例第 26 條；生活費七成為產品決策（2026-10-06）",
+    "category": "legal"
+  },
+  "labor": {
+    "category": "legal",
+    "min_work_age": 15,
+    "note": "勞基法第 45 條：雇主不得僱用未滿 min_work_age 歲之人（「幾歲開始工作」的下限）",
+    "source": "勞動基準法第 45 條"
+  },
+  "assumptions": {
+    "category": "model_assumption",
+    "inflation": 0.02,
+    "inflation_options": [
+      2,
+      2.5,
+      3
+    ],
+    "ls_fund_nominal_return": 0.03,
+    "real_wage_growth": 0,
+    "late_life_age": 75,
+    "default_end_age": 90,
+    "living_after_death": 0.7,
+    "note": "模型假設（不是法規）：通膨（inflation）、勞退基金名目報酬（ls_fund_nominal_return，只用於專戶累積與餘額）、薪資與生活費的實質成長（real_wage_growth）、「晚年多花」的起始年齡（late_life_age）、預設算到幾歲（default_end_age）、夫妻模式一方過世後的生活費比例（living_after_death）；數值見各欄位",
+    "source": "產品決策（假設）；結果頁的「本次試算假設」要能逐項列出"
+  },
+  "product": {
+    "category": "product_rule",
+    "max_retire_age": 65,
+    "stress_max_age": 80,
+    "end_age_min": 66,
+    "end_age_max": 105,
+    "note": "SP5 的範圍：最快退休找到 max_retire_age 歲為止（調整後最多 stress_max_age 歲）；「算到幾歲」可設 end_age_min～end_age_max 歲",
+    "source": "產品決策（SP5 的試算範圍，2026-10）"
+  },
+  "education": {
+    "category": "legal",
+    "entry_age": 6,
+    "birth_cutoff_month": 9,
+    "school_start_month": 9,
+    "school_end_month": 8,
+    "graduation_month": 6,
+    "years": {
+      "ele": 6,
+      "jun": 3,
+      "sen": 3,
+      "uni": 4,
+      "grad": 2,
+      "five": 5,
+      "tech2": 2,
+      "med": 6
+    },
+    "note": "學制：滿 entry_age 歲入國小（birth_cutoff_month 月 1 日以後出生的晚一年）；學年 school_start_month 月開始、隔年 school_end_month 月結束，graduation_month 月畢業；各學制年數見 years（研究所以碩士一般年限計）",
+    "source": "國民教育法（入學年齡）、強迫入學條例、大學法與專科學校法（修業年限）；研究所以一般碩士 2 年計"
   }
 }

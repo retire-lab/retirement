@@ -29,7 +29,7 @@ section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活
   check('#2／#4／#8 不再卡在 55 歲：最快 53 歲 6 個月、2039 年 12 月',/53 歲 6 個月/.test(T(d.querySelector('.hero .age').textContent))&&/2039 年 12 月/.test(hero(d)),hero(d).slice(0,80));
   check('#1／#11 答案同時講錢：那時候退休，需要 1,171 萬，你會有 1,178 萬',/那時候退休，需要 1,171 萬，你會有 1,178 萬，夠用到 90 歲/.test(hero(d)),hero(d).slice(0,200));
   check('下限放寬後提醒橋接期：60 歲以前要靠存款撐 6 年 6 個月',/60 歲以前退休，要靠存款撐 6 年 6 個月/.test(hero(d)));
-  check('結果卡底下一行假設灰字，沒有「看看每個期間的現金流」',/不靠投資・存款 1\.7%・通膨 2%・算到 90 歲/.test(hero(d))&&!/看看每個期間的現金流/.test(T(d.body.textContent.replace(/<[^>]+>/g,''))));
+  check('結果卡底下一行假設灰字，沒有「看看每個期間的現金流」',/不靠投資・存款 1\.7%（一年期定存）・通膨 2%・算到 90 歲/.test(hero(d))&&!/看看每個期間的現金流/.test(T(d.body.textContent.replace(/<[^>]+>/g,''))));
   openAdj(env);
   check('調調看最上面不再有「想再早一年」藍框',!/想再早一年/.test(T(d.getElementById('panelAdj').textContent))&&!d.querySelector('#panelAdj .hook'));
   a.click(d.getElementById('tgAdj'));
@@ -684,6 +684,62 @@ section('v0.9.4：回報問題');
   check('內容提醒不用寫個資',/不用寫出生年月、資產這些個資/.test(body));
   a.click(d.getElementById('openList')); a.click(d.getElementById('fbTop'));
   check('在方案清單點：畫面寫「方案清單」',/畫面：方案清單/.test(new URL(d.getElementById('fbTop').getAttribute('href').replace('mailto:','http://x/')).searchParams.get('body')));
+  check('沒有執行錯誤',env.errs.length===0,env.errs); }
+
+section('v0.9.5：使用統計（GA4）——只在正式網站、只送白名單事件、不含任何數字');
+{ const env=mk(), {d,W}=env; tester(env);
+  check('一般網址（暫存版、測試）：不載入 GA、沒有 gtag',!d.querySelector('script[src*="googletagmanager"]')&&typeof W.gtag==='undefined'&&!W.__sp5ga); }
+{ const {JSDOM}=require('jsdom'); const calls=[], errs=[];
+  const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://retire-lab.github.io/retirement/?utm_source=threads&utm_campaign=post2',beforeParse(w){ w.gtag=function(){ calls.push([...arguments]); }; w.scrollTo=()=>{}; w.HTMLElement.prototype.scrollIntoView=()=>{}; w.addEventListener('error',e=>errs.push(e.message)); }});
+  const env={d:dom.window.document,W:dom.window,errs}, {d}=env, a=act(env);
+  const sc=d.querySelector('script[src*="googletagmanager"]');
+  check('正式網址：載入 GA4（評估 ID G-84G3K51M8Q）',!!sc&&/id=G-84G3K51M8Q/.test(sc.getAttribute('src')));
+  const cfg=calls.find(c=>c[0]==='config');
+  check('關掉 Google 信號與廣告個人化',!!cfg&&cfg[1]==='G-84G3K51M8Q'&&cfg[2].allow_google_signals===false&&cfg[2].allow_ad_personalization_signals===false,JSON.stringify(cfg));
+  tester(env); openAdj(env); openPrec(env); a.click(d.getElementById('shareBtn')); a.click([...d.querySelectorAll('#mBtns button')].find(b=>/取消/.test(b.textContent))); a.click(d.getElementById('fbFoot'));
+  const ev=calls.filter(c=>c[0]==='event'), names=ev.map(c=>c[1]);
+  check('事件：算出結果、打開調調看、提高準確度、分享視窗、回報問題',['calculation_complete','adjust_open','precision_open','share_open','feedback_click'].every(n=>names.includes(n)),names.join(','));
+  const evJson=JSON.stringify(ev);
+  check('所有事件裡沒有任何使用者填的數字（出生年月、資產、收入、生活費、年齡）',!/\d/.test(evJson),evJson);
+  check('收合面板不重複送事件（只在打開時送）',names.filter(n=>n==='adjust_open').length===1);
+  check('沒有執行錯誤',errs.length===0,errs); }
+{ const {JSDOM}=require('jsdom'); const errs=[];
+  const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://retire-lab.github.io/retirement/',beforeParse(w){ w.gtag=function(){ throw new Error('被廣告阻擋外掛擋掉'); }; w.scrollTo=()=>{}; w.HTMLElement.prototype.scrollIntoView=()=>{}; w.addEventListener('error',e=>errs.push(e.message)); }});
+  const env={d:dom.window.document,W:dom.window,errs}, {d}=env; tester(env); openAdj(env);
+  check('GA 出錯（被擋、壞掉）：網站照常算出結果，沒有錯誤',!!d.querySelector('.hero .age')&&errs.length===0,errs); }
+{ const {JSDOM}=require('jsdom'); const calls=[];
+  const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://retire-lab.github.io/retirement/',beforeParse(w){ w.gtag=function(){ calls.push([...arguments]); }; w.scrollTo=()=>{}; w.HTMLElement.prototype.scrollIntoView=()=>{}; }});
+  const W=dom.window, ev=()=>calls.filter(c=>c[0]==='event');
+  W.SP5App.track('my_secret_event',{asset:'500'});
+  check('白名單之外的事件名稱：不送',ev().length===0,JSON.stringify(ev()));
+  W.SP5App.track('pdf_generate',{variant:'anon',encrypted:true,mode:'compare',asset:500,birth:'1986-06',name:'我的方案'});
+  check('白名單之內的事件：只留下列出來的參數（資產、生日、方案名稱都被丟掉）',JSON.stringify(ev()[0])===JSON.stringify(['event','pdf_generate',{variant:'anon',encrypted:true,mode:'compare'}]),JSON.stringify(ev()));
+  W.SP5App.track('pdf_generate',{variant:'1986-06',encrypted:'yes'});
+  check('參數值不在選項裡（例如塞進數字）：那個參數不送',JSON.stringify(ev()[1])===JSON.stringify(['event','pdf_generate',{}]),JSON.stringify(ev()[1])); }
+
+section('v0.9.6：存款利率改成加減按鈕＋自己填（每格 0.2%，範圍 0.5%～2.5%）');
+{ const env=mk(), {d}=env, a=act(env); tester(env); openPrec(env);
+  const inp=()=>d.getElementById('pDep'), plus=()=>d.querySelector('[data-depstep="1"]'), minus=()=>d.querySelector('[data-depstep="-1"]');
+  check('預設顯示 1.7%，有加減按鈕，沒有舊的三個選項',inp()&&inp().value==='1.7'&&!!plus()&&!!minus()&&!d.querySelector('[data-pa^="dep:"]'));
+  check('結果卡寫出利率來源：存款 1.7%（一年期定存）',/存款 1\.7%（一年期定存）/.test(hero(d)));
+  a.click(plus()); check('按一次 +：1.9%，「基本假設」旁顯示有變更',inp().value==='1.9'&&!d.querySelector('[data-chg="base"]').hidden);
+  check('2% 以下不提醒高利活存',!d.querySelector('.depwarn'));
+  a.click(plus()); check('再按一次：2.1%，超過 2% 出現提醒（高利活存有金額上限）',inp().value==='2.1'&&/金額上限/.test(T(d.querySelector('.depwarn').textContent)));
+  a.click(plus()); a.click(plus()); check('一路加到 2.5% 就停，+ 按鈕消失',inp().value==='2.5'&&!plus());
+  for(let i=0;i<4;i++) a.click(minus());
+  const chg=()=>d.querySelector('[data-chg="base"]');
+  check('減回 1.7%：回到預設，「基本假設」旁不再顯示有變更',inp().value==='1.7'&&chg()&&chg().hidden);
+  for(let i=0;i<6;i++) a.click(minus());
+  check('一路減到 0.5% 就停，− 按鈕消失',inp().value==='0.5'&&!minus());
+  const typeApply=(v)=>{ const el=inp(); el.value=v; el.dispatchEvent(new env.W.Event('input',{bubbles:true})); el.dispatchEvent(new env.W.Event('change',{bubbles:true})); a.click(d.getElementById('applyPre')); };
+  typeApply('3'); check('填錯時（任何欄位）：提高準確度保持打開，不會直接關掉（v0.9.6 修正）',!!inp());
+  typeApply('3'); check('自己填 3%：擋下，說明超過的部分是投資報酬',/最高 2\.5%.*投資報酬/.test(T(d.body.textContent)),T(d.querySelector('.err')?d.querySelector('.err').textContent:''));
+  typeApply('0.3'); check('自己填 0.3%：擋下，提醒可能打錯',/最低 0\.5%.*打錯/.test(T(d.body.textContent)));
+  typeApply('abc'); check('填文字：擋下，請填數字',/請填數字/.test(T(d.body.textContent)));
+  typeApply('1.81'); check('自己填 1.81%（小數第二位）：套用成功，結果卡寫「你設定的」',/存款 1\.81%（你設定的）/.test(hero(d)),hero(d).slice(0,120));
+  openPrec(env); a.click(plus()); check('從 1.81% 按 +：2.01%（不會被四捨五入成 2%）',inp().value==='2.01');
+  a.click(d.getElementById('precCancel')); openAdj(env); a.click(d.querySelector('[data-step="wi.dep:1"]'));
+  check('萬一存款利率降低：從你設定的 1.81% 開始扣（降 0.5 → 1.31%）',/存款利率 1\.31%/.test(T(d.body.textContent)),T(d.querySelector('.cmpcard')?d.querySelector('.cmpcard').textContent:'').slice(0,160));
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 console.log('\n'+ok+' 通過，'+bad+' 失敗');
