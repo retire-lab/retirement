@@ -19,7 +19,16 @@ function section(t){ console.log('\n■ '+t); }
 section('快速開始：P0 區塊與平台名稱');
 { const env=mk(), {d}=env, a=act(env);
   a.click(d.querySelector('[data-chip=car]')); a.click(d.querySelector('[data-chip=kidsOn]')); a.click(d.querySelector('[data-chip=parOn]'));
-  ['sec-car','sec-kidsOn','sec-parOn'].forEach(id=>check('沒勾房貸，'+id+' 看得到',a.visible(id)));
+  /* v1.0.3：可以複選，但底下一次只看一個（最後點的那個）；其他已選的收起來、按鈕上寫摘要 */
+  check('選了車貸、子女、孝親：三個按鈕都是選取狀態',['car','kidsOn','parOn'].every(k=>d.querySelector('[data-chip='+k+']').getAttribute('aria-pressed')==='true'));
+  check('底下只顯示最後點的「孝親」，車貸、子女收起來',a.visible('sec-parOn')&&!a.visible('sec-car')&&!a.visible('sec-kidsOn'));
+  check('已選的按鈕寫摘要（還沒填）',/還沒填/.test(d.querySelector('[data-sum=car]').textContent));
+  a.click(d.querySelector('[data-chip=car]'));
+  check('再點「車貸」：只是切過去，不會取消',d.querySelector('[data-chip=car]').getAttribute('aria-pressed')==='true'&&a.visible('sec-car')&&!a.visible('sec-parOn'));
+  a.type(d.getElementById('carPay'),'1.5'); a.type(d.getElementById('carYrs'),'4');
+  check('填了車貸：按鈕摘要變成「1.5 萬・還 4 年」，不會自動跳到下一項',/1\.5 萬・還 4 年/.test(d.querySelector('[data-sum=car]').textContent)&&a.visible('sec-car'));
+  a.click(d.querySelector('[data-chipoff=car]'));
+  check('按「不算車貸」：取消，切到另一個已選的',d.querySelector('[data-chip=car]').getAttribute('aria-pressed')==='false'&&!a.visible('sec-car')&&(a.visible('sec-kidsOn')||a.visible('sec-parOn')));
   check('房貸區塊維持隱藏',!a.visible('sec-house'));
   check('網頁標題',d.title==='退休實驗室-退休年齡試算');
   check('沒有執行錯誤',env.errs.length===0,env.errs); }

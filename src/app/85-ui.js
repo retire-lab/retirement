@@ -71,8 +71,8 @@
   }
   function syncForm() {
     document.querySelectorAll('#quick input[data-k]').forEach(function (el) { el.value = S[el.dataset.k] == null ? '' : S[el.dataset.k]; });
-    ['house', 'car', 'kidsOn', 'parOn', 'lumpsOn'].forEach(function (k) { var b = document.querySelector('[data-chip="' + k + '"]'); if (b) b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; });
-    paintLumps(); paintResv();
+    S.etab = null; S.openKid = null; S.openLump = null;
+    paintLumps(); paintResv(); paintTabs();
     $('housePre').checked = !!S.housePre; $('sec-housePre').hidden = !S.housePre; paintPrepay();
     document.querySelectorAll('[name=parMode]').forEach(function (r) { r.checked = r.value === (S.parMode || 'keep'); });
     if (!S.kids || !S.kids.length) S.kids = [{ bym: '', path: 'grad', costs: {} }];
@@ -90,13 +90,33 @@
     var whens = [['ym', '某年某月'], ['age', o.names[0] + '幾歲']].concat(o.people === 2 ? [['page', o.names[1] + '幾歲']] : []);
     return list.map(function (x, i) {
       var id = o.idp + i, ym = x.when === 'ym';
+      if (o.open !== i) return '<div class="isum"><div><b>' + esc(String(x.name || '').trim() || '第 ' + (i + 1) + ' 筆') + '</b><div class="muted">' + lumpWhenText(x, o.names) + '</div></div>' +   /* v1.0.3：填好的收成一行 */
+        '<div style="text-align:right"><b class="' + (x.kind === 'in' ? 'amt-in' : 'amt-out') + '">' + (num(x.amt) > 0 ? (x.kind === 'in' ? '＋' : '−') + esc(String(x.amt)) + ' 萬' : '金額還沒填') + '</b><div><button type="button" class="linkbtn" ' + o.openAt(i) + '>修改</button></div></div></div>';
       return '<div class="' + o.box + '"><div class="cou-kidh"><b>第 ' + (i + 1) + ' 筆</b><button type="button" class="linkbtn" ' + o.del(i) + ' aria-label="刪除第 ' + (i + 1) + ' 筆大筆收支">刪除</button></div>' +
         row('名稱', id + 'n', o.input(i, 'name'), x.name, '例如 換車、孩子第一桶金、儲蓄險到期', '', 'text') +
         '<div class="qlab" style="margin-top:8px">收入還是支出</div>' + seg(i, 'kind', x.kind || 'out', [['out', '支出'], ['in', '收入']], '收入還是支出') +
         row('金額', id + 'a', o.input(i, 'amt'), x.amt, '例如 80', '萬') + '<div class="qhint">用今天的購買力填，系統自己換算。</div>' +
         '<div class="qlab" style="margin-top:8px">什麼時候</div>' + seg(i, 'when', x.when || 'age', whens, '什麼時候') +
-        row(ym ? '西元年月' : '幾歲', id + 'w', o.input(i, 'val'), x.val, ym ? '西元年月，不用打 -' : '例如 60', ym ? '' : '歲', 'numeric') + '</div>';
+        row(ym ? '西元年月' : '幾歲', id + 'w', o.input(i, 'val'), x.val, ym ? '西元年月，不用打 -' : '例如 60', ym ? '' : '歲', 'numeric') +
+        '<button type="button" class="primary" style="margin-top:10px" ' + o.done + '>好了</button></div>';
     }).join('') + (list.length < 20 ? '<button type="button" class="linkbtn" ' + o.add + '>＋ 再加一筆</button>' : '');
+  }
+  function ymShow(v) { var m = /^(\d{4})\D?(\d{1,2})$/.exec(String(v || '').trim()); return m ? m[1] + '/' + ('0' + (+m[2])).slice(-2) : esc(String(v || '')); }   /* 201604 → 2016/04 */
+  function lumpWhenText(x, names) {
+    var v = String(x.val == null ? '' : x.val).trim(); if (!v) return '還沒填時間';
+    if (x.when === 'ym') { var m = /^(\d{4})\D?(\d{1,2})$/.exec(v); return m ? m[1] + ' 年 ' + (+m[2]) + ' 月' : v; }
+    return (x.when === 'page' ? names[1] : names[0]) + ' ' + esc(v) + ' 歲';
+  }
+  /* v1.0.3：「以後會結束的支出」按鈕上的摘要（單人、夫妻共用；I＝輸入，kids 只算填了出生年月的） */
+  function tabSummary(k, I) {
+    var f = function (v) { return String(v == null ? '' : v).trim(); };
+    if (k === 'house') return f(I.housePay) && f(I.houseYrs) ? f(I.housePay) + ' 萬・還 ' + f(I.houseYrs) + ' 年' : '還沒填';
+    if (k === 'car') return f(I.carPay) && f(I.carYrs) ? f(I.carPay) + ' 萬・還 ' + f(I.carYrs) + ' 年' : '還沒填';
+    if (k === 'carsOn') return (I.cars || []).filter(function (c) { return f(c.pay); }).length + ' 台';
+    if (k === 'kidsOn') { var n = (I.kids || []).filter(function (x) { return f(x.bym); }).length; return n ? n + ' 個' : '還沒填'; }
+    if (k === 'parOn') return f(I.par) ? f(I.par) + ' 萬／月' : '還沒填';
+    if (k === 'lumpsOn') return (I.lumps || []).length + ' 筆';
+    return '';
   }
   function newLump() { return { name: '', kind: 'out', amt: '', when: 'age', val: '' }; }
   /* 養老預備金的參考按鈕：用剛填的生活費算半年、一年 */

@@ -47,20 +47,35 @@
     var n = box.querySelector('.knote'); n.textContent = r.note; n.className = 'knote' + (r.on ? ' on' : '');
     box.querySelector('.kst').innerHTML = r.html;
   }
-  function paintLumps() { if (!Array.isArray(S.lumps)) S.lumps = []; if (S.lumpsOn && !S.lumps.length) S.lumps.push(newLump());
-    $('lumps').innerHTML = lumpsHtml(S.lumps, { box: 'kid', idp: 'lp', people: 1, names: ['你'], add: 'id="addLump"',
+  /* v1.0.3：以後會結束的支出＝可以複選的分頁。按鈕上寫摘要；底下只顯示目前這一個（S.etab）；切換不取消，「不算 X」才取消；不會自動跳下一個 */
+  var TABS = ['house', 'car', 'kidsOn', 'parOn', 'lumpsOn'];
+  function paintTabs() {
+    if (!S.etab || !S[S.etab]) S.etab = TABS.filter(function (k) { return S[k]; })[0] || null;
+    TABS.forEach(function (k) {
+      var b = document.querySelector('[data-chip="' + k + '"]'); if (!b) return;
+      b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); b.classList.toggle('cur', !!S[k] && S.etab === k);
+      b.setAttribute('aria-expanded', S[k] && S.etab === k ? 'true' : 'false');
+      document.querySelector('[data-sum="' + k + '"]').textContent = S[k] ? tabSummary(k, S) : '';
+      $('sec-' + k).hidden = !(S[k] && S.etab === k);
+    });
+  }
+  function paintLumps() { if (!Array.isArray(S.lumps)) S.lumps = []; if (S.lumpsOn && !S.lumps.length) { S.lumps.push(newLump()); S.openLump = 0; }
+    $('lumps').innerHTML = lumpsHtml(S.lumps, { box: 'kid', idp: 'lp', people: 1, names: ['你'], add: 'id="addLump"', open: S.openLump, done: 'data-lkdone="1"', openAt: function (i) { return 'data-lkopen="' + i + '"'; },
       input: function (i, f) { return 'data-lk="' + i + '.' + f + '"'; }, btn: function (i, f, v) { return 'data-lkset="' + i + '.' + f + '.' + v + '"'; }, del: function (i) { return 'data-lkdel="' + i + '"'; } }); }
   function paintResv() { $('resvChips').innerHTML = reserveChips(S.spend, S.reserve, function (v) { return 'data-resv="' + v + '"'; }); }
   function paintKids() {
+    if (S.kids.length === 1) S.openKid = 0;   /* 只有一個孩子：直接展開 */
+    var pl = {}; SP5Engine.PATHS.forEach(function (o) { pl[o[0]] = o[1]; });
     $('kids').innerHTML = S.kids.map(function (k, i) {
+      if (S.openKid !== i) return '<div class="isum"><div><b>第 ' + (i + 1) + ' 個</b><div class="muted">' + (String(k.bym || '').trim() ? ymShow(k.bym) + '・讀到' + esc(pl[k.path] || '') : '還沒填出生年月') + '</div></div><button type="button" class="linkbtn" data-kidopen="' + i + '">修改</button></div>';   /* v1.0.3 */
       return '<div class="kid" data-kidbox="' + i + '"><div class="kidtop">' +
         '<div><label class="f" for="kby' + i + '">第 ' + (i + 1) + ' 個・出生年月</label><input id="kby' + i + '" type="text" inputmode="numeric" data-kidby="' + i + '" placeholder="西元年月，不用打 -" value="' + esc(k.bym) + '"></div>' +
         '<div><label class="f" for="kp' + i + '">打算讀到</label><select id="kp' + i + '" data-kidpath="' + i + '">' +
         SP5Engine.PATHS.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === k.path ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
         '<button type="button" data-delkid="' + i + '" aria-label="刪除第 ' + (i + 1) + ' 個孩子">刪除</button></div>' +
-        '<div class="knote"></div><div class="kst"></div></div>';
+        '<div class="knote"></div><div class="kst"></div>' + (S.kids.length > 1 ? '<button type="button" class="primary" style="margin-top:10px" data-kiddone="1">好了</button>' : '') + '</div>';
     }).join('');
-    S.kids.forEach(function (_, i) { paintKid(i); });
+    S.kids.forEach(function (_, i) { if (S.openKid === i) paintKid(i); });
   }
   function showErr(m) { $('err').textContent = m; $('err').hidden = !m; }
 

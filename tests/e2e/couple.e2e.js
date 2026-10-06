@@ -65,7 +65,13 @@ check('打字時焦點不會跑掉（欄位還是同一個元素）', T.d.active
 T.click('.cou-next');
 check('「下一步」到另一半的頁籤', T.q('[data-cptab="p"]').getAttribute('aria-pressed') === 'true' && !!T.q('[data-cpk="partner.birth"]'));
 const T2 = mk(null, 'https://retire-lab.github.io/retirement/'); T2.click('[data-mode="couple"]'); fillAll(T2);
-check('我們家：房貸、兩個孩子（各階段費用依學制出現）', !!T2.q('[data-cpk="housePay"]') && T2.d.querySelectorAll('.cou-kid').length === 2 && !!T2.q('[data-cpk="kids.0.costs.uni"]'));
+check('我們家：房貸、孩子都選了；按鈕上寫摘要（2 萬・還 20 年、2 個）', /2 萬・還 20 年/.test(T2.txt('[data-cpchip="house"]')) && /2 個/.test(T2.txt('[data-cpchip="kidsOn"]')), [T2.txt('[data-cpchip="house"]'), T2.txt('[data-cpchip="kidsOn"]')]);
+check('v1.0.3：底下只顯示目前的「孩子」，房貸欄位收起來；填好的孩子收成一行', !T2.q('[data-cpk="housePay"]') && T2.d.querySelectorAll('.cou-kid').length === 1 && T2.d.querySelectorAll('#couple .isum').length === 1);
+T2.click('[data-cpkidopen="0"]');
+check('點第一個孩子的「修改」：展開它（各階段費用依學制出現），另一個收起來', !!T2.q('[data-cpk="kids.0.costs.uni"]') && !T2.q('[data-cpk="kids.1.bym"]'));
+T2.click('[data-cpchip="house"]');
+check('點「房貸」：只是切過去（不取消），看得到房貸欄位', T2.q('[data-cpchip="house"]').getAttribute('aria-pressed') === 'true' && T2.q('[data-cpk="housePay"]').value === '2' && !T2.q('.cou-kid'));
+T2.click('[data-cpchip="kidsOn"]');
 check('全部填完：可以算', !T2.q('#cpGo').disabled);
 check('「我們家」不再有孝親費（那是各自父母的）', !T2.q('[data-cpk="par"]') && !T2.q('[data-cpk="partner.par"]'));
 T2.click('[data-cptab="you"]'); const parYou = !!T2.q('[data-cpk="par"]') && !T2.q('[data-cpk="partner.par"]');

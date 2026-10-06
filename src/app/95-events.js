@@ -7,9 +7,9 @@
     if (t.dataset.pre) { if (t.type !== 'checkbox') S.preDraft[t.dataset.pre] = t.value; refreshPending(); return; }
     if (t.dataset.gapy != null) { S.preDraft.gaps[+t.dataset.gapy].y = t.value; refreshPending(); return; }
     if (t.dataset.gapm != null) { S.preDraft.gaps[+t.dataset.gapm].m = t.value; refreshPending(); return; }
-    if (t.dataset.k) { S[t.dataset.k] = t.value; if (t.dataset.k === 'birth') paintAge(); if (t.dataset.k === 'spend' || t.dataset.k === 'reserve') paintResv(); showErr(''); paintAccum(); if (/^house/.test(t.dataset.k) || t.dataset.k === 'birth') paintPrepay(); }
+    if (t.dataset.k) { S[t.dataset.k] = t.value; paintTabs(); if (t.dataset.k === 'birth') paintAge(); if (t.dataset.k === 'spend' || t.dataset.k === 'reserve') paintResv(); showErr(''); paintAccum(); if (/^house/.test(t.dataset.k) || t.dataset.k === 'birth') paintPrepay(); }
     else if (t.dataset.lk) { var lk = t.dataset.lk.split('.'); S.lumps[+lk[0]][lk[1]] = t.value; showErr(''); }   /* v1.0.2：大筆收支（打字不重畫，游標不跑掉） */
-    else if (t.dataset.kidby != null) { var i = +t.dataset.kidby; S.kids[i].bym = t.value; paintKid(i); showErr(''); paintAccum(); }
+    else if (t.dataset.kidby != null) { var i = +t.dataset.kidby; S.kids[i].bym = t.value; paintKid(i); paintTabs(); showErr(''); paintAccum(); }
     else if (t.dataset.group) { var kk = S.kids[+t.dataset.kid]; kk.costs[t.dataset.group] = t.value; if (kk.copied) delete kk.copied[t.dataset.group]; var cp = t.parentNode.parentNode.querySelector('.cp'); if (cp) cp.remove(); showErr(''); paintAccum(); }
   });
   document.addEventListener('change', function (ev) {
@@ -33,19 +33,24 @@
   }, true);
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
-    if (b.dataset.chip) { var k = b.dataset.chip; S[k] = !S[k]; b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; showErr(''); paintAccum(); if (k === 'lumpsOn') paintLumps(); }
+    if (b.dataset.chip) { var k = b.dataset.chip; if (!S[k]) { S[k] = true; if (k === 'lumpsOn') paintLumps(); } S.etab = k; paintTabs(); showErr(''); paintAccum(); }   /* v1.0.3：沒選→選上並切過去；已選→只切換 */
+    else if (b.dataset.chipoff) { S[b.dataset.chipoff] = false; S.etab = null; paintTabs(); showErr(''); paintAccum(); }
     else if (b.dataset.same) {
       var sp = b.dataset.same.split(':'), kd = S.kids[+sp[0]], v = kd.costs[sp[2]] || '';
       kd.costs[sp[1]] = v; if (kd.copied) delete kd.copied[sp[1]];
       var inp = $('k' + sp[0] + sp[1]); if (inp) { inp.value = v; var cp0 = inp.parentNode.parentNode.querySelector('.cp'); if (cp0) cp0.remove(); }
       showErr(''); paintAccum();
     }
-    else if (b.id === 'addLump') { S.lumps.push(newLump()); paintLumps(); }
+    else if (b.id === 'addLump') { S.lumps.push(newLump()); S.openLump = S.lumps.length - 1; paintLumps(); paintTabs(); }
+    else if (b.dataset.lkopen != null) { S.openLump = +b.dataset.lkopen; paintLumps(); }
+    else if (b.dataset.lkdone) { S.openLump = null; paintLumps(); paintTabs(); }
+    else if (b.dataset.kidopen != null) { S.openKid = +b.dataset.kidopen; paintKids(); }
+    else if (b.dataset.kiddone) { S.openKid = null; paintKids(); paintTabs(); }
     else if (b.dataset.lkset) { var lp = b.dataset.lkset.split('.'); S.lumps[+lp[0]][lp[1]] = lp[2]; paintLumps(); showErr(''); }
-    else if (b.dataset.lkdel != null) { S.lumps.splice(+b.dataset.lkdel, 1); if (!S.lumps.length) { S.lumpsOn = false; syncForm(); } else paintLumps(); }
+    else if (b.dataset.lkdel != null) { S.lumps.splice(+b.dataset.lkdel, 1); S.openLump = null; if (!S.lumps.length) S.lumpsOn = false; paintLumps(); paintTabs(); }
     else if (b.dataset.resv != null) { S.reserve = b.dataset.resv; $('reserve').value = S.reserve; paintResv(); showErr(''); }
-    else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); paintKids(); $('kby' + (S.kids.length - 1)).focus(); } }
-    else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintAccum(); }
+    else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); S.openKid = S.kids.length - 1; paintKids(); paintTabs(); $('kby' + (S.kids.length - 1)).focus(); } }
+    else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); S.openKid = null; if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintTabs(); paintAccum(); }
     else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } track('calculation_complete'); S.ledger = false; S.phase = null; S.delta = null; adjReset(); S.panel = null;
       var act0 = active();
       if (!DB.list.length || (act0 && act0.saved && act0.saved.mode === 'couple')) {   /* v1.0.1：目前的方案是夫妻的，單人另外建一個，不寫進夫妻方案 */
