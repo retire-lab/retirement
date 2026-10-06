@@ -35,6 +35,7 @@
     var n = DB.list.length; if (!n) { toast('還沒有方案可以匯出'); return; }
     var a = active();
     var body = '<div>會存成一個檔案，裡面有 <b>' + n + ' 個方案</b>的所有資料（出生年月、收入、資產、孩子……）。到新的裝置用「匯入方案」就能接著用。</div>' +
+      (DB.list.some(function (x) { return x.saved && x.saved.mode === 'couple'; }) ? '<div class="pdfinfo" style="margin-top:8px">裡面有夫妻方案：這份檔案<b>也包含另一半的資料</b>（出生年月、收入、勞保勞退）。傳給別人或存到雲端前，建議加密碼。</div>' : '') +   /* v1.0：外部評論 P2 */
       '<div class="muted" style="margin-top:6px">檔名：' + esc(bkFileName()) + '</div>' +
       (a && isDirty() ? '<div class="pdfinfo" style="margin-top:8px">「' + esc(a.name) + '」有未存檔的修改；匯出的是上次存檔的內容。</div>' : '') +
       '<div class="pdfpw"><div class="f">密碼</div><label class="check"><input type="checkbox" id="bkPwOn" checked><span>加密碼保護（建議）</span></label>' +
@@ -109,6 +110,18 @@
   function bkStr(v, max) { return v == null ? '' : String(typeof v === 'object' ? '' : v).slice(0, max || 40); }
   function sanitizeInputs(raw) {
     raw = raw && typeof raw === 'object' ? raw : {};
+    if (raw.mode === 'couple') {   /* v1.0：夫妻方案。我們家的欄位沿用單人的白名單；兩個人各自只收基本資料與 pre 裡已知的欄位 */
+      var h = sanitizeInputs(Object.assign({}, raw, { mode: undefined })), person = function (x, par) {
+        x = x && typeof x === 'object' ? x : {}; var rp = x.pre && typeof x.pre === 'object' ? x.pre : {}, pp = {};
+        ['liYears', 'w60', 'lsBal', 'lsWage', 'lsYears', 'self'].forEach(function (k) { pp[k] = bkStr(rp[k], 12); });
+        var o = { name: bkStr(x.name, 8), birth: bkStr(x.birth, 20), workStart: bkStr(x.workStart, 20), inc: bkStr(x.inc, 20), pre: pp };
+        if (par) { o.parOn = !!x.parOn; o.par = bkStr(x.par, 20); o.parMode = x.parMode === 'yrs' ? 'yrs' : 'keep'; o.parYrs = bkStr(x.parYrs, 20); }
+        return o;
+      };
+      return { mode: 'couple', asset: h.asset, spend: h.spend, house: h.house, housePay: h.housePay, houseYrs: h.houseYrs, car: false, carPay: '', carYrs: '', kidsOn: h.kidsOn, kids: h.kids,
+        parOn: h.parOn, par: h.par, parMode: h.parMode, parYrs: h.parYrs, pre: { inf: h.pre.inf || '', dep: h.pre.dep || '' }, you: person(raw.you), partner: person(raw.partner, true),
+        carsOn: !!raw.carsOn, cars: (Array.isArray(raw.cars) ? raw.cars : []).slice(0, 4).map(function (c) { c = c && typeof c === 'object' ? c : {}; return { pay: bkStr(c.pay, 20), yrs: bkStr(c.yrs, 20) }; }) };
+    }
     var T = DEFAULTS, out = {};
     IN_KEYS.forEach(function (k) {
       if (k === 'kids') { out.kids = (Array.isArray(raw.kids) ? raw.kids : []).slice(0, 6).map(function (x) { x = x && typeof x === 'object' ? x : {}; var c = {}, rc = x.costs && typeof x.costs === 'object' ? x.costs : {}; Object.keys(rc).slice(0, 12).forEach(function (g) { if (/^[a-z0-9]{1,8}$/.test(g)) c[g] = bkStr(rc[g], 10); }); return { bym: bkStr(x.bym, 10), path: bkStr(x.path, 10), costs: c }; }); if (!out.kids.length) out.kids = JSON.parse(JSON.stringify(T.kids)); return; }

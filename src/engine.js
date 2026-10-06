@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '0.9.9';
+  var VERSION = '1.0.0';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);
@@ -255,7 +255,9 @@
       return {
         A0: Math.floor(A0m / 12), A0m: A0m, A0y: A0m / 12, by: p.y, tE: tE,
         inc: inc, base: ROLE === 'person' ? 0 : W(S.spend) - (adj.cut || 0) / 12, extra: ROLE === 'person' ? 0 : (adj.extra || 0) / 12, stress: adj.liFactor != null ? adj.liFactor : 1,
-        loans: ROLE === 'person' ? [] : [S.house ? houseLoan() : null, S.car ? { name: '車貸', pay: W(S.carPay), months: Math.round(num(S.carYrs) * 12), payoffT: null, payoffAmt: 0 } : null].filter(Boolean),
+        loans: ROLE === 'person' ? [] : [S.house ? houseLoan() : null, S.car ? { name: '車貸', pay: W(S.carPay), months: Math.round(num(S.carYrs) * 12), payoffT: null, payoffAmt: 0 } : null]
+          /* v1.0：車貸清單（夫妻模式可以有好幾台）；單人模式仍用上面的 S.car */
+          .concat(S.carsOn && Array.isArray(S.cars) ? S.cars.map(function (c, i) { return { name: '車貸 ' + (i + 1), pay: W(c.pay), months: Math.round(num(c.yrs) * 12), payoffT: null, payoffAmt: 0 }; }) : []).filter(Boolean),
         kidM: ROLE === 'person' ? kidM.fill(0) : kidM, kidN: ROLE === 'person' ? kidN.fill(0) : kidN, par: ROLE !== 'person' && S.parOn ? W(S.par) : 0, parMonths: S.parOn && S.parMode === 'yrs' ? Math.round(num(S.parYrs) * 12) : Infinity,
         old: OS().oldOn ? { hireIdx: mi(num(OS().oHire), 1), yrs: num(OS().oYrs), wage: W(OS().oWage) } : null,
         worked: worked,
@@ -581,9 +583,9 @@
     /* ================= quick form ================= */
     function validate() {
       var blank = function (v) { return v === undefined || v === null || String(v).trim() === ''; };
-      if (blank(S.birth)) return '出生年月還沒填（例如 1974-11）。';
+      if (blank(S.birth)) return '出生年月還沒填（西元年月，不用打 -）。';
       var A0 = age();
-      if (A0 === null) return '出生年月請寫成 1974-11 這種格式。';
+      if (A0 === null) return '出生年月請用西元年月，不用打 -（例如 1974 年 11 月就打 197411）。';
       if (A0 >= PR.product.max_retire_age) return '這個工具算的是 ' + PR.product.max_retire_age + ' 歲以前退休，你已經 ' + PR.product.max_retire_age + ' 歲以上了。';
       if (blank(S.workStart)) return '幾歲開始工作還沒填（例如 24）。';
       var ws = num(S.workStart);
@@ -597,12 +599,13 @@
         if (!(rt >= 0 && rt <= 15)) return '房貸年利率請填 0 到 15 之間的數字，例如 2.2。';
       }
       if (S.car) need.push([S.carPay, '車貸每月繳幾萬'], [S.carYrs, '車貸還剩幾年']);
+      if (ROLE !== 'person' && S.carsOn && Array.isArray(S.cars)) S.cars.forEach(function (c, i) { need.push([c.pay, '第 ' + (i + 1) + ' 台車貸每月繳幾萬'], [c.yrs, '第 ' + (i + 1) + ' 台車貸還剩幾年']); });
       if (S.parOn) need.push([S.par, '每月孝親費']);
       if (S.parOn && S.parMode === 'yrs') need.push([S.parYrs, '孝親費大約再幾年']);
       if (OS().oldOn) need.push([OS().oHire, '勞退舊制的到職年'], [OS().oYrs, '舊制年資'], [OS().oWage, '退休時月平均工資']);
       if (S.kidsOn) for (var i = 0; i < S.kids.length; i++) {
         var st = kidStages(S.kids[i].bym, S.kids[i].path);
-        if (!st) return '第 ' + (i + 1) + ' 個孩子的出生年月請寫成 2012-05 這種格式。';
+        if (!st) return '第 ' + (i + 1) + ' 個孩子的出生年月請用西元年月，不用打 -（例如 2012 年 5 月就打 201205）。';
         kidGroups(st).forEach(function (g) { need.push([stageCostRaw(S.kids[i], g.g), '第 ' + (i + 1) + ' 個孩子「' + g.label + '」每年花幾萬']); });
       }
       for (var j = 0; j < need.length; j++) { var n = num(need[j][0]); if (!isFinite(n) || n < 0) return need[j][1] + '還沒填，或不是數字。'; }
@@ -875,15 +878,94 @@
   }
   /* 夫妻（或單人）＝家庭組合器＋夫妻規則；回傳 household 的結果，加上 rules（逐月明細） */
   function couple(members, home, B0, opt) {
-    var r = coupleRules(members, home, opt), h = household(members, home, B0, { H: r.H, livingFactor: r.livingFactor, premiumWaive: r.premiumWaive, extra: r.extra });
+    opt = opt || {};
+    var r = coupleRules(members, home, opt), ex = opt.extra;
+    var h = household(members, home, B0, { H: r.H, livingFactor: r.livingFactor, premiumWaive: r.premiumWaive, extra: ex ? function (t) { return r.extra(t) + ex(t); } : r.extra });
     h.rules = r.detail; return h;
+  }
+
+  /* ===== 夫妻 solver（v1.0.0-beta.1） =====
+     cin：夫妻的輸入 { 我們家的欄位（asset、spend、房貸、車貸、孩子、你那邊的孝親費 parOn/par/parMode/parYrs）,
+                      pre: { inf, dep }（我們家的提高準確度）, you: { birth, workStart, inc, pre }, partner: { birth, workStart, inc, pre, parOn, par, parMode, parYrs } }
+     opt：{ now, sel }；sel＝調調看：more／save（全家每月花費、多存，萬）、spend（晚年多花，萬）、inf、dep、li、
+          gapA／gapB（收入中斷幾年）、cutA／cutB（收入減少 %）、endA／endB（活到幾歲）
+     月份 m 一律從現在算（第 0 個月＝這個月），兩人共用同一條日曆；退休年齡＝ (現在的月齡 + m) ÷ 12。
+     找答案：固定一方的退休月份，二分搜尋另一方最快「夠」的月份（越晚退休錢越多；tests/couple-solver.test.js 檢查單調性） */
+  function coupleModel(cin, opt) {
+    opt = opt || {}; var sel = opt.sel || {}, now = opt.now;
+    var home = JSON.parse(JSON.stringify(cin)), you = home.you || {}, par = home.partner || {};
+    delete home.you; delete home.partner;
+    var hp = home.pre || {};
+    var mkPre = function (p, end) { return Object.assign({}, p || {}, { inf: hp.inf || '', dep: hp.dep || '', nhiDep: false, endAge: end ? String(end) : ((p && p.endAge) || '') }); };
+    var inA = Object.assign({}, home, { birth: you.birth, workStart: you.workStart, inc: you.inc, pre: mkPre(you.pre, sel.endA) });
+    var inB = { birth: par.birth, workStart: par.workStart, inc: par.inc, asset: '0', spend: '0', house: false, car: false, kidsOn: false, parOn: false, kids: [{ bym: '', path: 'grad', costs: {} }], pre: mkPre(par.pre, sel.endB) };
+    var assume = { infAdd: (sel.inf || 0) / 100, depCut: (sel.dep || 0) / 100 };
+    var A = create(inA, { now: now, assume: assume }), B = create(inB, { now: now, role: 'person', assume: assume });
+    A.sync(); B.sync();
+    var vA = A.validate(), vB = B.validate();
+    if (vA) return { error: vA, who: /名下|生活費|房貸|車貸|孩子|孝親/.test(vA) ? 'home' : 'you' };
+    if (vB) return { error: vB, who: 'partner' };
+    var liF = sel.li != null ? sel.li / 100 : 1;
+    var PA = A.profile({ cut: -(sel.more || 0) * 10000 * 12, extra: (sel.save || 0) * 10000 * 12, spend75: (sel.spend || 0) * 10000, gap: sel.gapA || 0, incCut: sel.cutA || 0, liFactor: liF });
+    var PB = B.profile({ gap: sel.gapB || 0, incCut: sel.cutB || 0, liFactor: liF });
+    var B0 = A.W(home.asset), maxR = PR.product.max_retire_age;
+    var MA = Math.max(0, Math.round(maxR * 12) - PA.A0m), MB = Math.max(0, Math.round(maxR * 12) - PB.A0m);
+    /* 另一半那邊的孝親費（我們家的支出只放得下一組，另一組在這裡加） */
+    var p2 = par.parOn ? A.W(par.par) : 0, p2m = par.parOn && par.parMode === 'yrs' ? Math.round(A.num(par.parYrs) * 12) : Infinity;
+    var extra = p2 ? function (t) { return t < p2m ? -p2 : 0; } : null;
+    var qA = {}, qB = {}, memo = {};
+    var QA = function (m) { return qA[m] || (qA[m] = A.pensions(PA, (PA.A0m + m) / 12)); }, QB = function (m) { return qB[m] || (qB[m] = B.pensions(PB, (PB.A0m + m) / 12)); };
+    function run(ma, mb) {
+      var k = ma + ',' + mb; if (memo[k]) return memo[k];
+      return (memo[k] = couple([{ en: A, P: PA, Q: QA(ma) }, { en: B, P: PB, Q: QB(mb) }], { en: A, P: PA }, B0, { extra: extra }));
+    }
+    var ok = function (ma, mb) { return run(ma, mb).ok; };
+    /* 最小的 x（lo..hi）使 f(x) 成立；都不成立回傳 null */
+    function lowest(lo, hi, f) { if (hi < lo || !f(hi)) return null; while (lo < hi) { var mid = (lo + hi) >> 1; if (f(mid)) hi = mid; else lo = mid + 1; } return lo; }
+    /* 固定一方，找另一方最快的月份 */
+    function best(who, m) { return who === 'you' ? lowest(0, MB, function (x) { return ok(m, x); }) : lowest(0, MA, function (x) { return ok(x, m); }); }
+    function ageOf(who, m) { var P0 = who === 'you' ? PA : PB; return (P0.A0m + m) / 12; }
+    function ym(t) { var i = A.NOWI + t; return Math.floor(i / 12) + '/' + ('0' + (i % 12 + 1)).slice(-2); }
+    /* 每個人的狀態（給兩條線）：work 工作中、retired 已退休還沒有年金、pension 有年金、gone 已過世；收入中斷算工作期間的一段 */
+    function lines(ma, mb, H) {
+      return [[A, PA, QA(ma)], [B, PB, QB(mb)]].map(function (x) {
+        var seg = x[0].timeline(x[1], x[2]).segments.map(function (g) { return { state: g.state === 'gap' ? 'gap' : g.state, s: g.s, e: g.e }; });
+        if (x[1].tE < H) seg.push({ state: 'gone', s: x[1].tE, e: H });
+        return seg;
+      });
+    }
+    function stats(ma, mb, H) {
+      var L = lines(ma, mb, H), st = function (seg, t) { for (var i = 0; i < seg.length; i++) if (t >= seg[i].s && t < seg[i].e) return seg[i].state; return 'gone'; };
+      var one = 0, only = 0;
+      for (var t = 0; t < H; t++) {
+        var a = st(L[0], t), b = st(L[1], t), alive = [a, b].filter(function (x) { return x !== 'gone'; }), working = alive.filter(function (x) { return x === 'work'; }).length;
+        if (alive.length === 2 && working === 1) one++;
+        if (alive.length && working === 0 && alive.every(function (x) { return x === 'retired' || x === 'gap'; })) only++;
+      }
+      return { oneSalary: one, onlySavings: only, lines: L };
+    }
+    function describe(ma, mb) {
+      if (ma === null || mb === null) return null;
+      var h = run(ma, mb), s = stats(ma, mb, h.H);
+      return { ma: ma, mb: mb, ageA: ageOf('you', ma), ageB: ageOf('partner', mb), ymA: ym(ma), ymB: ym(mb), first: ma < mb ? 'you' : ma > mb ? 'partner' : 'both', gap: Math.abs(ma - mb),
+        ok: h.ok, left: h.end, H: h.H, firstNeg: h.firstNeg, negYM: h.firstNeg === null ? null : ym(h.firstNeg), oneSalary: s.oneSalary, onlySavings: s.onlySavings, lines: s.lines };
+    }
+    function plans() {
+      var a1 = lowest(0, MA, function (x) { return ok(x, MB); }), b2 = lowest(0, MB, function (x) { return ok(MA, x); });
+      var tg = lowest(0, Math.min(MA, MB), function (x) { return ok(x, x); });
+      return { youFirst: a1 === null ? null : describe(a1, best('you', a1)), together: tg === null ? null : describe(tg, tg), partnerFirst: b2 === null ? null : describe(best('partner', b2), b2) };
+    }
+    /* 換算比例：這一方多做 12 個月，另一方可以早幾個月 */
+    function exchange(who, m) { var x = best(who, m), y = m + 12 <= (who === 'you' ? MA : MB) ? best(who, m + 12) : null; return x === null || y === null ? null : x - y; }
+    return { ok: true, A: A, B: B, PA: PA, PB: PB, MA: MA, MB: MB, B0: B0, run: run, feasible: ok, best: best, plans: plans, describe: describe, exchange: exchange, ageOf: ageOf, ym: ym,
+      monthOfAge: function (who, age) { var P0 = who === 'you' ? PA : PB; return Math.round(age * 12) - P0.A0m; } };
   }
 
   var api = {
     VERSION: VERSION, DATA: DATA,  pick: pick, STAGE_LABEL: STAGE_LABEL, migrateKid: migrateKid,  PATHS: PATHS, 
     create: create,
     legalAge: legalAge, liMonthlyCalc: liMonthlyCalc, lsMonthlyCalc: lsMonthlyCalc, lifeYears: lifeYears, 
-    npMonthlyCalc: npMonthlyCalc, oldEligible: oldEligible, oldUnits: oldUnits, loanBalance: loanBalance, lsGradeOf: lsGradeOf, liGradeOf: liGradeOf,  scenario: scenario, household: household, couple: couple, GAP_SITS: GAP_SITS
+    npMonthlyCalc: npMonthlyCalc, oldEligible: oldEligible, oldUnits: oldUnits, loanBalance: loanBalance, lsGradeOf: lsGradeOf, liGradeOf: liGradeOf,  scenario: scenario, household: household, couple: couple, coupleModel: coupleModel, GAP_SITS: GAP_SITS
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SP5Engine = api;

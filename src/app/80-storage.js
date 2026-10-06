@@ -8,6 +8,11 @@
   /* 舊格式的輸入轉成新格式：子女費用三組 → 每個階段；勞退舊制從最上層搬到 pre */
   function migrateInputs(o) {
     if (!o) return o;
+    if (o.mode === 'couple') {   /* v1.0：夫妻方案 */
+      if (o.kids) o.kids.forEach(function (k) { SP5Engine.migrateKid(k); });
+      o.pre = o.pre || {}; ['you', 'partner'].forEach(function (w) { o[w] = o[w] || {}; o[w].pre = o[w].pre || {}; });
+      return o;
+    }
     if (o.kids) o.kids.forEach(function (k) { SP5Engine.migrateKid(k); delete k.copied; });
     o.pre = o.pre || {};
     if (o.pre.oldOn === undefined) {

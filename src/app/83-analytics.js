@@ -9,7 +9,11 @@
      4. 被廣告阻擋外掛擋掉、或 GA 本身出錯，網站照常運作。 */
   var GA_ID = 'G-84G3K51M8Q', GA_HOST = 'retire-lab.github.io';
   var GA_EVENTS = {
-    calculation_complete: {},                                   // 快速開始按「算」並算出結果
+    calculation_complete: {},
+    couple_mode_open: {},                                       // v1.0：選「我和另一半」
+    couple_calculation_complete: {},                            // v1.0：夫妻模式按「算」並算出結果
+    couple_adjust_open: {},                                     // v1.0：夫妻模式打開調調看
+    couple_precision_open: {},                                  // v1.0：夫妻模式打開提高準確度                                   // 快速開始按「算」並算出結果
     adjust_open: {}, precision_open: {}, share_open: {},       // 打開調調看、提高準確度、分享視窗
     pdf_generate: { variant: ['full', 'anon'], encrypted: [true, false], mode: ['single', 'compare'] },
     backup_export: { encrypted: [true, false] }, backup_import: {},

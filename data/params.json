@@ -208,8 +208,9 @@
     "stress_max_age": 80,
     "end_age_min": 66,
     "end_age_max": 105,
-    "note": "SP5 的範圍：最快退休找到 max_retire_age 歲為止（調整後最多 stress_max_age 歲）；「算到幾歲」可設 end_age_min～end_age_max 歲",
-    "source": "產品決策（SP5 的試算範圍，2026-10）"
+    "note": "SP5 的範圍：最快退休找到 max_retire_age 歲為止（調整後最多 stress_max_age 歲）；「算到幾歲」可設 end_age_min～end_age_max 歲；結果的「剩下的錢」少於全家 low_buffer_months 個月的生活費時，標示為「剛好夠的最低門檻、幾乎沒有緩衝」",
+    "source": "產品決策（SP5 的試算範圍，2026-10）",
+    "low_buffer_months": 6
   },
   "education": {
     "category": "legal",

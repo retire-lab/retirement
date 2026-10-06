@@ -73,7 +73,7 @@
     if (!S.kids || !S.kids.length) S.kids = [{ bym: '', path: 'grad', costs: {} }];
     paintKids(); paintAge(); paintAccum(); showErr('');
   }
-  function show(view) { ['quick', 'result', 'list', 'cmp'].forEach(function (v) { $(v).hidden = v !== view; }); window.scrollTo(0, 0); }
+  function show(view) { ['quick', 'couple', 'result', 'list', 'cmp'].forEach(function (v) { $(v).hidden = v !== view; }); window.scrollTo(0, 0); }
   function scBarHtml() {
     var a = active(); if (!a) return '';
     var d = isDirty();
@@ -83,6 +83,11 @@
       (d ? '<div class="muted" style="color:var(--warn);margin-top:4px">有未存檔的修改，這台裝置上的「' + esc(a.name) + '」還是舊的。</div>' : '');
   }
   function sumLine(inp) {
+    if (inp && inp.mode === 'couple') {   /* v1.0：夫妻方案 */
+      var y = inp.you || {}, p = inp.partner || {}, c = ['夫妻', '資產 ' + fmtW(W(inp.asset)), '入帳 ' + fmtW(W(y.inc) + W(p.inc)) + '／月', '生活費 ' + fmtW(W(inp.spend)) + '／月'];
+      if (inp.house) c.push('房貸'); if (inp.kidsOn) c.push('子女 ' + (inp.kids || []).length);
+      return c.join('・');
+    }
     var t = ['資產 ' + fmtW(W(inp.asset)), '入帳 ' + fmtW(W(inp.inc)) + '／月', '負擔 ' + fmtW(W(inp.spend)) + '／月'];
     if (inp.house) t.push('房貸'); if (inp.car) t.push('車貸'); if (inp.kidsOn) t.push('子女 ' + inp.kids.length); if (inp.parOn) t.push('孝親');
     return t.join('・');

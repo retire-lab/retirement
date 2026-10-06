@@ -21,7 +21,7 @@ section('快速開始：P0 區塊與平台名稱');
   a.click(d.querySelector('[data-chip=car]')); a.click(d.querySelector('[data-chip=kidsOn]')); a.click(d.querySelector('[data-chip=parOn]'));
   ['sec-car','sec-kidsOn','sec-parOn'].forEach(id=>check('沒勾房貸，'+id+' 看得到',a.visible(id)));
   check('房貸區塊維持隱藏',!a.visible('sec-house'));
-  check('網頁標題',d.title==='退休生命週期決策平台｜Retirement Lifecycle Decision Platform');
+  check('網頁標題',d.title==='退休實驗室-退休年齡試算');
   check('沒有執行錯誤',env.errs.length===0,env.errs); }
 
 section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活費 4.5 萬）');
@@ -29,6 +29,7 @@ section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活
   check('#2／#4／#8 不再卡在 55 歲：最快 53 歲 6 個月、2039 年 12 月',/53 歲 6 個月/.test(T(d.querySelector('.hero .age').textContent))&&/2039 年 12 月/.test(hero(d)),hero(d).slice(0,80));
   check('#1／#11 答案同時講錢：那時候退休，需要 1,171 萬，你會有 1,178 萬',/那時候退休，需要 1,171 萬，你會有 1,178 萬，夠用到 90 歲/.test(hero(d)),hero(d).slice(0,200));
   check('下限放寬後提醒橋接期：60 歲以前要靠存款撐 6 年 6 個月',/60 歲以前退休，要靠存款撐 6 年 6 個月/.test(hero(d)));
+  check('主答案旁邊寫明：剛好夠的最低門檻，不是建議的退休年齡、幾乎沒有緩衝（外部評論 P1）',/剛好夠的最低門檻，不是建議的退休年齡.*錢剛好用到 90 歲，幾乎沒有緩衝/.test(hero(d)));
   check('結果卡底下一行假設灰字，沒有「看看每個期間的現金流」',/不靠投資・存款 1\.7%（一年期定存）・通膨 2%・算到 90 歲/.test(hero(d))&&!/看看每個期間的現金流/.test(T(d.body.textContent.replace(/<[^>]+>/g,''))));
   openAdj(env);
   check('調調看最上面不再有「想再早一年」藍框',!/想再早一年/.test(T(d.getElementById('panelAdj').textContent))&&!d.querySelector('#panelAdj .hook'));
@@ -48,7 +49,7 @@ section('驗收：第一位測試者（1986/06、500 萬、月入 9 萬、生活
   check('#11 時間和錢都在表裡：早 1 年 11 個月；53 歲 6 個月退休多出 255 萬、多 247 萬',/↑ 早 1 年 11 個月/.test(imp(d))&&/在 53 歲 6 個月退休多出 7\.64 萬多出 255 萬↑ 多 247 萬/.test(imp(d)),imp(d));
   check('橫幅：調調看中＋回到原始＋存成新方案',/調調看中/.test(T(d.querySelector('.pvbar').textContent))&&!!d.getElementById('cmpReset')&&!!d.getElementById('saveNew'));
   check('曲線同時畫原始與調整後',d.querySelectorAll('#curveCard polyline').length===2);
-  check('地圖有原始／調整後頁籤，預設調整後',d.querySelector('[data-mtab="adj"]').getAttribute('aria-selected')==='true');
+  check('地圖有原始／調整後頁籤，預設調整後',d.querySelector('[data-mtab="adj"]').getAttribute('aria-pressed')==='true');
   a.click(d.querySelector('[data-mtab="orig"]'));
   check('切到原始 → 地圖寫「原始：以 53 歲 6 個月」',/原始：以 53 歲 6 個月/.test(T(d.getElementById('mapCard').textContent)));
   a.click(d.getElementById('cmpReset'));
@@ -491,7 +492,7 @@ section('v0.7.2：快速開始是空的（不用範例數字算出看似精確�
 { const env=mk(), {d}=env, a=act(env);
   const ids=['birth','workStart','asset','inc','spend'];
   check('五個欄位都是空的',ids.every(i=>d.getElementById(i).value===''),ids.map(i=>i+'='+d.getElementById(i).value).join(' '));
-  check('範例只在灰色提示文字裡（例如……）',ids.every(i=>/^例如 /.test(d.getElementById(i).getAttribute('placeholder')||'')));
+  check('灰色提示文字只放範例（例如……）或規則（西元年月，不用打 -），不放看起來像預填的值',ids.every(i=>{const p=d.getElementById(i).getAttribute('placeholder')||'';return /^例如 /.test(p)||p==='西元年月，不用打 -';}));
   check('空的時候不顯示「每月約可累積」（不會出現 NaN）',d.getElementById('accum').hidden&&!/NaN|undefined/.test(d.getElementById('quick').textContent));
   a.click(d.getElementById('go'));
   check('直接按「算」→ 擋下，留在快速開始並寫出原因',!d.getElementById('result').querySelector('.hero')&&/出生年月/.test(T((d.querySelector('#quick .err')||d.querySelector('.err')||{textContent:''}).textContent)),T((d.querySelector('.err')||{textContent:''}).textContent));
@@ -678,7 +679,7 @@ section('v0.9.4：回報問題');
   openAdj(env); a.click(d.getElementById('fbFoot'));
   const href=d.getElementById('fbFoot').getAttribute('href'), q=new URL(href.replace('mailto:','http://x/')).searchParams;
   const subj=q.get('subject'), body=q.get('body');
-  check('點了之後：寄給 hsuchen1@gmail.com，主旨有版本號',/^mailto:hsuchen1@gmail\.com\?/.test(href)&&/^退休試算 回報問題（v\d+\.\d+\.\d+）$/.test(subj),subj);
+  check('點了之後：寄給 hsuchen1@gmail.com，主旨有版本號',/^mailto:hsuchen1@gmail\.com\?/.test(href)&&/^退休試算 回報問題（v\d+\.\d+\.\d+(-[\w.]+)?）$/.test(subj),subj);
   check('內容自動帶入版本、畫面（結果頁、調調看打開）、裝置、日期',/版本：v\d/.test(body)&&/畫面：結果頁（調調看打開）/.test(body)&&/裝置：/.test(body)&&/日期：\d{4}-\d{2}-\d{2}/.test(body),body);
   check('內容不會帶入使用者填的任何數字（出生年月、資產、收入、生活費）',!['1986-06','1986/06','500','4.5'].some(x=>body.includes(x))&&!/資產 \d|入帳 \d/.test(body),body);
   check('內容提醒不用寫個資',/不用寫出生年月、資產這些個資/.test(body));

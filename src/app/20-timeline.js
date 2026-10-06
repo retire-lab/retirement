@@ -153,8 +153,8 @@
     if (S.ypage != null && S.ypage >= 0 && S.ypage < pages) pg = S.ypage;
     var shown = years.slice(pg * YPAGE, pg * YPAGE + YPAGE);
     var ages = function (y) { return Math.floor((y * 12 - bI) / 12) + '–' + Math.floor((y * 12 + 11 - bI) / 12) + ' 歲'; };
-    var btns = '<div class="ygrid" role="tablist" aria-label="年份">' + shown.map(function (y) {
-      return '<button type="button" role="tab" class="yb' + (hasEv(y) ? ' ev' : '') + '" data-year="' + y + '" aria-selected="' + (y === S.year) + '"><b>' + y + '</b><span>' + ages(y) + '</span></button>';
+    var btns = '<div class="ygrid" role="group" aria-label="年份">' + shown.map(function (y) {
+      return '<button type="button" class="yb' + (hasEv(y) ? ' ev' : '') + '" data-year="' + y + '" aria-pressed="' + (y === S.year) + '"><b>' + y + '</b><span>' + ages(y) + '</span></button>';
     }).join('') + '</div>' + '<div class="ylegend"><b>●</b> 這一年有事情發生（退休、年金開始、繳完貸款、孩子升學…）</div>';
     var pager = pages > 1 ? '<div class="ypager"><button type="button" data-ypage="' + (pg - 1) + '"' + (pg === 0 ? ' disabled' : '') + '>‹ 上一頁</button><span class="muted">' + years[pg * YPAGE] + '–' + shown[shown.length - 1] + '・' + (pg + 1) + '／' + pages + '</span><button type="button" data-ypage="' + (pg + 1) + '"' + (pg === pages - 1 ? ' disabled' : '') + '>下一頁 ›</button></div>' : '';
     /* 該年 12 個月：事件月份才寫字，連續沒事的月份合併成「同上」 */

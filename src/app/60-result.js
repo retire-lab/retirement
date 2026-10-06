@@ -81,7 +81,7 @@
     if (pv) { bindEngine(pv.en); pmA = phaseModel(pv.Pa, Radj, pv.en.evalR(pv.Pa, Radj).Q); if (tab === 'adj') mapBody = timelineHtml(pv.Pa, Radj, null, pmA); bindEngine(EN0); }
     if (mapBody === null) mapBody = timelineHtml(P, Rorig, null, pmO);
     var strips = pv ? stripHtml(pmO, '原始・' + ageText(Rorig) + '退休', true) + stripHtml(pmA, '調整後・' + ageText(Radj) + '退休', false) : stripHtml(pmO, null, false);
-    var mtabs = pv ? '<div class="mtabs" role="tablist" aria-label="地圖版本"><button type="button" role="tab" data-mtab="orig" aria-selected="' + (tab === 'orig') + '">原始</button><button type="button" role="tab" data-mtab="adj" aria-selected="' + (tab === 'adj') + '">調整後</button></div>' : '';
+    var mtabs = pv ? '<div class="mtabs" role="group" aria-label="地圖版本"><button type="button" data-mtab="orig" aria-pressed="' + (tab === 'orig') + '">原始</button><button type="button" data-mtab="adj" aria-pressed="' + (tab === 'adj') + '">調整後</button></div>' : '';
 
     /* 詳細說明（收起）：想再早一年、假設、舊制提醒；下面已有調調看與提高準確度，手機上省空間 */
     c.hook = hook;
@@ -101,7 +101,7 @@
     var panel = S.panel === 'adj' ? '<div class="card tpanel" id="panelAdj">' + adjCardHtml(c) + '</div>' : S.panel === 'prec' ? '<div class="card tpanel" id="panelPrec">' + oldBox + precHtml(P) + '</div>' : '';
     $('result').innerHTML =
       '<div class="top"><button type="button" class="linkbtn" id="back">‹ 修改答案</button><span class="muted">v' + EN0.VERSION + '</span></div>' + scBarHtml() + pvbar +
-      (pv ? '<div class="card cmpcard">' + compareHtml(c) + note + '</div>' : '<div class="card hero">' + head + note + '</div>') +
+      (pv ? '<div class="card cmpcard">' + compareHtml(c) + note + '</div>' : '<div class="card hero">' + head + (eH !== null ? '<div class="floor">這是<b>剛好夠的最低門檻</b>，不是建議的退休年齡：照這個時間退休，錢剛好用到 ' + enH.E() + ' 歲，幾乎沒有緩衝。想留緩衝，可以晚一點退，或在「調調看」多存一點。</div>' : '') + note + '</div>') +
       twin + panel + curveHtml(c) +
       '<div class="card" id="mapCard"><h2>每個階段的收支</h2><div class="muted" style="margin-top:2px">' + (pv ? '上下兩條色條對照原始與調整後。' : '') + '色條的長度依時間長短；點下面每一段看發生的事。金額都是今天的購買力。</div>' +
         strips + phaseLegend() + mtabs + '<div class="muted" style="margin-top:8px">' + (pv ? (tab === 'adj' ? '調整後：' : '原始：') : '') + '以 ' + ageText(Rdisp) + '（' + ymText(Rdisp, true) + '）退休來看</div>' + mapBody + '</div>' +

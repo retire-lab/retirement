@@ -62,8 +62,8 @@ t('畫面上不說「你的投資報酬率」（使用者沒輸入投資，改�
 t('快速開始在「名下可自由動用的錢」旁寫明不算投資', () => assert.ok(/試算不算投資/.test(html)));
 t('畫面上不再出現「退休前每年賺 5%」這類投資報酬假設', () => assert.ok(!/每年賺 5%|名目報酬 5%|報酬 5%/.test(html)));
 
-t('網頁標題是「退休生命週期決策平台｜Retirement Lifecycle Decision Platform」', () => assert.ok(/<title>退休生命週期決策平台｜Retirement Lifecycle Decision Platform<\/title>/.test(html)));
-t('頁首有中英文平台名稱', () => assert.ok(/退休生命週期決策平台/.test(body) && /Retirement Lifecycle Decision Platform/.test(body)));
+t('網頁標題是「退休實驗室-退休年齡試算」', () => assert.ok(/<title>退休實驗室-退休年齡試算<\/title>/.test(html)));
+t('頁首是「退休實驗室-退休年齡試算」，不再有中英文平台名稱', () => assert.ok(/退休實驗室-退休年齡試算/.test(body) && !/退休生命週期決策平台|Retirement Lifecycle Decision Platform/.test(body)));
 t('使用者看得到的文字不出現 SP5、SP2（程式內部名稱、存檔前綴不算）', () => {
   const visible = html.replace(/SP5Engine|sp5:/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
   const strs = (visible.match(/'[^'\n]*'|"[^"\n]*"|>[^<]+</g) || []).filter((x) => /SP5|SP2/.test(x));
@@ -77,6 +77,16 @@ t('結果頁的長串假設仍保留「並假設配偶持續負擔其目前的�
 
 t('快速開始寫明適用範圍：只算勞保、勞退，公教軍人、農民不適用', () => assert.ok(/只算勞保、勞退；公務員、教師、軍人、農民的退休制度不同，結果不適用/.test(html)));
 
-t('快速開始的五個欄位沒有預填數字（範例只放在 placeholder）', () => { ['birth', 'workStart', 'asset', 'inc', 'spend'].forEach((k) => { const m = html.match(new RegExp('<input id="' + k + '"[^>]*>')); assert.ok(m, k); assert.ok(!/ value="/.test(m[0]), k + ' 不該有 value'); assert.ok(/placeholder="例如 /.test(m[0]), k + ' 要有例如'); }); });
+t('快速開始的五個欄位沒有預填數字（placeholder 只放範例或規則說明）', () => { ['birth', 'workStart', 'asset', 'inc', 'spend'].forEach((k) => { const m = html.match(new RegExp('<input id="' + k + '"[^>]*>')); assert.ok(m, k); assert.ok(!/ value="/.test(m[0]), k + ' 不該有 value'); assert.ok(/placeholder="(例如 |西元年月，不用打 -")/.test(m[0]), k + ' 要有範例或規則說明'); }); });
 
+/* v1.0：--bg-sub 從來沒定義，深色模式的說明框變成淺字淺底（對比 1.04，真瀏覽器檢查才抓到）。
+   這條不用瀏覽器就能守住根本原因：CSS 用到的每個變數，淺色（:root）和深色（:root[data-theme="dark"]）都要有定義 */
+t('CSS 用到的每個變數，淺色和深色都有定義（深色模式不會退回淺色的預設值）', () => {
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  const used = new Set([...css.matchAll(/var\(--([\w-]+)/g)].map((m) => m[1]));
+  const defs = (re) => new Set([...css.matchAll(re)].flatMap((m) => [...m[1].matchAll(/--([\w-]+)\s*:/g)].map((x) => x[1])));
+  const light = defs(/:root\s*\{([^}]*)\}/g), dark = defs(/:root\[data-theme="dark"\]\s*\{([^}]*)\}/g);
+  assert.deepStrictEqual([...used].filter((v) => !light.has(v)), [], '淺色沒定義');
+  assert.deepStrictEqual([...used].filter((v) => !dark.has(v)), [], '深色沒定義');
+});
 process.exit(S.run() ? 1 : 0);

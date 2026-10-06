@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>退休生命週期決策平台｜Retirement Lifecycle Decision Platform</title>
+<title>退休實驗室-退休年齡試算</title>
 <style>
 :root {
-  --bg: #f7f7f5; --card: #ffffff; --text: #1f1f1d; --muted: #6b6a66; --line: #e2e0da;
+  --bg: #f7f7f5; --card: #ffffff; --text: #1f1f1d; --muted: #6b6a66; --line: #e2e0da; --bg-sub: #f1f0ec;
   --input: #fff8e1; --calc: #f1f0ec; --accent: #1a4f8f; --accent-bg: #dbe9fb;
   --ok: #2e6b1f; --ok-bg: #e3f1df; --warn: #7a5200; --warn-bg: #fdf0d5; --bad: #9b2c2c; --bad-bg: #fbe3e3;
   --btn: #ffffff; --btn-line: #cfcdc6; --on-accent: #ffffff;
@@ -15,7 +15,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936;
+    --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936; --bg-sub: #2c2c2a;
     --input: #3a3322; --calc: #2e2e2c; --accent: #9cc2f5; --accent-bg: #1f3450;
     --ok: #9fd48f; --ok-bg: #22381d; --warn: #f0c46b; --warn-bg: #3d3018; --bad: #f2a3a3; --bad-bg: #432222;
     --btn: #2e2e2c; --btn-line: #4a4945; --on-accent: #1b1b1a;
@@ -23,7 +23,7 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936;
+  --bg: #1b1b1a; --card: #242423; --text: #ecebe7; --muted: #a3a29d; --line: #3a3936; --bg-sub: #2c2c2a;
   --input: #3a3322; --calc: #2e2e2c; --accent: #9cc2f5; --accent-bg: #1f3450;
   --ok: #9fd48f; --ok-bg: #22381d; --warn: #f0c46b; --warn-bg: #3d3018; --bad: #f2a3a3; --bad-bg: #432222;
   --btn: #2e2e2c; --btn-line: #4a4945; --on-accent: #1b1b1a;
@@ -105,7 +105,7 @@ button.primary { background: var(--accent); color: var(--on-accent); border-colo
 .phc.work b { color: var(--accent); }
 .phc .rg { font-size: 10.5px; line-height: 1.3; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .ph .pr { text-align: right; line-height: 1.5; }
-.phc[aria-selected="true"] { border-color: var(--text); background: var(--card); }
+.phc[aria-pressed="true"] { border-color: var(--text); background: var(--card); }
 .ppanel { margin-top: 10px; background: var(--calc); border-radius: 10px; padding: 12px; }
 .ppanel .phc.bad { background: var(--bad-bg); }
 .phc.bad b { color: var(--bad); }
@@ -119,7 +119,7 @@ button.primary { background: var(--accent); color: var(--on-accent); border-colo
 .yb b { font-size: 14px; }
 .yb span { font-size: 10.5px; color: var(--muted); }
 .yb.ev b::after { content: " ●"; font-size: 9px; color: var(--accent); vertical-align: top; }
-.yb[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--text); }
+.yb[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--text); }
 .ygrid { padding-top: 2px; }
 .ypager button:disabled { opacity: .35; cursor: default; }
 .ylegend { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
@@ -225,6 +225,7 @@ details.prec[open] > summary::after { content: '收起'; }
 .twin button b { font-size: 15px; } .twin button span { font-size: 12px; color: var(--muted); line-height: 1.35; }
 .twin button[aria-expanded="true"] { border: 2px solid var(--accent); background: var(--accent-bg); }
 .twin button[aria-expanded="true"] b { color: var(--accent); }
+.twin button[aria-expanded="true"] span { color: var(--text); }   /* 淺藍底上灰字對比不足（真瀏覽器檢查 4.39） */
 .tpanel { margin-top: 8px; }
 .pvbar { flex-wrap: wrap; }
 .pvbar > b { flex: 1 1 auto; font-size: 13.5px; }
@@ -245,7 +246,7 @@ details.prec[open] > summary::after { content: '收起'; }
 .mtabs { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 10px; }
 .mtabs button { flex: 1 1 0; min-height: 40px; border: 0; border-radius: 0; background: var(--card); color: var(--muted); font-family: inherit; font-size: 13.5px; }
 .mtabs button + button { border-left: 1px solid var(--line); }
-.mtabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.mtabs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .assume { display: block; width: 100%; margin-top: 12px; padding: 10px 0 0; min-height: 36px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: var(--muted); font-family: inherit; font-size: 12.5px; text-align: left; }
 .twin .oldtag { font-style: normal; color: var(--warn); font-weight: 600; }
 .tpanel .holdhint { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
@@ -375,7 +376,7 @@ details.prec[open] > summary::after { content: '收起'; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 10px; }
 .seg button { flex: 1 1 0; min-width: 0; border: 0; border-radius: 0; min-height: 42px; padding: 4px 2px; background: var(--card); color: var(--muted); font-size: 13px; line-height: 1.3; }
 .seg button + button { border-left: 1px solid var(--line); }
-.seg button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .er { width: 100%; display: grid; grid-template-columns: 92px minmax(0, 1fr) 16px; grid-template-areas: "a g c" "a x c"; column-gap: 8px; text-align: left; padding: 9px 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
 .er .ea { grid-area: a; font-weight: 700; font-size: 14px; align-self: center; line-height: 1.35; }
 .er .ex { grid-area: x; font-size: 12.5px; color: var(--muted); }
@@ -404,7 +405,6 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .disc ul { margin: 4px 0 0; padding-left: 1.2em; } .disc li { margin-top: 3px; }
 .brand { padding: 4px 0 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .brand .bz { font-size: 15px; font-weight: 700; letter-spacing: .02em; color: var(--text); }
-.brand .be { font-size: 11px; color: var(--muted); letter-spacing: .03em; }
 .top { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { details.card > summary::after { transition: none; } }
@@ -415,22 +415,74 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .depin { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; }
 .depin input { width: 88px; height: 44px; text-align: center; font-size: 17px; font-weight: 600; }
 .depwarn { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--pv-bg, #fff4d6); font-size: 12.5px; line-height: 1.6; }
+
+/* ===== 夫妻模式（v1.0.0-beta.2） ===== */
+.cou-mode { display: flex; gap: 8px; margin: 4px 0 14px; }
+.cou-mode button { flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
+.cou-mode button[aria-pressed="true"] { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+.cou-tabs { display: flex; gap: 6px; margin: 12px 0; }
+.cou-tab { flex: 1; min-height: 52px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 4px; }
+.cou-tab.on { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+.cou-st { font-size: 12px; opacity: .75; }
+.cou-st.done { color: #2f7a3c; opacity: 1; }
+#cpGo:disabled { opacity: .4; cursor: default; }
+.scope summary { cursor: pointer; margin-top: 6px; font-weight: 600; }
+.scope details > div { margin-top: 6px; }
+.scope-keep { padding-top: 6px; border-top: 1px dashed var(--line); }
+.cou-next { width: 100%; height: 46px; margin-top: 14px; border-radius: 12px; }
+.cou-kid { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.cou-kidh { display: flex; justify-content: space-between; align-items: center; }
+.cou-lines { margin-top: 12px; }
+.cou-row { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: end; margin-top: 6px; }
+.cou-nm { font-size: 13px; padding-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cou-mk { position: relative; height: 18px; font-size: 12px; }
+.cou-mk span { position: absolute; white-space: nowrap; font-weight: 600; }
+.cou-bar { position: relative; height: 14px; border-radius: 4px; overflow: hidden; }
+.cou-sg { position: absolute; top: 0; bottom: 0; }
+.cou-ax { position: relative; height: 16px; font-size: 11px; opacity: .7; }
+.cou-ax span { position: absolute; top: 2px; }
+.cou-lg { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; margin-top: 8px; }
+.cou-lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.cou-warn { color: var(--warn); }
+.cou-cmp { margin-top: 6px; font-size: 13px; }
+.cou-ex { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--line); font-size: 13px; }
+.cou-rg { display: flex; justify-content: space-between; font-size: 12px; opacity: .7; }
+#cpRange { width: 100%; margin-top: 6px; }
+.cou-seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--line); margin-top: 10px; }
+.cou-seg button { flex: 1; min-height: 54px; border: 0; border-radius: 9px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 2px; font-size: 14px; }
+.cou-seg button span { font-size: 12px; opacity: .8; }
+.cou-seg button[aria-pressed="true"] { background: var(--card); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.cou-seg button:disabled { opacity: .4; }
+.cou-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.cou-b2 { display: block; font-size: 21px; }
+.cou-say { margin-top: 6px; font-size: 14px; }
+/* 最低門檻 ≠ 建議（單人、夫妻共用） */
+.floor { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--bg-sub, #f1f0ec); font-size: 13px; line-height: 1.6; }
+.cou-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.cou-acts button { height: 44px; border-radius: 12px; }
+.cou-g { font-weight: 600; margin-top: 14px; }
+.cou-step { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.cou-stc { display: flex; align-items: center; gap: 8px; }
+.cou-stc b { min-width: 70px; text-align: center; }
+.cou-tag { font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; margin-left: 6px; font-weight: 400; }
 </style>
 </head>
 <body>
 <main class="wrap">
 
-<header class="brand"><div class="bhead"><div><div class="bz">退休生命週期決策平台</div><div class="be">Retirement Lifecycle Decision Platform</div></div><a class="fblink" id="fbTop" href="mailto:hsuchen1@gmail.com?subject=%E9%80%80%E4%BC%91%E8%A9%A6%E7%AE%97%20%E5%9B%9E%E5%A0%B1%E5%95%8F%E9%A1%8C">回報問題</a></div></header>
+<header class="brand"><div class="bhead"><div><div class="bz">退休實驗室-退休年齡試算</div></div><a class="fblink" id="fbTop" href="mailto:hsuchen1@gmail.com?subject=%E9%80%80%E4%BC%91%E8%A9%A6%E7%AE%97%20%E5%9B%9E%E5%A0%B1%E5%95%8F%E9%A1%8C">回報問題</a></div></header>
 
 <section id="quick">
+  <div class="cou-mode" role="group" aria-label="要怎麼算"><button type="button" data-mode="single" aria-pressed="true">我自己</button><button type="button" data-mode="couple" aria-pressed="false">我和另一半</button></div>
   <h1>你最早幾歲可以退休？</h1>
   <div class="lead">不用準備資料。先回答幾個現在就知道的數字，約 2 分鐘看到第一版結果。金額一律用「萬」。</div>
-  <div class="scope" id="scopeNote">只算勞保、勞退；公務員、教師、軍人、農民的退休制度不同，結果不適用。<br>只算你自己負擔的那一份；有配偶的話，假設對方繼續負擔他的家用份額。<br>你填的資料只存在這台裝置的瀏覽器裡，不會上傳。網站用 Google Analytics 統計使用情況（例如有多少人算出結果），不包含你填的任何數字。用公用電腦的話，結束前記得清除。</div>
+  <div class="scope"><div>只算你自己負擔的那一份，適用一般勞保、勞退的上班族。資料只存在這台裝置，不會上傳。</div>
+    <details><summary>試算範圍與隱私說明</summary><div id="scopeNote">只算勞保、勞退；公務員、教師、軍人、農民的退休制度不同，結果不適用。<br>只算你自己負擔的那一份；有配偶的話，假設對方繼續負擔他的家用份額。<br>你填的資料只存在這台裝置的瀏覽器裡，不會上傳。網站用 Google Analytics 統計使用情況（例如有多少人算出結果），不包含你填的任何數字。<br>用公用電腦的話，用完到「方案清單」最下面按「清除這台裝置上的所有資料」，把填過的資料刪掉。</div><div class="scope-keep">資料存在這個瀏覽器裡：換瀏覽器或換裝置、在 Threads、LINE 裡直接打開、用無痕模式，或 Safari 很久沒打開這個網站（Apple 的隱私規則），都可能看不到之前的方案。重要的方案可以到「方案清單」用「匯出」備份。資料<b>沒有加密</b>：同一台裝置、同一個瀏覽器的人，打開這個網站看得到你存的方案。</div></details></div>
 
   <div class="card">
     <div class="sechead"><div class="num">1</div><h2>基本狀況</h2></div>
     <div class="qf"><label class="qlab" for="birth">出生年月</label>
-      <input id="birth" type="text" inputmode="numeric" data-k="birth" placeholder="例如 1974-11">
+      <input id="birth" type="text" inputmode="numeric" data-k="birth" placeholder="西元年月，不用打 -">
       <div class="qhint ok" id="ageText"></div></div>
     <div class="qf"><label class="qlab" for="workStart">幾歲開始工作（有勞保）</label>
       <div class="qin"><input id="workStart" type="text" inputmode="numeric" data-k="workStart" placeholder="例如 24"><span class="u">歲</span></div>
@@ -504,6 +556,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
   <div class="qhint" style="text-align: center">依固定假設推估的門檻，不是對未來的預測，也不構成投資建議。</div>
 </section>
 
+<section id="couple" hidden></section>
 <section id="result" hidden></section>
 <section id="list" hidden></section>
 <section id="cmp" hidden></section>

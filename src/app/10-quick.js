@@ -1,7 +1,8 @@
 /* src/app/10-quick.js — 快速開始
  * 這個檔案不是獨立的模組：建置時 src/app/ 的檔案依檔名順序接起來，包在同一個函式裡（共用變數）。
  * 產生 src/app.generated.js，再內嵌進 dist/index.html。 */
-  function paintAge() { var a = age(); $('ageText').textContent = a === null ? '格式：1974-11' : '今年 ' + a + ' 歲'; }
+  /* 出生年月底下的即時回饋：空著不寫（提示框已經有規則）、打錯了提醒規則、打對了顯示今年幾歲 */
+  function paintAge() { var a = age(); $('ageText').textContent = a !== null ? '今年 ' + a + ' 歲' : (String(S.birth || '').trim() ? '西元年月，不用打 -' : ''); }
   function paintPrepay() {
     var box = $('preEst'); if (!box) return;
     var A0 = age(), at = num(S.housePreAge), yrs = num(S.houseYrs), pay = W(S.housePay), rt = num(S.houseRate);
@@ -49,7 +50,7 @@
   function paintKids() {
     $('kids').innerHTML = S.kids.map(function (k, i) {
       return '<div class="kid" data-kidbox="' + i + '"><div class="kidtop">' +
-        '<div><label class="f" for="kby' + i + '">第 ' + (i + 1) + ' 個・出生年月</label><input id="kby' + i + '" type="text" inputmode="numeric" data-kidby="' + i + '" placeholder="例如 2012-05" value="' + esc(k.bym) + '"></div>' +
+        '<div><label class="f" for="kby' + i + '">第 ' + (i + 1) + ' 個・出生年月</label><input id="kby' + i + '" type="text" inputmode="numeric" data-kidby="' + i + '" placeholder="西元年月，不用打 -" value="' + esc(k.bym) + '"></div>' +
         '<div><label class="f" for="kp' + i + '">打算讀到</label><select id="kp' + i + '" data-kidpath="' + i + '">' +
         SP5Engine.PATHS.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === k.path ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
         '<button type="button" data-delkid="' + i + '" aria-label="刪除第 ' + (i + 1) + ' 個孩子">刪除</button></div>' +

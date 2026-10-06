@@ -41,6 +41,23 @@ const steps = [
     catch (e) { bad++; console.log('  ✗ ' + name + '（' + e.message + '）'); }
   }
   if (A.errs.length) { bad++; console.log('  ✗ 執行錯誤：' + A.errs.join('；')); }
+  /* v1.0：夫妻模式的畫面 */
+  const C = mk(), cid = (p) => 'cq-' + p.replace(/\./g, '-');
+  const steps2 = [
+    ['夫妻：輸入（空白）', (X) => X.click(X.d.querySelector('[data-mode="couple"]'))],
+    ['夫妻：我們家（房貸、孩子）', (X) => { [['you.birth', '1985-03'], ['you.workStart', '25'], ['you.inc', '8']].forEach(([k, v]) => X.type(cid(k), v)); X.click(X.d.querySelector('[data-cptab="p"]'));
+      [['partner.birth', '1988-07'], ['partner.workStart', '25'], ['partner.inc', '6.5']].forEach(([k, v]) => X.type(cid(k), v)); X.click(X.d.querySelector('[data-cptab="home"]'));
+      X.type(cid('asset'), '300'); X.type(cid('spend'), '6'); X.click(X.d.querySelector('[data-cpchip="house"]')); X.type(cid('housePay'), '2'); X.type(cid('houseYrs'), '20');
+      X.click(X.d.querySelector('[data-cpchip="kidsOn"]')); X.type(cid('kids.0.bym'), '2016-04'); X.d.querySelectorAll('[data-cpk^="kids.0.costs."]').forEach((el) => X.type(el.id, '5')); }],
+    ['夫妻：結果（三個方案、滑桿、兩條線）', (X) => X.click(X.d.getElementById('cpGo'))],
+    ['夫妻：調調看', (X) => { X.click(X.d.getElementById('cpTgAdj')); X.click(X.d.querySelector('[data-cpatab="home"]')); X.click(X.d.querySelector('[data-cpstep="more"][data-d="-1"]')); }],
+    ['夫妻：提高準確度（我們家）', (X) => { X.click(X.d.getElementById('cpTgPrec')); X.click(X.d.querySelector('[data-cpptab="home"]')); }]
+  ];
+  for (const [name, fn] of steps2) {
+    try { fn(C); const v = await scan(C); if (v.length) { bad++; console.log('  ✗ ' + name + '\n      ' + v.join('\n      ')); } else { ok++; console.log('  ✓ ' + name + '：沒有問題'); } }
+    catch (e) { bad++; console.log('  ✗ ' + name + '（' + e.message + '）'); }
+  }
+  if (C.errs.length) { bad++; console.log('  ✗ 夫妻模式執行錯誤：' + C.errs.join('；')); }
   console.log('  ' + ok + ' 通過，' + bad + ' 失敗');
   process.exit(bad ? 1 : 0);
 })();

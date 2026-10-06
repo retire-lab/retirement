@@ -19,7 +19,7 @@
 data/                    制度數字（CSV／JSON）與 SOURCES.md；官方調整時只改這裡
 src/engine.js            計算引擎（全專案唯一的一份；瀏覽器與 node 共用）
 src/index.html           畫面的 HTML 與 CSS
-src/app/*.js             畫面程式，依功能分 12 個檔案（狀態、快速開始、每個階段、調調看、對照、提高準確度、結果、PDF、存檔、對話框、方案、事件）；
+src/app/*.js             畫面程式，依功能分 15 個檔案（狀態、快速開始、每個階段、調調看、對照、夫妻模式、提高準確度、結果、PDF、存檔、備份、使用統計、對話框、方案、事件）；
                          不是獨立模組，build 時依檔名順序接起來包在同一個函式裡 → src/app.generated.js
 src/pdfdoc.js            PDF 排版（純函式：資料模型 → pdfmake 文件定義；瀏覽器與 node 共用）
 fonts/                   楷書子集 kai-subset.ttf、收錄字表、字型授權；原始字型放 fonts/source/（不進 repo）
@@ -43,7 +43,7 @@ docs/system-design.md     架構、引擎、制度規則、畫面、測試、決
 
 ## 開發
 
-需要 Node.js 22 以上（jsdom 30 需要；GitHub Actions 也用 22）。網頁本身沒有任何外部相依；開發與 build 用到 jsdom、pdfmake、pdf.js（devDependencies）。
+需要 Node.js 22.22.2 以上（jsdom 30 需要 22.22.2、undici 需要 22.19；GitHub Actions 固定用 22.22）。網頁本身沒有任何外部相依；開發與 build 用到 jsdom、pdfmake、pdf.js（devDependencies）。
 
 ```bash
 npm install --omit=optional   # 第一次（略過 pdf.js 的選用原生模組 canvas，用不到）
@@ -107,6 +107,10 @@ npm run check     # 以上全部（GitHub Actions 跑的就是這個）
 
 | 版本 | 重點 |
 | --- | --- |
+| v1.0.0 | 正式版：夫妻模式上線；結果標明「最低門檻，不是建議」；頁籤改成按鈕群組；深色模式說明框對比修正；Node 22.22.2；pdf.js 4.10.38 |
+| v1.0.0-beta.3 | 夫妻結果頁重新排序：三行範圍事實 → 三個參考方案 → 自己配一組；說明框折疊（單人、夫妻） |
+| v1.0.0-beta.2 | 夫妻模式畫面（暫存版）：三個頁籤輸入、滑桿與兩條線、三個參考方案、調調看、提高準確度、存檔與匯出入 |
+| v1.0.0-beta.1 | 夫妻 solver（引擎）：另一方最快的退休時間、三個參考方案、換算比例 |
 | v0.9.9 | Rule/Data Hygiene（使用者看不到改變）：會隨年度調整的數字一律放有生效日的 CSV；其他制度數字與假設集中在 params.json 並標 category；畫面與 PDF 的文字從同一份資料帶入；新增語意一致性測試 |
 | v0.9.8 | 夫妻規則做進引擎（使用者看不到改變）：健保眷屬依法依附且要多算保費、勞保與國保遺屬年金擇一取高、勞退月領期間過世的專戶餘額回到家裡、過世後生活費七成；會隨年度調整的數字放 data/nhi_employee.csv、data/np_benefits.csv；修正測試產生條件時「提高準確度」欄位沒有生效的問題，標準答案改用 v0.9.6 引擎重拍 |
 | v0.9.7 | 引擎拆層（夫妻模式的地基，使用者看不到改變）：每月現金流拆成「這個人的」與「這個家的」、只算這個人的模式、個人時間軸、家庭組合器；新增 600 組標準答案與 46 項保險接續測試 |

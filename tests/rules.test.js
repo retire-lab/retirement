@@ -669,9 +669,9 @@ t('驗證：勞退自提超過 6% → 擋下；6% 可以', () => { assert.ok(/�
 t('驗證：空白一律可以（代表用估算）', () => assert.strictEqual(vErr({ liYears: '', w60: '', lsBal: '', lsWage: '', self: '' }), ''));
 
 /* ---------- v0.7.2：快速開始空白時的訊息 ---------- */
-t('沒填出生年月 →「還沒填（例如 1974-11）」；填錯 →「請寫成 1974-11 這種格式」', () => {
+t('沒填出生年月 →「還沒填（西元年月，不用打 -）」；填錯 →「請用西元年月，不用打 -（例如……）」', () => {
   const v = (o) => SP5.create(Object.assign({ birth: '1986-06', workStart: '25', asset: '500', inc: '9', spend: '4.5', pre: {} }, o), { now: stNow }).validate();
-  assert.strictEqual(v({ birth: '' }), '出生年月還沒填（例如 1974-11）。'); assert.strictEqual(v({ birth: '1986/6/1' }), '出生年月請寫成 1974-11 這種格式。');
+  assert.strictEqual(v({ birth: '' }), '出生年月還沒填（西元年月，不用打 -）。'); assert.strictEqual(v({ birth: '1986/6/1' }), '出生年月請用西元年月，不用打 -（例如 1974 年 11 月就打 197411）。');
   assert.strictEqual(v({ workStart: '' }), '幾歲開始工作還沒填（例如 24）。'); assert.ok(/請填 15 到/.test(v({ workStart: '9' })));
   ['asset', 'inc', 'spend'].forEach((k) => assert.ok(/還沒填/.test(v({ [k]: '' })), k));
 });

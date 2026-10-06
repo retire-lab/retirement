@@ -9,7 +9,9 @@ const path = require('path');
 const assert = require('assert');
 const { JSDOM } = require('jsdom');
 const PdfPrinter = require('pdfmake');
-const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+/* v1.0：pdfjs-dist 3.11.174 有「開啟惡意 PDF 可執行程式」的已知漏洞，升到 4.10.38；4.x 是 ES module，用 import() 載入 */
+let pdfjsP = null;
+const loadPdfjs = () => pdfjsP || (pdfjsP = import('pdfjs-dist/legacy/build/pdf.mjs'));
 const PDFDOC = require('../src/pdfdoc.js');
 const SP5 = require('../src/engine.js');
 
@@ -71,7 +73,7 @@ function makePdf(M, opts) {
   });
 }
 async function readPdf(buf, password) {
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), password, verbosity: 0, useSystemFonts: false }).promise;
+  const pdfjs = await loadPdfjs(), doc = await pdfjs.getDocument({ data: new Uint8Array(buf), password, verbosity: 0, useSystemFonts: false }).promise;
   const pages = [];
   for (let i = 1; i <= doc.numPages; i++) { const p = await doc.getPage(i); const tc = await p.getTextContent(); pages.push(tc.items.map((x) => x.str).join(' ')); }
   const meta = await doc.getMetadata().catch(() => ({}));
@@ -111,7 +113,7 @@ function checkStructure(txt, chapters) {
   const FIRST = { '一': ['基本資料'], '二': ['退休時間', '最快退休'], '三': ['年齡'], '四': ['工作期'], '五': ['一次領'] };
   chapters.forEach((c, i) => { const pz = Z(txt.pages[pg[i] - 1]), after = pz.slice(pz.indexOf(Z(c)) + Z(c).length); assert.ok(FIRST[c[0]].some((m) => after.includes(m)), c + '：標題那一頁（第 ' + pg[i] + ' 頁）沒有該章的內容，標題被單獨留在頁尾'); });
   /* 每一頁都有內容（不是只有頁首頁尾） */
-  txt.pages.forEach((p, i) => assert.ok(Z(p).replace(/退休生命週期決策平台|RetirementLifecycleDecisionPlatform|第\d+頁|\d{4}\/\d{2}\/\d{2}|v\d+\.\d+\.\d+|完整版|分享版|・|對照/g, '').length > 60, '第 ' + (i + 1) + ' 頁不是空白頁'));
+  txt.pages.forEach((p, i) => assert.ok(Z(p).replace(/退休實驗室-退休年齡試算|第\d+頁|\d{4}\/\d{2}\/\d{2}|v\d+\.\d+\.\d+|完整版|分享版|・|對照/g, '').length > 60, '第 ' + (i + 1) + ' 頁不是空白頁'));
 }
 /* 文件定義裡往下層找（章節標題與第一個內容包在同一個區塊裡） */
 function findNodes(x, pred, out) { out = out || []; if (Array.isArray(x)) x.forEach((y) => findNodes(y, pred, out)); else if (x && typeof x === 'object') { if (pred(x)) out.push(x); ['stack', 'content'].forEach((k) => { if (x[k]) findNodes(x[k], pred, out); }); } return out; }

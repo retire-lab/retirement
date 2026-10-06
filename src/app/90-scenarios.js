@@ -8,7 +8,7 @@
       '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2>我的方案（' + n + '／' + MAX + '）</h2>' + (n >= 2 ? '<button type="button" id="openCmp">參數總表</button>' : '') + '</div>' +
       DB.list.map(function (x) {
         var cur = x.id === DB.active;
-        return '<div class="scrow"><div class="h"><b>' + esc(x.name) + '</b>' + (cur ? '<span class="cur">目前</span>' : '') + (cur && isDirty() ? '<span class="muted" style="color:var(--warn)">有未存檔的修改</span>' : '') + '</div>' +
+        return '<div class="scrow"><div class="h"><b>' + esc(x.name) + '</b>' + (x.saved && x.saved.mode === 'couple' ? '<span class="cou-tag">夫妻</span>' : '') + (cur ? '<span class="cur">目前</span>' : '') + (cur && isDirty() ? '<span class="muted" style="color:var(--warn)">有未存檔的修改</span>' : '') + '</div>' +
           '<div class="sum">' + sumLine(x.saved) + '</div><div class="sum">存檔：' + esc(x.updated) + '</div>' +
           '<div class="acts2">' + (cur ? '' : '<button type="button" class="primary" data-sw="' + esc(x.id) + '">切換到這個</button>') +
           '<button type="button" data-rn="' + esc(x.id) + '">改名</button>' +
@@ -85,11 +85,11 @@
       (!nd && !DB.showAll ? '<div class="pm" style="margin-top:10px">選的方案參數完全一樣。</div>' : '<div class="ctab" style="' + g + '">' + head + rows + '</div>');
     $('cmp').innerHTML = '<div class="top"><button type="button" class="linkbtn" id="cmpBack">‹ 回到方案清單</button><span class="muted">只比輸入，不比結果</span></div>' +
       '<div class="card"><h2>參數總表</h2><div class="muted" style="margin-top:4px">任選最多 ' + CMP_MAX + ' 個。以最左邊那欄為基準，跟它不一樣的格子會標色。</div>' +
-      '<div class="chips">' + DB.list.map(function (x) { return '<button type="button" class="chip" data-cs="' + esc(x.id) + '" aria-pressed="' + (sel.indexOf(x.id) >= 0) + '">' + esc(x.name) + '</button>'; }).join('') + '</div>' +
+      '<div class="chips">' + DB.list.filter(function (x) { return !(x.saved && x.saved.mode === 'couple'); }).map(function (x) { return '<button type="button" class="chip" data-cs="' + esc(x.id) + '" aria-pressed="' + (sel.indexOf(x.id) >= 0) + '">' + esc(x.name) + '</button>'; }).join('') + '</div>' +
       (msg ? '<div class="wf">' + msg + '</div>' : '') +
       (births.length > 1 ? '<div class="err" style="margin-top:10px">這幾個方案的出生年月不一樣（' + births.map(esc).join('、') + '），通常是改錯了。</div>' : '') +
-      '<div class="seg" role="tablist" aria-label="顯示範圍"><button type="button" role="tab" data-sa="0" aria-selected="' + !DB.showAll + '">只看有差異（' + nd + '）</button><button type="button" role="tab" data-sa="1" aria-selected="' + !!DB.showAll + '">顯示全部（' + CMP_ROWS.length + '）</button></div>' +
+      '<div class="seg" role="group" aria-label="顯示範圍"><button type="button" data-sa="0" aria-pressed="' + !DB.showAll + '">只看有差異（' + nd + '）</button><button type="button" data-sa="1" aria-pressed="' + !!DB.showAll + '">顯示全部（' + CMP_ROWS.length + '）</button></div>' +
       table + '</div>';
   }
-  function switchTo(id) { DB.active = id; saveDB(); setInputs(active().saved); S.ledger = false; S.phase = null; adjReset(); if (validate()) { show('quick'); showErr(validate()); } else { paintResult(); show('result'); } }
+  function switchTo(id) { DB.active = id; saveDB(); if (active().saved && active().saved.mode === 'couple') { cpStart(active().saved, id); return; } setInputs(active().saved); S.ledger = false; S.phase = null; adjReset(); if (validate()) { show('quick'); showErr(validate()); } else { paintResult(); show('result'); } }
 

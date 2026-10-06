@@ -53,7 +53,7 @@
     c.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.4, lineColor: C.ink }], margin: [0, 2, 0, 8] });
     if (!anon) c.push({ text: tx('方案：' + M.meta.name + (M.meta.dirty ? '（未存檔）' : '')), style: 'meta' });
     c.push({ text: '前言', style: 'h3' });
-    var intro = ['這份報告由「退休生命週期決策平台」產生，回答一個問題：不靠投資，只用收入減支出存下來的錢，加上勞保、勞退、國保、健保，最早幾歲可以退休。'];
+    var intro = ['這份報告由「退休實驗室-退休年齡試算」產生，回答一個問題：不靠投資，只用收入減支出存下來的錢，加上勞保、勞退、國保、健保，最早幾歲可以退休。'];
     if (cmp) {
       intro.push('報告比較兩個版本：「原始」是你目前的設定；「調整後」包含' + (M.meta.pendingN ? '還沒套用的實際資料（提高準確度）' + (M.meta.adjN ? '與' : '') : '') + (M.meta.adjN ? '假設的情境（調調看）' : '') + '。');
       intro.push('怎麼讀：先看第一章兩個版本的條件差在哪裡，再看第二章的結果；第三、四章說明錢怎麼走，以及每個階段會發生什麼事' + (M.li ? '；第五章是勞保一次領和月領的比較' : '') + '。');
@@ -173,7 +173,7 @@
         note: { fontSize: 9.5, color: C.mut, margin: [0, 6, 0, 0] }, tocTitle: { fontSize: 18, margin: [0, 0, 0, 12] }, tocItem: { fontSize: 13 }
       },
       header: function () {
-        return { margin: [40, 24, 40, 0], stack: [{ columns: [{ text: [{ text: '退休生命週期決策平台\n', fontSize: 12 }, { text: 'Retirement Lifecycle Decision Platform', fontSize: 7.5, color: C.mut }] },
+        return { margin: [40, 24, 40, 0], stack: [{ columns: [{ text: [{ text: '退休實驗室-退休年齡試算', fontSize: 12 }] },
           { text: M.meta.date.replace(/-/g, '/') + ' ・ v' + M.meta.version + ' ・ ' + (anon ? '分享版' : '完整版') + (cmp ? '・對照' : ''), alignment: 'right', fontSize: 8.5, color: C.mut }] },
           { canvas: [{ type: 'line', x1: 0, y1: 4, x2: 515, y2: 4, lineWidth: 0.6, lineColor: C.ink }] }] };
       },

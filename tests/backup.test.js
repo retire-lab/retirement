@@ -86,6 +86,31 @@ t('匯出（加密）：AES-256-GCM＋PBKDF2 60 萬次；檔案裡看不到任�
 t('匯出兩次：每次的鹽與 IV 都不同（同樣的資料、同樣的密碼，加密結果不一樣）', async () => { const A = app(two()); const a = JSON.parse((await exportFile(A, 'abcd1234')).text), b = JSON.parse((await exportFile(A, 'abcd1234')).text); assert.notStrictEqual(a.kdf.salt, b.kdf.salt); assert.notStrictEqual(a.cipher.iv, b.cipher.iv); assert.notStrictEqual(a.data, b.data); });
 t('匯出時有未存檔的修改 → 提醒匯出的是上次存檔的內容', async () => { const A = app(two()); A.click(A.d.getElementById('back')); const e = A.d.getElementById('asset'); e.value = '600'; e.dispatchEvent(new A.W.Event('input', { bubbles: true })); A.click(A.d.getElementById('go')); A.list(); A.click(A.d.getElementById('expAll')); assert.ok(/有未存檔的修改；匯出的是上次存檔的內容/.test(A.body())); });
 
+/* ===== v1.0：夫妻方案 ===== */
+const C_IN = { mode: 'couple', asset: '300', spend: '7', house: true, housePay: '2', houseYrs: '20', car: false, carPay: '', carYrs: '', kidsOn: true,
+  kids: [{ bym: '2016-04', path: 'uni', costs: { ele: '5', jun: '6', sen: '8', uni: '15' } }], parOn: false, par: '', parMode: 'keep', parYrs: '', pre: { inf: '', dep: '1.9' },
+  you: { name: '你', birth: '1985-03', workStart: '25', inc: '8', pre: { liYears: '16', w60: '', lsBal: '', lsWage: '', lsYears: '', self: '' } },
+  partner: { name: '另一半', birth: '1988-07', workStart: '25', inc: '6.5', pre: { liYears: '', w60: '', lsBal: '', lsWage: '', lsYears: '', self: '' }, parOn: true, par: '0.5', parMode: 'keep', parYrs: '' } };
+t('夫妻方案：匯出 → 新裝置匯入，資料完整保留；不在白名單的欄位丟掉；切過去是夫妻的結果', async () => {
+  const evil = JSON.parse(JSON.stringify(C_IN)); evil.you.evil = '<img src=x onerror=alert(1)>'; evil.partner.pre.hack = 'x'.repeat(500);
+  const A = app([{ id: 's1', name: '我的第一個方案', saved: A_IN, updated: '' }, { id: 'c1', name: '我們的方案', saved: evil, updated: '' }], 's1');
+  A.list(); A.click(A.d.getElementById('expAll') || A.mb('匯出所有方案'));
+  assert.ok(/也包含另一半的資料/.test(A.body()), '有夫妻方案時，匯出前提醒檔案也包含另一半的資料');
+  A.click(A.mb('取消'));
+  const f = await exportFile(A, ''), o = JSON.parse(f.text);
+  assert.strictEqual(o.list[1].saved.mode, 'couple');
+  const B = app(); B.W.SP5App.importText(f.text, f.name);
+  assert.ok(await until(() => B.title() === '匯入方案'), B.title()); B.click(B.mb('匯入 2 個方案'));
+  const c = B.db().list.filter((x) => x.saved.mode === 'couple')[0];
+  assert.ok(c, '夫妻方案有匯入');
+  assert.deepStrictEqual([c.saved.you.birth, c.saved.partner.birth, c.saved.partner.par, c.saved.partner.parOn, c.saved.kids[0].costs.uni, c.saved.you.pre.liYears, c.saved.pre.dep],
+    ['1985-03', '1988-07', '0.5', true, '15', '16', '1.9']);
+  assert.ok(!('evil' in c.saved.you) && !('hack' in c.saved.partner.pre), '白名單以外的欄位要丟掉');
+  B.list(); B.click(B.d.querySelector('[data-sw="' + c.id + '"]'));   /* 匯入後會先切到第一個方案，從清單切過去 */
+  assert.ok(!B.d.getElementById('couple').hidden && B.d.getElementById('cpSlider'), '切換到夫妻方案：顯示夫妻的結果');
+  assert.strictEqual(B.errs.length, 0, B.errs.join('|'));
+});
+
 /* ===== 匯入 ===== */
 t('換裝置：加密匯出 → 新裝置匯入（錯的密碼再試）→ 方案一樣、算出來的結果一樣', async () => {
   const A = app(two()); const f = await exportFile(A, 'abcd1234');

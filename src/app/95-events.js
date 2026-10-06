@@ -189,7 +189,8 @@
   });
   $('modal').addEventListener('click', function (e) { if (e.target.id === 'modal') closeModal(); });
   loadDB();
-  if (active()) { setInputs(active().saved); if (!validate()) { paintResult(); show('result'); } else syncForm(); }
+  if (active() && active().saved && active().saved.mode === 'couple') { paintAge(); paintKids(); paintAccum(); cpStart(active().saved, active().id); }   /* v1.0：夫妻方案直接回到夫妻的結果 */
+  else if (active()) { setInputs(active().saved); if (!validate()) { paintResult(); show('result'); } else syncForm(); }
   else { paintAge(); paintKids(); paintAccum(); }
   showLoadErr();
   gaInit();   /* 使用統計：只在正式網站載入（83-analytics.js） */
