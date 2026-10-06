@@ -69,6 +69,7 @@ button.primary { background: var(--accent); color: var(--on-accent); border-colo
 .tile[aria-pressed="true"] .ic { color: var(--accent); }
 .sub { margin-top: 10px; border-radius: 10px; background: var(--calc); padding: 12px; }
 .sub .t { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.sub .qlab { font-size: 12px; font-weight: 400; color: var(--muted); margin-bottom: 4px; }   /* v1.0.5：小區塊裡，區塊標題大、欄位名稱小（夫妻的孝親原本層次反了） */
 .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .kid { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 8px; }
@@ -461,8 +462,6 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .subh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .tsum { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 .tile.cur { box-shadow: inset 0 0 0 2px var(--text); }
-.chip.cur { box-shadow: inset 0 0 0 2px var(--text); }
-.chip .tsum { display: block; }
 .isum { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .isum .amt-out { color: var(--bad); } .isum .amt-in { color: var(--ok); }
 /* 最低門檻 ≠ 建議（單人、夫妻共用） */
@@ -513,13 +512,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
   <div class="card">
     <div class="sechead"><div class="num">2</div><h2>哪些支出以後會結束？</h2></div>
     <div class="qhint" style="margin-top: 6px">這很重要。房貸繳完、小孩畢業之後，你需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。</div>
-    <div class="tiles">
-      <button type="button" class="tile" data-chip="house" aria-pressed="false"><span class="ic">🏠</span><b>房貸</b><span class="tsum" data-sum="house"></span></button>
-      <button type="button" class="tile" data-chip="car" aria-pressed="false"><span class="ic">🚗</span><b>車貸</b><span class="tsum" data-sum="car"></span></button>
-      <button type="button" class="tile" data-chip="kidsOn" aria-pressed="false"><span class="ic">🎓</span><b>子女</b><span class="tsum" data-sum="kidsOn"></span></button>
-      <button type="button" class="tile" data-chip="parOn" aria-pressed="false"><span class="ic">🧓</span><b>孝親</b><span class="tsum" data-sum="parOn"></span></button>
-      <button type="button" class="tile" data-chip="lumpsOn" aria-pressed="false"><span class="ic">💰</span><b>大筆收支</b><span class="tsum" data-sum="lumpsOn"></span></button>
-    </div>
+    <div class="tiles" id="tiles"></div>
     <div class="sub" id="sec-lumpsOn" hidden>
       <div class="subh"><span class="t">未來的大筆收支</span><button type="button" class="linkbtn" data-chipoff="lumpsOn">不算大筆收支</button></div>
       <div class="qhint" style="margin-top: 0">某一年會有一筆比較大的錢進出：換車、整修房子、出國、孩子第一桶金、儲蓄險到期……</div>

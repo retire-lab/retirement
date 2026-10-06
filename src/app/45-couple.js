@@ -70,8 +70,8 @@
     return '<div class="card"><div class="sechead"><h2>' + esc(nm) + '自己的資料</h2></div>' +
       cpIn(k + '.name', '稱呼', '', w === 'you' ? '你' : '另一半', 'text') + cpIn(k + '.birth', '出生年月', '', '西元年月，不用打 -', 'numeric') + '<div class="qhint" data-cpage="' + k + '">' + cpAgeHint(k) + '</div>' +
       cpIn(k + '.workStart', '幾歲開始工作（有勞保）', '歲', '例如 25', 'numeric') + cpIn(k + '.inc', '每月實際入帳', '萬', '例如 8') +
-      '<div class="muted" style="margin-top:12px"><b>給' + esc(nm) + '父母的孝親費</b>（選填）</div>' +
-      cpIn(w === 'you' ? 'par' : 'partner.par', '每月', '萬', '沒有就空白') + cpIn(w === 'you' ? 'parYrs' : 'partner.parYrs', '給幾年', '年', '空白＝一直給') +
+      '<div class="sub"><div class="t">給' + esc(nm) + '父母的孝親費<span class="opt">（選填）</span></div>' +   /* v1.0.5：區塊標題大、欄位名稱小 */
+      cpIn(w === 'you' ? 'par' : 'partner.par', '每月', '萬', '沒有就空白') + cpIn(w === 'you' ? 'parYrs' : 'partner.parYrs', '給幾年', '年', '空白＝一直給') + '</div>' +
       '<div class="muted" style="margin-top:8px">勞保、勞退的年資與薪資，算完之後在「提高準確度」補，沒填就先用估算。</div>' +
       '<button type="button" class="cou-next" data-cptab="' + (w === 'you' ? 'p' : 'home') + '">下一步：' + esc(w === 'you' ? cpName('partner') : '我們家') + ' ›</button></div>';
   }
@@ -115,20 +115,22 @@
   /* v1.0.3：以後會結束的支出＝可以複選的分頁（跟單人一樣）：按鈕上寫摘要，底下只顯示目前這一個（CP.etab） */
   var CP_TABS = ['house', 'carsOn', 'kidsOn', 'lumpsOn'];
   function cpEtab() { var I = CP.inp; if (!CP.etab || !I[CP.etab]) CP.etab = CP_TABS.filter(function (k) { return I[k]; })[0] || null; return CP.etab; }
-  function cpChip(key, label) {
-    var on = !!cpGet(key), cur = on && cpEtab() === key;
-    return '<button type="button" class="chip' + (cur ? ' cur' : '') + '" data-cpchip="' + key + '" aria-pressed="' + on + '" aria-expanded="' + cur + '">' + (on ? '✓ ' : '＋ ') + label + (on ? '<span class="tsum">' + esc(tabSummary(key, CP.inp)) + '</span>' : '') + '</button>';
+  var CP_TILES = [['house', '房貸'], ['carsOn', '車貸'], ['kidsOn', '子女'], ['lumpsOn', '大筆收支']];   /* 孝親在「你／另一半」頁籤（各自的父母） */
+  function cpTabSub(key, title, inner) { return '<div class="sub"><div class="subh"><span class="t">' + title + '</span><button type="button" class="linkbtn" data-cpchipoff="' + key + '">不算' + title + '</button></div>' + inner + '</div>'; }
+  /* v1.0.5：跟單人同一張卡片「哪些支出以後會結束？」、同一個大方塊函式、細節放同樣的小區塊 */
+  function cpExpHtml() {
+    var t = cpEtab();
+    return '<div class="card"><div class="sechead"><h2>哪些支出以後會結束？</h2></div><div class="qhint" style="margin-top:6px">這很重要。房貸繳完、小孩畢業之後，你們需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。</div>' +
+      '<div class="tiles">' + expTilesHtml(CP_TILES, CP.inp, t, function (k) { return 'data-cpchip="' + k + '"'; }) + '</div>' +
+      (t === 'house' ? cpTabSub('house', '房貸', cpIn('housePay', '每月繳', '萬', '例如 2') + cpIn('houseYrs', '還剩', '年', '例如 20')) : '') +
+      (t === 'carsOn' ? cpTabSub('carsOn', '車貸', cpCarsHtml()) : '') + (t === 'kidsOn' ? cpTabSub('kidsOn', '子女', cpKidsHtml()) : '') + (t === 'lumpsOn' ? cpTabSub('lumpsOn', '大筆收支', cpLumpsHtml()) : '') + '</div>';
   }
-  function cpTabHead(key, title) { return '<div class="subh" style="margin-top:12px"><b>' + title + '</b><button type="button" class="linkbtn" data-cpchipoff="' + key + '">不算' + title + '</button></div>'; }
   function cpHomeHtml() {
     var I = CP.inp;
     return '<div class="card"><div class="sechead"><h2>我們家共有的</h2></div><div class="muted">全部填全家的總數。</div>' +
       cpIn('asset', '名下可自由動用的錢（兩人合計）', '萬', '例如 300') + cpIn('spend', '每月基本生活費（全家）', '萬', '例如 7') +
       cpIn('reserve', '退休後想隨時留多少預備金<span class="opt">（選填）</span>', '萬', '沒有就空白') + '<div class="qhint">退休後，存款任何時候都不低於這個數字。萬一生病、出國玩，隨時有錢可以拿。</div><div id="cpResv">' + reserveChips(I.spend, I.reserve, function (v) { return 'data-cpresv="' + v + '"'; }) + '</div>' +
-      '<div class="muted" style="margin-top:12px"><b>以後會結束的支出</b>：有的點一下，可以選好幾個；底下一次只看一個。</div><div class="chips">' + cpChip('house', '房貸') + cpChip('carsOn', '車貸') + cpChip('kidsOn', '孩子') + cpChip('lumpsOn', '大筆收支') + '</div>' +
-      (cpEtab() === 'house' ? cpTabHead('house', '房貸') + cpIn('housePay', '房貸每月繳', '萬', '例如 2') + cpIn('houseYrs', '房貸還剩', '年', '例如 20') : '') +
-      (CP.etab === 'carsOn' ? cpTabHead('carsOn', '車貸') + cpCarsHtml() : '') + (CP.etab === 'kidsOn' ? cpTabHead('kidsOn', '孩子') + cpKidsHtml() : '') + (CP.etab === 'lumpsOn' ? cpTabHead('lumpsOn', '大筆收支') + cpLumpsHtml() : '') +
-'</div>';
+'</div>' + cpExpHtml();
   }
   function cpGoHtml() {
     var miss = cpMissing();
@@ -203,7 +205,7 @@
     if (b.id === 'cpGo') { cpGo(); return; }
     if (b.id === 'cpEdit' || b.id === 'cpEdit2') { CP.view = 'input'; cpPaint(); return; }
     if (b.id === 'cpList') { paintList(); show('list'); return; }
-    if (b.id === 'cpSave') { var a = active(); if (a && a.id === CP.id) { a.saved = JSON.parse(JSON.stringify(CP.inp)); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name); } cpPaint(); return; }
+    if (b.id === 'cpSave') { doSave(); cpPaint(); return; }
     if (ds.cpmode) { if (CP.mode !== ds.cpmode) { CP.mode = ds.cpmode; CP.mon = null; } cpPaint(); return; }
     if (b.id === 'cpTgAdj' || b.id === 'cpTgPrec') { var want = b.id === 'cpTgAdj' ? 'adj' : 'prec'; CP.panel = CP.panel === want ? null : want; if (CP.panel) track(want === 'adj' ? 'couple_adjust_open' : 'couple_precision_open'); cpPaint(); return; }
     if (ds.cpstep) {

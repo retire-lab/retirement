@@ -50,7 +50,9 @@
   function getInputs() { var o = {}; IN_KEYS.forEach(function (k) { o[k] = S[k]; }); return JSON.parse(JSON.stringify(o)); }
   function setInputs(o) { o = migrateInputs(JSON.parse(JSON.stringify(o))); IN_KEYS.forEach(function (k) { if (o[k] !== undefined) S[k] = o[k]; }); S.preDraft = null; S.delta = null; syncForm(); }
   function active() { return DB.list.filter(function (x) { return x.id === DB.active; })[0] || null; }
-  function isDirty() { var a = active(); return !!a && JSON.stringify(getInputs()) !== JSON.stringify(a.saved); }
+  /* 目前的方案有沒有未存檔的修改。v1.0.3：看方案是哪一種——夫妻方案用夫妻畫面的資料比（cpDirty），
+     不然單人畫面的資料跟夫妻方案永遠不一樣：清單永遠顯示「有未存檔的修改」、離開網頁每次都被問、保護對話框走到單人的存檔 */
+  function isDirty() { var a = active(); if (!a) return false; if (a.saved && a.saved.mode === 'couple') return cpDirty(); return JSON.stringify(getInputs()) !== JSON.stringify(a.saved); }
   function nowStr() { var d = new Date(), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
   /* 把目前的調整寫進一個新方案：每月花費、每月多存（視為入帳增加）、活到、還沒套用的實際資料；萬一……是假設的意外，不存 */
   function saveAsNew() {

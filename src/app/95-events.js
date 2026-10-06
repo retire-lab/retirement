@@ -206,5 +206,6 @@
   if (active() && active().saved && active().saved.mode === 'couple') { paintAge(); paintKids(); paintAccum(); cpStart(active().saved, active().id); }   /* v1.0：夫妻方案直接回到夫妻的結果 */
   else if (active()) { setInputs(active().saved); if (!validate()) { paintResult(); show('result'); } else syncForm(); }
   else { paintAge(); paintKids(); paintAccum(); }
+  paintTabs(); paintResv();   /* v1.0.5：大方塊由程式產生，開機的每一條路都要畫（不然直接到結果頁、再按「修改答案」會是空的） */
   showLoadErr();
   gaInit();   /* 使用統計：只在正式網站載入（83-analytics.js） */

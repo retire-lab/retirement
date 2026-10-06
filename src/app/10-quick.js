@@ -48,16 +48,11 @@
     box.querySelector('.kst').innerHTML = r.html;
   }
   /* v1.0.3：以後會結束的支出＝可以複選的分頁。按鈕上寫摘要；底下只顯示目前這一個（S.etab）；切換不取消，「不算 X」才取消；不會自動跳下一個 */
-  var TABS = ['house', 'car', 'kidsOn', 'parOn', 'lumpsOn'];
+  var TABS = [['house', '房貸'], ['car', '車貸'], ['kidsOn', '子女'], ['parOn', '孝親'], ['lumpsOn', '大筆收支']];
   function paintTabs() {
-    if (!S.etab || !S[S.etab]) S.etab = TABS.filter(function (k) { return S[k]; })[0] || null;
-    TABS.forEach(function (k) {
-      var b = document.querySelector('[data-chip="' + k + '"]'); if (!b) return;
-      b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); b.classList.toggle('cur', !!S[k] && S.etab === k);
-      b.setAttribute('aria-expanded', S[k] && S.etab === k ? 'true' : 'false');
-      document.querySelector('[data-sum="' + k + '"]').textContent = S[k] ? tabSummary(k, S) : '';
-      $('sec-' + k).hidden = !(S[k] && S.etab === k);
-    });
+    if (!S.etab || !S[S.etab]) S.etab = (TABS.filter(function (x) { return S[x[0]]; })[0] || [null])[0];
+    $('tiles').innerHTML = expTilesHtml(TABS, S, S.etab, function (k) { return 'data-chip="' + k + '"'; });
+    TABS.forEach(function (x) { $('sec-' + x[0]).hidden = !(S[x[0]] && S.etab === x[0]); });
   }
   function paintLumps() { if (!Array.isArray(S.lumps)) S.lumps = []; if (S.lumpsOn && !S.lumps.length) { S.lumps.push(newLump()); S.openLump = 0; }
     $('lumps').innerHTML = lumpsHtml(S.lumps, { box: 'kid', idp: 'lp', people: 1, names: ['你'], add: 'id="addLump"', open: S.openLump, done: 'data-lkdone="1"', openAt: function (i) { return 'data-lkopen="' + i + '"'; },

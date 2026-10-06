@@ -247,6 +247,41 @@ section('v1.0.2：養老預備金與未來的大筆收支（夫妻）');
   check('夫妻新功能沒有執行錯誤', V.errs.length === 0, V.errs.join('|'));
 }
 
+section('單人與夫妻長得一樣（v1.0.5：防止同一個東西各寫一份、慢慢分岔）');
+{
+  const Z = mk();
+  const shape = (root) => [...root.querySelectorAll('.tile')].map((t) => [t.querySelector('.ic') ? 'ic' : '', t.querySelector('b') ? t.querySelector('b').textContent : '', t.querySelector('.tsum') ? 'tsum' : ''].join('|'));
+  const single = shape(Z.d.getElementById('quick'));
+  Z.click('[data-mode="couple"]'); Z.click('[data-cptab="home"]');
+  const couple = shape(Z.d.getElementById('couple'));
+  check('「以後會結束的支出」：兩個模式都是大方塊，每個都有圖示、名稱、摘要', single.length === 5 && couple.length === 4 && single.concat(couple).every((x) => /^ic\|.+\|tsum$/.test(x)), [single, couple]);
+  check('名稱一致：房貸、車貸、子女、大筆收支（單人多一個孝親；夫妻的孝親在各自的頁籤）', JSON.stringify(couple.map((x) => x.split('|')[1])) === JSON.stringify(['房貸', '車貸', '子女', '大筆收支']) && single.map((x) => x.split('|')[1]).join() === '房貸,車貸,子女,孝親,大筆收支');
+  check('夫妻也獨立成一張卡片「哪些支出以後會結束？」，說明跟單人一樣', /哪些支出以後會結束？/.test(Z.txt('#couple')) && /房貸繳完、小孩畢業之後，你們需要的退休金可能差很多/.test(Z.txt('#couple')));
+  Z.click('[data-cpchip="house"]');
+  check('細節放在同樣的小區塊（標題＋「不算房貸」），欄位名稱是小字', !!Z.q('#couple .sub .subh [data-cpchipoff="house"]') && !!Z.q('#couple .sub [data-cpk="housePay"]'));
+  Z.click('[data-cptab="you"]');
+  check('孝親：在「你」的頁籤，用小區塊（標題「給你父母的孝親費（選填）」，底下是每月、給幾年）', /給你父母的孝親費/.test(Z.txt('#couple .sub .t')) && !!Z.q('#couple .sub [data-cpk="par"]') && !!Z.q('#couple .sub [data-cpk="parYrs"]'));
+}
+
+section('存檔：夫妻方案的「有沒有修改」與存檔（v1.0.3，使用者回報）');
+{
+  const X = mk(); X.click('[data-mode="couple"]'); fillAll(X); X.click('#cpGo');
+  const db = () => JSON.parse(X.W.localStorage.getItem('sp5:data'));
+  check('剛算完：存檔按鈕是「已存檔」', /已存檔/.test(X.txt('#cpSave')) && X.q('#cpSave').disabled);
+  X.click('#cpList');
+  check('方案清單：夫妻方案沒有「有未存檔的修改」（原本永遠顯示）', !/有未存檔的修改/.test(X.txt('#list')), X.txt('#list').slice(0, 200));
+  const X2 = mk({ 'sp5:data': JSON.stringify(db()) }); X2.click('#cpTgPrec');
+  const inp = X2.q('#cpPrec input[data-cpk]'); inp.value = '20'; inp.dispatchEvent(new X2.W.Event('input', { bubbles: true }));
+  inp.dispatchEvent(new X2.W.Event('change', { bubbles: true }));
+  X2.click('#cpTgPrec');
+  const dirtyNow = /存檔/.test(X2.txt('#cpSave')) && !/已存檔/.test(X2.txt('#cpSave'));
+  check('改了提高準確度：出現「存檔」', dirtyNow, X2.txt('#cpSave'));
+  X2.click('#cpSave');
+  const after = JSON.parse(X2.W.localStorage.getItem('sp5:data')).list.filter((x) => x.saved.mode === 'couple')[0];
+  check('按存檔：存進夫妻方案（不是「單人的資料不會存進去」）', !/單人的資料不會存進去/.test(X2.txt('body')) && JSON.stringify(after.saved).indexOf('"20"') >= 0 && /已存檔/.test(X2.txt('#cpSave')));
+  check('存檔測試沒有執行錯誤', X.errs.length === 0 && X2.errs.length === 0, X.errs.concat(X2.errs).join('|'));
+}
+
 section('切換模式：不會弄丟方案，單人和夫妻不會互相覆蓋（v1.0.1，使用者回報）');
 {
   const T8 = mk(); T8.click('[data-mode="couple"]'); fillAll(T8); T8.click('#cpGo');

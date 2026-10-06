@@ -66,7 +66,8 @@
   }
   function doSave() {
     var a = active(); if (!a) return;
-    if (a.saved && a.saved.mode === 'couple') { toast('「' + a.name + '」是夫妻方案，單人的資料不會存進去'); return; }   /* v1.0.1：最後一道保險 */
+    /* v1.0.3：目前的方案是夫妻的，就存夫妻畫面的資料（單人的資料絕不寫進夫妻方案；夫妻畫面沒有載入這個方案就不動它） */
+    if (a.saved && a.saved.mode === 'couple') { if (CP.id === a.id && CP.inp) { a.saved = JSON.parse(JSON.stringify(CP.inp)); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name); } return; }
     a.saved = getInputs(); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name);
   }
   function syncForm() {
@@ -117,6 +118,15 @@
     if (k === 'parOn') return f(I.par) ? f(I.par) + ' 萬／月' : '還沒填';
     if (k === 'lumpsOn') return (I.lumps || []).length + ' 筆';
     return '';
+  }
+  /* v1.0.5：「以後會結束的支出」的大方塊——單人、夫妻用同一個函式產生，長相不會再各自分岔。
+     list：[[key, 名稱]]；I：輸入；cur：目前這一頁；attr(key) → 按鈕的屬性（單人 data-chip、夫妻 data-cpchip） */
+  var EXP_ICON = { house: '🏠', car: '🚗', carsOn: '🚗', kidsOn: '🎓', parOn: '🧓', lumpsOn: '💰' };
+  function expTilesHtml(list, I, cur, attr) {
+    return list.map(function (x) {
+      var k = x[0], on = !!I[k], c = on && cur === k;
+      return '<button type="button" class="tile' + (c ? ' cur' : '') + '" ' + attr(k) + ' aria-pressed="' + on + '" aria-expanded="' + c + '"><span class="ic">' + EXP_ICON[k] + '</span><b>' + x[1] + '</b><span class="tsum" data-sum="' + k + '">' + (on ? esc(tabSummary(k, I)) : '') + '</span></button>';
+    }).join('');
   }
   function newLump() { return { name: '', kind: 'out', amt: '', when: 'age', val: '' }; }
   /* 養老預備金的參考按鈕：用剛填的生活費算半年、一年 */
