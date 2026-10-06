@@ -187,6 +187,34 @@ section('車貸：可以有好幾台');
   check('車貸測試沒有執行錯誤', T5.errs.length === 0 && T6.errs.length === 0, T5.errs.concat(T6.errs).join('|'));
 }
 
+section('切換模式：不會弄丟方案，單人和夫妻不會互相覆蓋（v1.0.1，使用者回報）');
+{
+  const T8 = mk(); T8.click('[data-mode="couple"]'); fillAll(T8); T8.click('#cpGo');
+  const db = () => JSON.parse(T8.W.localStorage.getItem('sp5:data')), coupleSc = () => db().list.filter((x) => x.saved.mode === 'couple');
+  check('夫妻算完：存成「我們的方案」', coupleSc().length === 1 && coupleSc()[0].saved.partner.birth === '1988-07');
+  T8.click('#cpEdit'); T8.click('#couple [data-mode="single"]'); T8.click('#quick [data-mode="couple"]');
+  check('切回來停在離開時的頁籤（我們家），存款還是 300', T8.q('[data-cptab="home"]').getAttribute('aria-pressed') === 'true' && T8.q('[data-cpk="asset"]').value === '300');
+  T8.click('[data-cptab="you"]');
+  check('算完 → 修改答案 → 我自己 → 我和另一半：資料還在（使用者回報的路徑）', !T8.q('#couple').hidden && T8.q('[data-cpk="you.birth"]') && T8.q('[data-cpk="you.birth"]').value === '1985-03', T8.q('[data-cpk="you.birth"]') && T8.q('[data-cpk="you.birth"]').value);
+  T8.click('#couple [data-mode="single"]');
+  const fill = (id, v) => { const el = T8.d.getElementById(id); el.value = v; el.dispatchEvent(new T8.W.Event('input', { bubbles: true })); };
+  fill('birth', '1978-05'); fill('workStart', '24'); fill('asset', '450'); fill('inc', '9'); fill('spend', '4');
+  T8.click('#go');
+  const d1 = db(), cs = d1.list.filter((x) => x.saved.mode === 'couple'), ss = d1.list.filter((x) => x.saved.mode !== 'couple');
+  check('夫妻算完再切到單人按「看我的退休年齡」：另外建立單人方案，不寫進夫妻方案', cs.length === 1 && ss.length === 1 && d1.active === ss[0].id && cs[0].saved.partner.birth === '1988-07' && ss[0].saved.birth === '1978-05', d1.list.map((x) => [x.name, x.saved.mode || 'single']));
+  check('單人結果頁上方顯示的是單人方案，不是「我們的方案」', !/我們的方案/.test(T8.txt('#result .scbar')), T8.txt('#result .scbar'));
+  for (let k = 0; k < 5; k++) { T8.click('#back'); T8.click('#quick [data-mode="couple"]'); T8.click('#couple [data-mode="single"]'); }
+  T8.click('#quick [data-mode="couple"]'); T8.click('[data-cptab="you"]');
+  const d2 = db();
+  check('來回切換 5 次：兩個方案都還在、內容沒有被對方蓋掉', d2.list.length === 2 && d2.list.filter((x) => x.saved.mode === 'couple')[0].saved.partner.birth === '1988-07' && d2.list.filter((x) => x.saved.mode !== 'couple')[0].saved.birth === '1978-05');
+  check('切回夫妻：顯示夫妻方案的資料', T8.q('[data-cpk="you.birth"]') && T8.q('[data-cpk="you.birth"]').value === '1985-03');
+  const T9 = mk({ 'sp5:data': JSON.stringify(Object.assign(db(), { active: db().list.filter((x) => x.saved.mode !== 'couple')[0].id })) });
+  T9.click('#back'); T9.click('#quick [data-mode="couple"]');
+  check('重新打開網頁（目前是單人方案）→ 按我和另一半：打開清單裡的夫妻方案，不是空白', !T9.q('#couple').hidden && !!T9.q('#cpSlider') && /49 歲 8 個月/.test(T9.txt('.cou-seg')), T9.txt('#couple').slice(0, 120));
+  check('色條：「現在」、最後一年、兩個退休標籤都有，沒有被擠掉', /現在 2026/.test(T9.txt('#cpStages .strip')) && /2078/.test(T9.txt('#cpStages .strip')) && /你退 2034/.test(T9.txt('#cpStages .strip')) && /另一半退 2053/.test(T9.txt('#cpStages .strip')), T9.txt('#cpStages .strip'));
+  check('切換測試沒有執行錯誤', T8.errs.length === 0 && T9.errs.length === 0, T8.errs.concat(T9.errs).join('|'));
+}
+
 section('輸入錯誤、回到單人模式');
 const T4 = mk(); T4.click('[data-mode="couple"]'); fillAll(T4);
 T4.click('[data-cptab="p"]'); T4.type('partner.birth', '1988-13'); T4.click('[data-cptab="home"]'); T4.click('#cpGo');   /* 送出按鈕只在最後一步 */

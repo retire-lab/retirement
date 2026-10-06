@@ -30,6 +30,24 @@
     CP.view = saved ? 'result' : 'input'; if (saved) cpBuild();
     cpPaint(); show('couple');
   }
+  /* v1.0.1：單人與夫妻共用一份方案清單、也共用「目前的方案」。切換模式時，目前的方案一定要換成那個模式自己的，
+     否則單人按存檔會把單人資料寫進夫妻方案（或反過來）。 */
+  var isCoupleSc = function (x) { return !!(x && x.saved && x.saved.mode === 'couple'); };
+  function cpEnter() {
+    /* 1. 這次已經在用的夫妻方案（含還沒存檔的修改、或還沒算過的草稿）：接著用 */
+    var mine = CP.id && DB.list.filter(function (x) { return x.id === CP.id; })[0];
+    if (CP.inp && (mine || (!CP.id && CP.view === 'input'))) { if (mine) { DB.active = mine.id; saveDB(); } cpPaint(); show('couple'); return; }
+    /* 2. 清單裡最近的夫妻方案：目前的方案是夫妻就用它，否則用清單裡最後一個夫妻方案 */
+    var a = active(), c = isCoupleSc(a) ? a : DB.list.slice().reverse().filter(isCoupleSc)[0];
+    if (c) { DB.active = c.id; saveDB(); cpStart(c.saved, c.id); return; }
+    cpStart(null);
+  }
+  function singleEnter() {
+    /* 回到單人：目前的方案如果是夫妻的，換成最近的單人方案；沒有單人方案就先不指定，按「看我的退休年齡」時另外建立 */
+    if (!isCoupleSc(active())) return;
+    var s1 = DB.list.slice().reverse().filter(function (x) { return !isCoupleSc(x); })[0];
+    if (s1) { DB.active = s1.id; saveDB(); if (!String(S.birth || '').trim()) { setInputs(s1.saved); syncForm(); } }
+  }
   function cpBuild() {
     CP.M0 = SP5Engine.coupleModel(CP.inp, {});
     CP.M = Object.keys(CP.sel).length ? SP5Engine.coupleModel(CP.inp, { sel: CP.sel }) : CP.M0;
@@ -192,20 +210,31 @@
   function cpAgesAt(t) { var M = CP.M; return esc(cpName('you')) + ' ' + Math.floor(M.ageOf('you', t)) + '・' + esc(cpName('partner')) + ' ' + Math.floor(M.ageOf('partner', t)); }
   function cpStripHtml(PM) {
     var M = CP.M, H = PM.H, P0 = function (t) { return Math.max(0, Math.min(100, t / H * 100)); }, d = PM.d;
-    var WPX = 330, occ = { up: [], dn: [] }, labs = [], tw = function (s) { return s.replace(/ /g, '').length * 7.2 + (s.split(' ').length - 1) * 3 + 4; };
+    /* 字寬照實際字級（11px）估：中文字約 12px、數字與英文約 7px（v1.0.1：原本全用 7.2 估，中文名字的標籤少估一半而超出卡片） */
+    var WPX = 330, occ = { up: [], dn: [] }, labs = [], tw = function (s) { var w = 4; for (var i = 0; i < s.length; i++) w += /[\u2e80-\uffff]/.test(s[i]) ? 12 : s[i] === ' ' ? 3 : 7; return w; };
     var put = function (row, t, text, align, cls) {
       var x = P0(t) / 100 * WPX, w = tw(text), l = align === 'l' ? x : align === 'r' ? x - w : x - w / 2;
+      var side = l <= 0 ? 'l' : l + w >= WPX ? 'r' : 'c';   /* 碰到左邊就貼齊左邊、碰到右邊就貼齊右邊，不會超出卡片 */
+      l = Math.max(0, Math.min(WPX - w, l));
       if (!occ[row].every(function (r) { return r[1] < l - 6 || r[0] > l + w + 6; })) return false;
-      occ[row].push([l, l + w]); labs.push({ row: row, t: t, text: text, align: align, cls: cls || '' }); return true;
+      occ[row].push([l, l + w]); labs.push({ row: row, t: t, text: text, side: side, cls: cls || '' }); return true;
     };
     var yr = function (t) { return M.ym(t).slice(0, 4); }, y = cpName('you'), q = cpName('partner');
-    if (d.ma === d.mb) put('up', d.ma, '一起退 ' + yr(d.ma), 'c', 'ret');
-    else { put('up', Math.min(d.ma, d.mb), (d.ma < d.mb ? y : q) + '退 ' + yr(Math.min(d.ma, d.mb)), 'c', 'ret'); put('up', Math.max(d.ma, d.mb), (d.ma < d.mb ? q : y) + '退 ' + yr(Math.max(d.ma, d.mb)), 'c', 'ret') || put('dn', Math.max(d.ma, d.mb), (d.ma < d.mb ? q : y) + '退 ' + yr(Math.max(d.ma, d.mb)), 'c', 'ret'); }
+    /* 先放一定要有的：現在、最後一年；再放退休（上排放不下就放下排）；其他分界哪排放得下就放哪排 */
     put('dn', 0, '現在 ' + yr(0), 'l'); put('dn', H, yr(H - 1), 'r');
+    /* 退休標籤一定要有：上下排都放不下（兩人退休時間很近），就接在上排最後一個標籤後面，刻度線仍畫在真正的位置 */
+    var retLab = function (t, text) {
+      if (put('up', t, text, 'c', 'ret') || put('dn', t, text, 'c', 'ret')) return true;
+      var w = tw(text), l = occ.up.reduce(function (m, r) { return Math.max(m, r[1]); }, 0) + 10;
+      if (l + w > WPX) return false;
+      occ.up.push([l, l + w]); labs.push({ row: 'up', t: t, text: text, side: 'abs', lpx: l, cls: 'ret' }); return true;
+    };
+    if (d.ma === d.mb) retLab(d.ma, '一起退 ' + yr(d.ma));
+    else { retLab(Math.min(d.ma, d.mb), (d.ma < d.mb ? y : q) + '退 ' + yr(Math.min(d.ma, d.mb))); retLab(Math.max(d.ma, d.mb), (d.ma < d.mb ? q : y) + '退 ' + yr(Math.max(d.ma, d.mb))); }
     PM.list.forEach(function (x) { if (x.s > 0 && x.s !== d.ma && x.s !== d.mb) put('up', x.s, yr(x.s), 'c') || put('dn', x.s, yr(x.s), 'c'); });
     var lab = function (l) {
-      var pos = l.align === 'l' ? 'left:0' : l.align === 'r' ? 'right:0' : 'left:' + P0(l.t).toFixed(2) + '%;transform:translateX(-50%)';
-      return '<span class="sl ' + l.row + ' ' + l.cls + '" style="' + pos + '">' + esc(l.text) + '</span>' + (l.align === 'c' ? '<i class="sltk ' + l.row + ' ' + l.cls + '" style="left:' + P0(l.t).toFixed(2) + '%"></i>' : '');
+      var pos = l.side === 'l' ? 'left:0' : l.side === 'r' ? 'right:0' : l.side === 'abs' ? 'left:' + (l.lpx / WPX * 100).toFixed(2) + '%' : 'left:' + P0(l.t).toFixed(2) + '%;transform:translateX(-50%)', edge = l.t <= 0 || l.t >= H;
+      return '<span class="sl ' + l.row + ' ' + l.cls + '" style="' + pos + '">' + esc(l.text) + '</span>' + (edge ? '' : '<i class="sltk ' + l.row + ' ' + l.cls + '" style="left:' + P0(l.t).toFixed(2) + '%"></i>');
     };
     var segs = PM.list.map(function (x) { return '<i class="sg k-' + x.kind + '" style="left:' + P0(x.s).toFixed(2) + '%;width:' + (P0(x.e) - P0(x.s)).toFixed(2) + '%"></i>'; }).join('');
     var aria = PM.list.map(function (x) { return x.name + x.dur; }).join('、');
@@ -421,8 +450,8 @@
     /* 切換「我自己／我和另一半」：兩個畫面用同一組按鈕；夫妻填到一半的資料保留，切回來接著填 */
     var I = CP.inp, ds = b.dataset;
     if (ds.mode) {
-      if (ds.mode === 'single') { if (b.closest('#couple')) show('quick'); return; }
-      if (b.closest('#quick')) { track('couple_mode_open'); if (CP.inp && CP.view === 'input' && !CP.id) show('couple'); else cpStart(null); }
+      if (ds.mode === 'single') { if (b.closest('#couple')) { singleEnter(); show('quick'); } return; }
+      if (b.closest('#quick')) { track('couple_mode_open'); cpEnter(); }
       return;
     }
     if (ds.cptab) { CP.tab = ds.cptab; cpPaint(); return; }

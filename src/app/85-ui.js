@@ -64,7 +64,11 @@
       { label: '取消', fn: function () {} }
     ]);
   }
-  function doSave() { var a = active(); if (!a) return; a.saved = getInputs(); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name); }
+  function doSave() {
+    var a = active(); if (!a) return;
+    if (a.saved && a.saved.mode === 'couple') { toast('「' + a.name + '」是夫妻方案，單人的資料不會存進去'); return; }   /* v1.0.1：最後一道保險 */
+    a.saved = getInputs(); a.updated = nowStr(); if (saveDB()) toast('已存檔：' + a.name);
+  }
   function syncForm() {
     document.querySelectorAll('#quick input[data-k]').forEach(function (el) { el.value = S[el.dataset.k] == null ? '' : S[el.dataset.k]; });
     ['house', 'car', 'kidsOn', 'parOn'].forEach(function (k) { var b = document.querySelector('[data-chip="' + k + '"]'); if (b) b.setAttribute('aria-pressed', S[k] ? 'true' : 'false'); $('sec-' + k).hidden = !S[k]; });

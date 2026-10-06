@@ -42,7 +42,11 @@
     else if (b.id === 'addKid') { if (S.kids.length < 6) { S.kids.push({ bym: '', path: S.kids[0] ? S.kids[0].path : 'grad', costs: {} }); paintKids(); $('kby' + (S.kids.length - 1)).focus(); } }
     else if (b.dataset.delkid != null) { S.kids.splice(+b.dataset.delkid, 1); if (!S.kids.length) S.kids.push({ bym: '', path: 'grad', costs: {} }); paintKids(); paintAccum(); }
     else if (b.id === 'go') { var e = validate(); if (e) { showErr(e); return; } track('calculation_complete'); S.ledger = false; S.phase = null; S.delta = null; adjReset(); S.panel = null;
-      if (!DB.list.length) { var id = newId(); DB.list.push({ id: id, name: '我的第一個方案', saved: getInputs(), updated: nowStr() }); DB.active = id; if (saveDB()) toast('已建立「我的第一個方案」，存在這台裝置'); }
+      var act0 = active();
+      if (!DB.list.length || (act0 && act0.saved && act0.saved.mode === 'couple')) {   /* v1.0.1：目前的方案是夫妻的，單人另外建一個，不寫進夫妻方案 */
+        if (DB.list.length >= MAX) { toast('最多 ' + MAX + ' 個方案，這次沒有存檔'); }
+        else { var id = newId(), nm0 = DB.list.length ? uniqName('我的方案') : '我的第一個方案'; DB.list.push({ id: id, name: nm0, saved: getInputs(), updated: nowStr() }); DB.active = id; if (saveDB()) toast('已建立「' + nm0 + '」，存在這台裝置'); }
+      }
       paintResult(); show('result'); }
     else if (b.id === 'back') { show('quick'); }
     else if (b.dataset.phase != null) { var pi = +b.dataset.phase; S.phase = S.phase === pi ? null : pi; S.ledger = false; S.year = null; S.ypage = null; paintResult(); }   /* 點一下展開，再點一下收回 */
