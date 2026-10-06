@@ -153,28 +153,131 @@
       rem: { wageA: y + '退休', wageB: q + '退休', kid: '孩子的教育費結束', loan: '貸款繳完', par: '孝親費結束', npPremA: y + '的國保停繳', npPremB: q + '的國保停繳', lsA: y + '的勞退月退領完', lsB: q + '的勞退月退領完' }
     };
   }
+  /* 每個階段的收支（v1.0.1）：跟單人同一套版面與樣式（色條、圖例、階段卡片、存款帳、逐年逐月），資料來自引擎的 stages()／breakdown() */
+  var CP_YPAGE = 5;
+  function cpPhaseModel(d) {
+    var M = CP.M, y = cpName('you'), q = cpName('partner'), st = M.stages(d.ma, d.mb), rows = M.breakdown(d.ma, d.mb).rows, H = rows.length;
+    var kindOf = function (o) {
+      var w = (o.wageA > 0 ? 1 : 0) + (o.wageB > 0 ? 1 : 0), pen = o.liA + o.liB + o.lsA + o.lsB + o.npA + o.npB + o.survA + o.survB;
+      return w === 2 ? ['pay', '兩人都在工作', '靠兩份薪水'] : w === 1 ? ['pay', '一份薪水撐全家', '靠' + (o.wageA > 0 ? y : q) + '的薪水'] : pen > 0.5 ? ['pension', '有年金補貼', '年金＋存款'] : ['asset', '只靠資產', '靠存款'];
+    };
+    var list = [], cur = null, t;
+    for (t = 0; t < H; t++) {
+      var k = kindOf(rows[t]);
+      if (!cur || cur.name !== k[1] || cur.src !== k[2]) { cur = { kind: k[0], name: k[1], src: k[2], s: t, e: t + 1 }; list.push(cur); } else cur.e = t + 1;
+    }
+    var L = cpStageLabels(), money = function (v) { return fmtW(Math.round(v)); };
+    var evAt = {};   /* 第 t 個月發生的事（給階段卡片與逐月明細共用） */
+    st.stages.forEach(function (g, i) {
+      var ch = [];
+      g.removed.forEach(function (k) { if (L.rem[k] && !((k.slice(-1) === 'A' && g.diedA) || (k.slice(-1) === 'B' && g.diedB))) ch.push(L.rem[k]); });
+      if (g.diedA) ch.push(esc(y) + '到了「活到」的年紀'); if (g.diedB) ch.push(esc(q) + '到了「活到」的年紀'); if (g.livingDrop) ch.push('生活費降到 ' + Math.round(g.lf * 100) + '%');
+      g.added.forEach(function (k) { if (L.add[k]) ch.push(L.add[k]); });
+      if (i > 0 && ch.length) {
+        var prev = st.stages[i - 1], net = function (x) { return Object.keys(L.inn).reduce(function (a, k) { return a + (x.avg[k] || 0); }, 0) - Object.keys(L.out).reduce(function (a, k) { return a + (x.avg[k] || 0); }, 0); };
+        var dn = net(g) - net(prev);
+        (evAt[g.s] = evAt[g.s] || []).push({ t: g.s, text: ch.join('、'), impact: Math.abs(dn) >= 500 ? '每年收支' + (dn > 0 ? '多 ' : '少 ') + money(Math.abs(dn) * 12) : '', cls: dn < 0 ? 'down' : 'up' });   /* 跟單人一樣寫「每年」 */
+      }
+      g.lumps.forEach(function (x) { (evAt[x.t] = evAt[x.t] || []).push({ t: x.t, text: (L.inn[x.key] || x.key) + (x.key === 'lsBack' ? '' : '（一次領）'), impact: '這個月一次收入 ' + money(x.amt), cls: 'up' }); });
+    });
+    list.forEach(function (x) {
+      var b0 = x.s ? rows[x.s - 1].bal : M.B0, b1 = rows[x.e - 1].bal, net = 0, lo = null;
+      for (t = x.s; t < x.e; t++) { net += rows[t].net; if (lo === null || rows[t].bal < lo.bal) lo = { t: t, bal: rows[t].bal }; }
+      x.b0 = b0; x.b1 = b1; x.net = net; x.er = b1 - b0 - net; x.months = x.e - x.s; x.lo = lo;
+      x.ymS = M.ym(x.s); x.ymE = M.ym(x.e - 1); x.dur = durStr(x.months);
+      x.events = []; for (t = x.s; t < x.e; t++) if (evAt[t]) x.events = x.events.concat(evAt[t]);
+    });
+    return { list: list, rows: rows, H: H, evAt: evAt, d: d };
+  }
+  function cpAgesAt(t) { var M = CP.M; return esc(cpName('you')) + ' ' + Math.floor(M.ageOf('you', t)) + '・' + esc(cpName('partner')) + ' ' + Math.floor(M.ageOf('partner', t)); }
+  function cpStripHtml(PM) {
+    var M = CP.M, H = PM.H, P0 = function (t) { return Math.max(0, Math.min(100, t / H * 100)); }, d = PM.d;
+    var WPX = 330, occ = { up: [], dn: [] }, labs = [], tw = function (s) { return s.replace(/ /g, '').length * 7.2 + (s.split(' ').length - 1) * 3 + 4; };
+    var put = function (row, t, text, align, cls) {
+      var x = P0(t) / 100 * WPX, w = tw(text), l = align === 'l' ? x : align === 'r' ? x - w : x - w / 2;
+      if (!occ[row].every(function (r) { return r[1] < l - 6 || r[0] > l + w + 6; })) return false;
+      occ[row].push([l, l + w]); labs.push({ row: row, t: t, text: text, align: align, cls: cls || '' }); return true;
+    };
+    var yr = function (t) { return M.ym(t).slice(0, 4); }, y = cpName('you'), q = cpName('partner');
+    if (d.ma === d.mb) put('up', d.ma, '一起退 ' + yr(d.ma), 'c', 'ret');
+    else { put('up', Math.min(d.ma, d.mb), (d.ma < d.mb ? y : q) + '退 ' + yr(Math.min(d.ma, d.mb)), 'c', 'ret'); put('up', Math.max(d.ma, d.mb), (d.ma < d.mb ? q : y) + '退 ' + yr(Math.max(d.ma, d.mb)), 'c', 'ret') || put('dn', Math.max(d.ma, d.mb), (d.ma < d.mb ? q : y) + '退 ' + yr(Math.max(d.ma, d.mb)), 'c', 'ret'); }
+    put('dn', 0, '現在 ' + yr(0), 'l'); put('dn', H, yr(H - 1), 'r');
+    PM.list.forEach(function (x) { if (x.s > 0 && x.s !== d.ma && x.s !== d.mb) put('up', x.s, yr(x.s), 'c') || put('dn', x.s, yr(x.s), 'c'); });
+    var lab = function (l) {
+      var pos = l.align === 'l' ? 'left:0' : l.align === 'r' ? 'right:0' : 'left:' + P0(l.t).toFixed(2) + '%;transform:translateX(-50%)';
+      return '<span class="sl ' + l.row + ' ' + l.cls + '" style="' + pos + '">' + esc(l.text) + '</span>' + (l.align === 'c' ? '<i class="sltk ' + l.row + ' ' + l.cls + '" style="left:' + P0(l.t).toFixed(2) + '%"></i>' : '');
+    };
+    var segs = PM.list.map(function (x) { return '<i class="sg k-' + x.kind + '" style="left:' + P0(x.s).toFixed(2) + '%;width:' + (P0(x.e) - P0(x.s)).toFixed(2) + '%"></i>'; }).join('');
+    var aria = PM.list.map(function (x) { return x.name + x.dur; }).join('、');
+    return '<div class="strip" role="img" aria-label="' + esc(aria) + '"><div class="slrow up">' + labs.filter(function (l) { return l.row === 'up'; }).map(lab).join('') + '</div>' +
+      '<div class="sbar"><div class="sbarin">' + segs + '</div></div><div class="slrow dn">' + labs.filter(function (l) { return l.row === 'dn'; }).map(lab).join('') + '</div></div>';
+  }
+  function cpMonthSummary(o) {
+    var L = cpStageLabels(), money = function (v) { return fmtW(Math.round(v)); }, a = [], b = [];
+    Object.keys(L.inn).forEach(function (k) { if (o[k] > 0.5 && !o.lumps.some(function (x) { return x[0] === k; })) a.push(L.inn[k] + ' ' + money(o[k])); });
+    Object.keys(L.out).forEach(function (k) { if (o[k] > 0.5) b.push(L.out[k] + ' ' + money(o[k])); });
+    return '每月收入：' + (a.join('、') || '無') + '<br>每月支出：' + (b.join('、') || '無');
+  }
+  function cpYearsHtml(PM, x) {
+    var M = CP.M, rows = PM.rows, years = [], y;
+    var y0 = Math.floor((M.A.NOWI + x.s) / 12), y1 = Math.floor((M.A.NOWI + x.e - 1) / 12);
+    for (y = y0; y <= y1; y++) years.push(y);
+    var hasEv = function (yy) { for (var m = 0; m < 12; m++) { var t = yy * 12 + m - M.A.NOWI; if (t >= x.s && t < x.e && PM.evAt[t]) return true; } return false; };
+    if (CP.year == null || years.indexOf(CP.year) < 0) { CP.year = years[0]; for (var i = 0; i < years.length; i++) if (hasEv(years[i])) { CP.year = years[i]; break; } }
+    var pages = Math.ceil(years.length / CP_YPAGE), pg = CP.ypage != null && CP.ypage >= 0 && CP.ypage < pages ? CP.ypage : Math.floor(years.indexOf(CP.year) / CP_YPAGE);
+    var shown = years.slice(pg * CP_YPAGE, pg * CP_YPAGE + CP_YPAGE), Y = CP.year;
+    var ageR = function (yy) { var t = yy * 12 - M.A.NOWI; return esc(cpName('you')) + ' ' + Math.floor(M.ageOf('you', t)) + '・' + esc(cpName('partner')) + ' ' + Math.floor(M.ageOf('partner', t)); };
+    var ageS = function (yy) { var t = yy * 12 - M.A.NOWI; return Math.floor(M.ageOf('you', t)) + '／' + Math.floor(M.ageOf('partner', t)) + ' 歲'; };   /* 小按鈕放得下：你／另一半 */
+    var btns = '<div class="ygrid" role="group" aria-label="年份（' + esc(cpName('you')) + '／' + esc(cpName('partner')) + ' 的年紀）">' + shown.map(function (yy) {
+      return '<button type="button" class="yb' + (hasEv(yy) ? ' ev' : '') + '" data-cpyear="' + yy + '" aria-pressed="' + (yy === Y) + '"><b>' + yy + '</b><span>' + ageS(yy) + '</span></button>';
+    }).join('') + '</div><div class="ylegend"><b>●</b> 這一年有事情發生（退休、年金開始、繳完貸款、孩子畢業…）</div>';
+    var pager = pages > 1 ? '<div class="ypager"><button type="button" data-cpypage="' + (pg - 1) + '"' + (pg === 0 ? ' disabled' : '') + '>‹ 上一頁</button><span class="muted">' + years[pg * CP_YPAGE] + '–' + shown[shown.length - 1] + '・' + (pg + 1) + '／' + pages + '</span><button type="button" data-cpypage="' + (pg + 1) + '"' + (pg === pages - 1 ? ' disabled' : '') + '>下一頁 ›</button></div>' : '';
+    var out = [], run = null, first = true, m;
+    var bal = function (v) { return v < 0 ? '不足 ' + fmtW(-v) : fmtW(v); };
+    var flush = function () { if (!run) return; out.push('<div class="mr"><span class="mm">' + (run.a === run.b ? run.a + ' 月' : run.a + '–' + run.b + ' 月') + '</span><span class="mt muted">同上</span><span class="me">' + run.b + ' 月底 ' + bal(run.end) + '</span></div>'); run = null; };
+    for (m = 1; m <= 12; m++) {
+      var t = Y * 12 + m - 1 - M.A.NOWI;
+      if (t < x.s) { if (m === 12 || Y * 12 + m - M.A.NOWI >= x.s) out.push('<div class="mr past"><span class="mm">' + (m === 1 ? '1' : '1–' + m) + ' 月</span><span class="mt muted">' + (t < 0 ? '已經過去' : '屬於上一個階段') + '</span><span class="me"></span></div>'); continue; }
+      if (t >= x.e) { flush(); out.push('<div class="mr past"><span class="mm">' + m + ' 月起</span><span class="mt muted">' + (t >= PM.H ? '試算到這裡為止' : '屬於下一個階段') + '</span><span class="me"></span></div>'); break; }
+      var o = rows[t], ev = PM.evAt[t] || [];
+      if (!ev.length && !first) { if (run) { run.b = m; run.end = o.bal; } else run = { a: m, b: m, end: o.bal }; continue; }
+      flush();
+      var txt = ev.map(function (e) { return '<div class="mev">● ' + e.text + (e.impact ? '（' + e.impact + '）' : '') + '</div>'; }).join('') + ((first || ev.length) ? '<div class="msum">' + cpMonthSummary(o) + '</div>' : '');
+      first = false;
+      out.push('<div class="mr' + (ev.length ? ' hit' : '') + '"><span class="mm">' + m + ' 月</span><span class="mt">' + txt + '</span><span class="me' + (o.bal < 0 ? ' neg' : '') + '">月底 ' + bal(o.bal) + '</span></div>');
+    }
+    flush();
+    return pager + btns + '<div class="mlist"><div class="mhd">' + Y + ' 年（' + ageR(Y) + ' 歲）</div>' + out.join('') + '</div>' +
+      '<div class="muted" style="margin-top:6px">金額都是今天的購買力。「同上」表示收支項目沒有變化。</div>';
+  }
   function cpStagesHtml(d) {
     if (!d) return '';
-    var st = CP.M.stages(d.ma, d.mb).stages, L = cpStageLabels(), y = esc(cpName('you')), q = esc(cpName('partner'));
-    var money = function (v) { return fmtW(Math.round(v)); };
-    var rows = st.map(function (g, i) {
-      var ch = [];
-      if (i === 0) ch.push('現在');
-      g.removed.forEach(function (k) { if (L.rem[k] && !((k.slice(-1) === 'A' && g.diedA) || (k.slice(-1) === 'B' && g.diedB))) ch.push(L.rem[k]); });
-      if (g.diedA) ch.push(y + '到了「活到」的年紀'); if (g.diedB) ch.push(q + '到了「活到」的年紀'); if (g.livingDrop) ch.push('生活費降到 ' + Math.round(g.lf * 100) + '%');
-      g.added.forEach(function (k) { if (L.add[k]) ch.push(L.add[k]); });
-      var list = function (map) {
-        var ks = Object.keys(map).filter(function (k) { return g.avg[k] > 0.5; });
-        return ks.length ? ks.map(function (k) { return '<div>' + map[k] + '<b>' + money(g.avg[k]) + '</b></div>'; }).join('') : '<div class="muted">沒有</div>';
-      };
-      var tin = Object.keys(L.inn).reduce(function (x, k) { return x + (g.avg[k] || 0); }, 0), tout = Object.keys(L.out).reduce(function (x, k) { return x + (g.avg[k] || 0); }, 0);
-      var lumps = g.lumps.length ? '<div class="cou-lump">' + g.lumps.map(function (x) { return x.ym + '　' + (L.inn[x.key] || x.key) + (x.key === 'lsBack' ? '' : '（一次領）') + ' <b>' + money(x.amt) + '</b>'; }).join('<br>') + '</div>' : '';
-      var ages = (g.aliveA ? y + ' ' + Math.floor(g.ageA) + ' 歲' : '') + (g.aliveA && g.aliveB ? '、' : '') + (g.aliveB ? q + ' ' + Math.floor(g.ageB) + ' 歲' : '');
-      return '<details class="cou-stg"><summary><span class="cou-stgym">' + g.ymS + '～' + g.ymE + '・' + durStr(g.months) + '（' + ages + '）</span><b>' + ch.join('、') + '</b>' +
-        '<span class="cou-stgbal">存款 ' + money(Math.max(0, g.balStart)) + ' → ' + money(Math.max(0, g.balEnd)) + '<em class="cou-stgmore">明細 ›</em></span></summary>' +
-        '<div class="cou-io"><div><div class="muted">每月進來 <b>' + money(tin) + '</b></div>' + list(L.inn) + '</div><div><div class="muted">每月出去 <b>' + money(tout) + '</b></div>' + list(L.out) + '</div></div>' + lumps + '</details>';
-    }).join('');
-    return '<h2>每個階段</h2><div class="muted">兩個人的錢合在一起：每一段每個月進來多少、出去多少，存款怎麼變。金額是今天的購買力，點開看明細。</div>' + rows;
+    var PM = cpPhaseModel(d), y = esc(cpName('you')), q = esc(cpName('partner'));
+    if (CP.phase != null && CP.phase >= PM.list.length) CP.phase = null;
+    var first = PM.list[0], whoFirst = d.ma === d.mb ? '兩人一起' : d.ma < d.mb ? y : q;
+    var rows = PM.list.map(function (x, i) {
+      var open = CP.phase === i;
+      var money = i === 0 && x.name === '兩人都在工作' ? whoFirst + '退休時，你們會有 <b>' + fmtW(x.b1) + '</b>' : x.net < 0 ? '這段要從存款拿出 <b>' + fmtW(-x.net) + '</b>' : '這段收入大於支出，共多 <b>' + fmtW(x.net) + '</b>';
+      var head = '<button type="button" class="phc" data-cpphase="' + i + '" aria-expanded="' + open + '">' +
+        '<span class="phh"><i class="phsw k-' + x.kind + '"></i><b>' + x.name + '</b><span class="ps">' + esc(x.src) + '</span><span class="chev" aria-hidden="true">' + (open ? '⌄' : '›') + '</span></span>' +
+        '<span class="rg">' + x.ymS + '–' + x.ymE + '・' + x.dur + '（' + cpAgesAt(x.s) + ' 歲起）</span><span class="pm1">' + money + '</span></button>';
+      if (!open) return '<div class="phrow">' + head + '</div>';
+      var detail = '<div class="wgrid"><span>' + (i === 0 ? '現有' : '這段開始時') + '</span><span>' + fmtW(Math.max(0, x.b0)) + '</span>' +
+        (x.net >= 0 ? '<span>＋ 這段存下</span><span>' + fmtW(x.net) + '</span>' : '<span>－ 這段入不敷出</span><span>' + fmtW(-x.net) + '</span>') +
+        (Math.abs(x.er) >= 5000 ? '<span>' + (x.er < 0 ? '－ 通膨讓存款縮水' : '＋ 存款利息') + '</span><span>' + fmtW(Math.abs(x.er)) + '</span>' : '') +
+        '<b>這段結束時</b><b>' + fmtW(Math.max(0, x.b1)) + '</b></div>';
+      var evs = x.events.map(function (e) {
+        return '<div class="pe"><span class="pa">' + CP.M.ym(e.t) + '<small>' + cpAgesAt(e.t) + ' 歲</small></span><div><div class="pt">' + e.text + '</div>' + (e.impact ? '<span class="' + (e.cls === 'down' ? 'dn2' : 'up') + '">' + e.impact + '</span>' : '') + '</div></div>';
+      }).join('') || '<div class="muted" style="margin-top:6px">這段期間收支沒有大變化。</div>';
+      var lo = x.lo && x.lo.bal < x.b0 && x.lo.bal < x.b1 ? '<div class="pmin">存款最低點：' + fmtW(Math.max(0, x.lo.bal)) + '（' + CP.M.ym(x.lo.t) + '）</div>' : '';
+      var panel = '<div class="ppanel"><div class="pr">' + x.ymS + '–' + x.ymE + '</div>' + detail + evs + lo +
+        '<button type="button" class="linkbtn" id="cpLedgerBtn" aria-expanded="' + !!CP.ledger + '">' + (CP.ledger ? '收起逐月明細' : '看這段每一年、每個月 ›') + '</button>' +
+        (CP.ledger ? cpYearsHtml(PM, x) : '') + '</div>';
+      return '<div class="phrow open">' + head + panel + '</div>';
+    });
+    var look = d.ma === d.mb ? '以兩人 ' + CP.M.ym(d.ma) + ' 一起退休來看' : '以' + y + ' ' + esc(CP.M.A.ageText(d.ageA)) + '（' + d.ymA + '）、' + q + ' ' + esc(CP.M.A.ageText(d.ageB)) + '（' + d.ymB + '）退休來看';
+    return '<h2>每個階段的收支</h2><div class="muted">色條的長度依時間長短；點下面每一段看發生的事。金額都是今天的購買力。</div>' + cpStripHtml(PM) + phaseLegend() +
+      '<div class="muted" style="margin:8px 0">' + look + '</div><div class="phlist">' + rows.join('') + '</div>' + (first ? '' : '');
   }
   function cpSlideOut() {
     var M = CP.M, P = CP.P, mode = CP.mode, m = CP.mon, d = cpDescAt(M, mode, m), y = esc(cpName('you')), q = esc(cpName('partner'));
@@ -344,6 +447,13 @@
     }
     if (b.id === 'cpAdjReset') { CP.sel = {}; cpRebuildPaint(); return; }
     if (ds.cpptab) { CP.ptab = ds.cpptab; cpPaint(); return; }
+    if (ds.cpphase != null || b.id === 'cpLedgerBtn' || ds.cpyear || ds.cpypage != null) {
+      if (ds.cpphase != null) { var ip = +ds.cpphase; CP.phase = CP.phase === ip ? null : ip; CP.year = null; CP.ypage = null; }
+      if (b.id === 'cpLedgerBtn') CP.ledger = !CP.ledger;
+      if (ds.cpyear) { CP.year = +ds.cpyear; }
+      if (ds.cpypage != null) { CP.ypage = +ds.cpypage; CP.year = null; }
+      $('cpStages').innerHTML = cpStagesHtml(cpDescAt(CP.M, CP.mode, CP.mon)); return;
+    }
     if (ds.cpatab) { CP.atab = ds.cpatab; cpPaint(); return; }
     if (ds.cpdep) { var DI = PR0.deposit_input, def = Math.round(EN0.rates().depDefault * 1000) / 10, c0 = cpFilled(I.pre.dep) ? +I.pre.dep : def, n = Math.round((c0 + (+ds.cpdep) * DI.step) * 100) / 100;
       n = Math.min(DI.max, Math.max(DI.min, n)); I.pre.dep = Math.abs(n - def) < 1e-9 ? '' : String(n); cpRebuildPaint(); return; }
