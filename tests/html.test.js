@@ -89,4 +89,12 @@ t('CSS 用到的每個變數，淺色和深色都有定義（深色模式不會�
   assert.deepStrictEqual([...used].filter((v) => !light.has(v)), [], '淺色沒定義');
   assert.deepStrictEqual([...used].filter((v) => !dark.has(v)), [], '深色沒定義');
 });
+/* v1.0.6：「以後會結束的支出」的方塊點來點去不能忽大忽小（使用者回報：像在呼吸） */
+t('方塊固定大小：.tile 用固定 height（不是 min-height），摘要那行固定高度、不換行', () => {
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  const rule = (sel) => { const m = css.match(new RegExp('(^|\\n)' + sel.replace(/\./g, '\\.') + ' \\{([^}]*)\\}')); return m ? m[2] : ''; };
+  assert.ok(/(^|[ ;])height: \d+px/.test(rule('.tile')) && !/min-height/.test(rule('.tile')), '.tile 要固定高度');
+  assert.ok(/height: 1\.4em/.test(rule('.tsum')) && /white-space: nowrap/.test(rule('.tsum')), '.tsum 要固定一行');
+  assert.ok(!/\n\.tile\.cur /.test(css), '方塊的「正在看」不能叫 .cur（會套到方案清單「目前」標籤的樣式）');
+});
 process.exit(S.run() ? 1 : 0);

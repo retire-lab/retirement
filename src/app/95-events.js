@@ -33,7 +33,7 @@
   }, true);
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
-    if (b.dataset.chip) { var k = b.dataset.chip; if (!S[k]) { S[k] = true; if (k === 'lumpsOn') paintLumps(); } S.etab = k; paintTabs(); showErr(''); paintAccum(); }   /* v1.0.3：沒選→選上並切過去；已選→只切換 */
+    if (b.dataset.chip) { var k = b.dataset.chip; S.etab = tabToggle(k, S, S.etab); if (k === 'lumpsOn') paintLumps(); if (k === 'kidsOn') paintKids(); paintTabs(); showErr(''); paintAccum(); }   /* v1.0.7：開關（見 tabToggle） */
     else if (b.dataset.chipoff) { S[b.dataset.chipoff] = false; S.etab = null; paintTabs(); showErr(''); paintAccum(); }
     else if (b.dataset.same) {
       var sp = b.dataset.same.split(':'), kd = S.kids[+sp[0]], v = kd.costs[sp[2]] || '';

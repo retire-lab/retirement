@@ -12,7 +12,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '1.0.5';
+  var VERSION = '1.0.7';
 
   /* ---------- 制度數字：一律來自 data/（瀏覽器由 build 內嵌成 SP5_DATA；node 直接讀檔） ---------- */
   var DATA = (root && root.SP5_DATA) ? root.SP5_DATA : (typeof require === 'function' ? require('../scripts/load-data.js')() : null);

@@ -109,6 +109,26 @@
     return (x.when === 'page' ? names[1] : names[0]) + ' ' + esc(v) + ' 歲';
   }
   /* v1.0.3：「以後會結束的支出」按鈕上的摘要（單人、夫妻共用；I＝輸入，kids 只算填了出生年月的） */
+  /* v1.0.7：這一項底下是不是什麼都沒填（開關用：沒填的再按一次就關掉；填了就不關，免得手殘把資料一起關掉） */
+  function tabEmpty(k, I) {
+    var f = function (v) { return String(v == null ? '' : v).trim() !== ''; };
+    if (k === 'house') return !f(I.housePay) && !f(I.houseYrs) && !I.housePre;
+    if (k === 'car') return !f(I.carPay) && !f(I.carYrs);
+    if (k === 'carsOn') return !(I.cars || []).some(function (c) { return f(c.pay) || f(c.yrs); });
+    if (k === 'kidsOn') return !(I.kids || []).some(function (x) { return f(x.bym) || Object.keys(x.costs || {}).some(function (c) { return f(x.costs[c]); }); });
+    if (k === 'parOn') return !f(I.par) && !f(I.parYrs);
+    if (k === 'lumpsOn') return !(I.lumps || []).some(function (x) { return f(x.name) || f(x.amt) || f(x.val); });
+    return true;
+  }
+  var TAB_NAME = { house: '房貸', car: '車貸', carsOn: '車貸', kidsOn: '子女', parOn: '孝親', lumpsOn: '大筆收支' };
+  /* 按到方塊：沒選→選上並切過去；已選但不是正在看→切過去；正在看又按一次→沒填就關掉，填了就提示用「不算 X」 */
+  function tabToggle(k, I, cur) {
+    if (!I[k]) { I[k] = true; return k; }
+    if (cur !== k) return k;
+    if (tabEmpty(k, I)) { I[k] = false; return null; }
+    toast('已經填了資料；要取消請按「不算' + TAB_NAME[k] + '」');
+    return k;
+  }
   function tabSummary(k, I) {
     var f = function (v) { return String(v == null ? '' : v).trim(); };
     if (k === 'house') return f(I.housePay) && f(I.houseYrs) ? f(I.housePay) + ' 萬・還 ' + f(I.houseYrs) + ' 年' : '還沒填';
@@ -116,7 +136,7 @@
     if (k === 'carsOn') return (I.cars || []).filter(function (c) { return f(c.pay); }).length + ' 台';
     if (k === 'kidsOn') { var n = (I.kids || []).filter(function (x) { return f(x.bym); }).length; return n ? n + ' 個' : '還沒填'; }
     if (k === 'parOn') return f(I.par) ? f(I.par) + ' 萬／月' : '還沒填';
-    if (k === 'lumpsOn') return (I.lumps || []).length + ' 筆';
+    if (k === 'lumpsOn') { var nl = (I.lumps || []).filter(function (x) { return num(x.amt) > 0; }).length; return nl ? nl + ' 筆' : '還沒填'; }   /* v1.0.6：只算填了金額的，沒填寫「還沒填」（跟其他項目一致） */
     return '';
   }
   /* v1.0.5：「以後會結束的支出」的大方塊——單人、夫妻用同一個函式產生，長相不會再各自分岔。
@@ -125,7 +145,7 @@
   function expTilesHtml(list, I, cur, attr) {
     return list.map(function (x) {
       var k = x[0], on = !!I[k], c = on && cur === k;
-      return '<button type="button" class="tile' + (c ? ' cur' : '') + '" ' + attr(k) + ' aria-pressed="' + on + '" aria-expanded="' + c + '"><span class="ic">' + EXP_ICON[k] + '</span><b>' + x[1] + '</b><span class="tsum" data-sum="' + k + '">' + (on ? esc(tabSummary(k, I)) : '') + '</span></button>';
+      return '<button type="button" class="tile' + (c ? ' tcur' : '') + '" ' + attr(k) + ' aria-pressed="' + on + '" aria-expanded="' + c + '"><span class="ic">' + EXP_ICON[k] + '</span><b>' + x[1] + '</b><span class="tsum" data-sum="' + k + '">' + (on ? esc(tabSummary(k, I)) : '') + '</span></button>';
     }).join('');
   }
   function newLump() { return { name: '', kind: 'out', amt: '', when: 'age', val: '' }; }

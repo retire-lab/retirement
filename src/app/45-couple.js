@@ -120,7 +120,7 @@
   /* v1.0.5：跟單人同一張卡片「哪些支出以後會結束？」、同一個大方塊函式、細節放同樣的小區塊 */
   function cpExpHtml() {
     var t = cpEtab();
-    return '<div class="card"><div class="sechead"><h2>哪些支出以後會結束？</h2></div><div class="qhint" style="margin-top:6px">這很重要。房貸繳完、小孩畢業之後，你們需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。</div>' +
+    return '<div class="card"><div class="sechead"><h2>哪些支出以後會結束？</h2></div><div class="qhint" style="margin-top:6px">這很重要。房貸繳完、小孩畢業之後，你們需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。按錯了再按一次就取消（還沒填的話）。</div>' +
       '<div class="tiles">' + expTilesHtml(CP_TILES, CP.inp, t, function (k) { return 'data-cpchip="' + k + '"'; }) + '</div>' +
       (t === 'house' ? cpTabSub('house', '房貸', cpIn('housePay', '每月繳', '萬', '例如 2') + cpIn('houseYrs', '還剩', '年', '例如 20')) : '') +
       (t === 'carsOn' ? cpTabSub('carsOn', '車貸', cpCarsHtml()) : '') + (t === 'kidsOn' ? cpTabSub('kidsOn', '子女', cpKidsHtml()) : '') + (t === 'lumpsOn' ? cpTabSub('lumpsOn', '大筆收支', cpLumpsHtml()) : '') + '</div>';
@@ -188,7 +188,7 @@
       return;
     }
     if (ds.cptab) { CP.tab = ds.cptab; cpPaint(); return; }
-    if (ds.cpchip) { if (!cpGet(ds.cpchip)) cpSet(ds.cpchip, true); CP.etab = ds.cpchip; cpPaint(); return; }   /* v1.0.3：沒選→選上並切過去；已選→只切換 */
+    if (ds.cpchip) { CP.etab = tabToggle(ds.cpchip, CP.inp, cpEtab()); cpPaint(); return; }   /* v1.0.7：開關（見 tabToggle） */
     if (ds.cpchipoff) { cpSet(ds.cpchipoff, false); CP.etab = null; cpPaint(); return; }
     if (ds.cpkidopen != null) { CP.openKid = +ds.cpkidopen; cpPaint(); return; }
     if (ds.cpkiddone) { CP.openKid = null; cpPaint(); return; }

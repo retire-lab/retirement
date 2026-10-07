@@ -62,7 +62,7 @@ button.primary { background: var(--accent); color: var(--on-accent); border-colo
 .mini { width: 72px !important; height: 40px !important; flex: 0 0 auto; }
 .accum.neg { background: var(--bad-bg); color: var(--bad); }
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-.tile { min-height: 64px; border-radius: 10px; border: 1px solid var(--line); background: var(--calc); color: var(--text); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 10px 12px; text-align: left; }
+.tile { height: 86px; min-width: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); background: var(--calc); color: var(--text); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 10px 12px; text-align: left; }   /* v1.0.6：固定高度，選不選大小都不變（原本 min-height＋選了才多一行摘要，點一下就長高） */
 .tile .ic { font-size: 13px; color: var(--muted); }
 .tile b { font-size: 16px; }
 .tile[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
@@ -460,8 +460,8 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 .qlab .opt { font-weight: 400; color: var(--muted); }
 /* v1.0.3：以後會結束的支出＝可以複選的分頁（按鈕上寫摘要，底下一次只看一個） */
 .subh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.tsum { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
-.tile.cur { box-shadow: inset 0 0 0 2px var(--text); }
+.tsum { display: block; font-size: 12px; font-weight: 400; color: var(--muted); height: 1.4em; line-height: 1.4em; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }   /* 摘要那一行永遠預留位置；太長用「…」截斷，不撐高方塊 */
+.tile.tcur { box-shadow: inset 0 0 0 2px var(--text); }   /* v1.0.6：原本叫 .cur，跟方案清單「目前」標籤的 .cur 撞名，正在看的方塊被套上那個標籤的內距與字級，字往左偏 */
 .isum { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .isum .amt-out { color: var(--bad); } .isum .amt-in { color: var(--ok); }
 /* 最低門檻 ≠ 建議（單人、夫妻共用） */
@@ -511,7 +511,7 @@ details.card[open] > summary::after { transform: rotate(90deg); }
 
   <div class="card">
     <div class="sechead"><div class="num">2</div><h2>哪些支出以後會結束？</h2></div>
-    <div class="qhint" style="margin-top: 6px">這很重要。房貸繳完、小孩畢業之後，你需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。</div>
+    <div class="qhint" style="margin-top: 6px">這很重要。房貸繳完、小孩畢業之後，你需要的退休金可能差很多。有的點一下，可以選好幾個；底下一次只看一個。按錯了再按一次就取消（還沒填的話）。</div>
     <div class="tiles" id="tiles"></div>
     <div class="sub" id="sec-lumpsOn" hidden>
       <div class="subh"><span class="t">未來的大筆收支</span><button type="button" class="linkbtn" data-chipoff="lumpsOn">不算大筆收支</button></div>

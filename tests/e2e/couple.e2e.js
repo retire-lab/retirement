@@ -263,6 +263,31 @@ section('單人與夫妻長得一樣（v1.0.5：防止同一個東西各寫一�
   check('孝親：在「你」的頁籤，用小區塊（標題「給你父母的孝親費（選填）」，底下是每月、給幾年）', /給你父母的孝親費/.test(Z.txt('#couple .sub .t')) && !!Z.q('#couple .sub [data-cpk="par"]') && !!Z.q('#couple .sub [data-cpk="parYrs"]'));
 }
 
+section('方塊是開關：按錯了再按一次就取消（v1.0.7，使用者回報）');
+{
+  const G = mk(); const tile = (k) => G.q('[data-chip="' + k + '"]'), on = (k) => tile(k).getAttribute('aria-pressed') === 'true';
+  G.click('[data-chip="kidsOn"]');
+  check('單人：按「子女」→ 選上、正在看', on('kidsOn') && /tcur/.test(tile('kidsOn').className));
+  G.click('[data-chip="kidsOn"]');
+  check('單人：什麼都沒填，再按一次 → 關掉（跟沒按過一樣）', !on('kidsOn') && G.q('#sec-kidsOn').hidden);
+  G.click('[data-chip="house"]'); G.click('[data-chip="car"]');
+  G.click('[data-chip="house"]');
+  check('單人：按別的已選方塊只是切過去，不會關', on('house') && on('car') && !G.q('#sec-house').hidden);
+  const hp = G.d.getElementById('housePay'); hp.value = '2'; hp.dispatchEvent(new G.W.Event('input', { bubbles: true }));
+  G.click('[data-chip="house"]');
+  check('單人：填了房貸再按一次 → 不關，提示用「不算房貸」', on('house') && G.d.getElementById('housePay').value === '2' && /不算房貸/.test(G.txt('#toast')));
+  G.click('[data-chip="car"]'); G.click('[data-chip="car"]');
+  check('單人：車貸沒填 → 再按一次關掉，房貸還在', !on('car') && on('house'));
+  G.click('[data-mode="couple"]'); G.click('[data-cptab="home"]');
+  const con = (k) => G.q('[data-cpchip="' + k + '"]').getAttribute('aria-pressed') === 'true';
+  G.click('[data-cpchip="lumpsOn"]'); G.click('[data-cpchip="lumpsOn"]');
+  check('夫妻：大筆收支沒填 → 再按一次關掉', !con('lumpsOn'));
+  G.click('[data-cpchip="kidsOn"]'); G.type('kids.0.bym', '201604'); G.click('[data-cpchip="kidsOn"]');
+  check('夫妻：子女填了出生年月再按一次 → 不關，資料還在', con('kidsOn') && G.q('[data-cpk="kids.0.bym"]').value === '201604' && /不算子女/.test(G.txt('#toast')));
+  check('說明寫出「按錯了再按一次就取消」', /按錯了再按一次就取消/.test(G.txt('#quick')) && /按錯了再按一次就取消/.test(G.txt('#couple')));
+  check('開關測試沒有執行錯誤', G.errs.length === 0, G.errs.join('|'));
+}
+
 section('存檔：夫妻方案的「有沒有修改」與存檔（v1.0.3，使用者回報）');
 {
   const X = mk(); X.click('[data-mode="couple"]'); fillAll(X); X.click('#cpGo');
