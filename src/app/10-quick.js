@@ -23,23 +23,19 @@
     else { box.className = 'accum'; box.firstElementChild.textContent = '依目前填寫，你現在每月約可累積'; $('accumV').textContent = fmtW(v); }
   }
   function kidHtml(i) {
-    var k = S.kids[i], st = kidStages(k.bym, k.path);
-    if (!st) return { note: '填了出生年月，會列出還沒讀完的階段', on: false, html: '' };
-    var gs = kidGroups(st);
-    if (!gs.length) return { note: '已經畢業，不用計入', on: false, html: '' };
-    var cur = st.filter(function (t) { return t.started && t.live; })[0];
+    var k = S.kids[i], info = kidLiveInfo(k.bym, k.path), gs = info.gs;   /* v1.0.8：跟夫妻共用 */
+    if (!gs || !gs.length) return { note: info.note, on: false, html: '' };
     var src = S.kids[0] ? S.kids[0].costs : {};
     var html = gs.map(function (g, j) {
       var id = 'k' + i + g.g;
       if (i > 0 && k.costs[g.g] === undefined && src[g.g] !== undefined && src[g.g] !== '') { k.costs[g.g] = src[g.g]; k.copied = k.copied || {}; k.copied[g.g] = true; }
-      var when = g.started ? '到 ' + ymStr(g.end) + '・還剩 ' + durStr(g.rem) : ymStr(g.start) + ' 起・共 ' + g.years + ' 年';
+      var when = kidWhenText(g);
       var same = j > 0 ? '<button type="button" class="same" data-same="' + i + ':' + g.g + ':' + gs[j - 1].g + '">同上</button>' : '';
       return '<div class="stg"><label for="' + id + '">' + g.label + '<br><span>' + when + '</span></label>' +
         '<div class="stgin"><input id="' + id + '" type="text" inputmode="decimal" data-kid="' + i + '" data-group="' + g.g + '" placeholder="每年幾萬" value="' + esc(k.costs[g.g] || '') + '">' + same + '</div>' +
         (k.copied && k.copied[g.g] ? '<span class="cp">沿用第 1 個孩子</span>' : '') + '</div>';
     }).join('');
-    var note = !cur ? '還沒出生' : cur.pre ? '現在是學齡前' : '現在讀' + cur.label + ' ' + cur.grade + ' 年級';
-    return { note: note, on: true, html: html };
+    return { note: info.note, on: true, html: html };
   }
   function paintKid(i) {
     var r = kidHtml(i), box = document.querySelector('[data-kidbox="' + i + '"]');

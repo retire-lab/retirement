@@ -105,7 +105,18 @@ T2.click('[data-cpphase="1"]');
 check('點開「一份薪水撐全家」：存款帳（開始時、入不敷出、通膨縮水、結束時）', !!T2.q('#cpStages .phrow.open .wgrid') && /這段開始時.*這段入不敷出.*這段結束時/.test(T2.txt('#cpStages .phrow.open .wgrid')));
 check('　事件：2034/11 你退休、開始繳國保、健保依附，寫出每年收支少多少', /2034\/11.*你退休、你開始繳國保、健保依附在工作的那位名下.*每年收支少/.test(T2.txt('#cpStages .phrow.open')));
 T2.click('#cpLedgerBtn');
-check('　逐月明細：年份按鈕（你／另一半的年紀）＋每個月的收入、支出、月底存款', T2.d.querySelectorAll('#cpStages [data-cpyear]').length >= 1 && /\d+／\d+ 歲/.test(T2.txt('#cpStages .ygrid')) && /每月收入：另一半的薪水/.test(T2.txt('#cpStages .mlist')) && /月底/.test(T2.txt('#cpStages .mlist')));
+check('　逐月明細：年份按鈕（你／另一半的年紀）＋每個月的收入、支出、月底存款', T2.d.querySelectorAll('#cpStages [data-cpyear]').length >= 1 && /\d+／\d+ 歲/.test(T2.txt('#cpStages .ygrid')) && T2.d.querySelectorAll('#cpStages .mlist .mw').length >= 3 && /另一半收入 [\d.]+ 萬（薪水）/.test(T2.txt('#cpStages .mlist')) && /全家/.test(T2.txt('#cpStages .mlist')) && /月底/.test(T2.txt('#cpStages .mlist')), T2.txt('#cpStages .mlist').slice(0, 400));
+{   /* v1.0.8：逐月明細分成你、另一半、全家（使用者回報：兩個人的項目混在一起） */
+  const mw0 = [...T2.d.querySelectorAll('#cpStages .mlist .msum')][0], rows = mw0 ? [...mw0.querySelectorAll('.mw')] : [];
+  const lab = rows.map((r) => r.querySelector('b').textContent);
+  check('第一個月的明細有三列：你、另一半、全家', lab.length === 3 && lab[0] === '你' && lab[1] === '另一半' && lab[2] === '全家', lab);
+  const t0 = rows[1] ? rows[1].textContent : '', t2 = rows[2] ? rows[2].textContent : '';
+  check('每個人那列的項目不再重複名字（寫「薪水」，不是「另一半的薪水」）', /薪水/.test(t0) && !/另一半的/.test(t0), t0);
+  check('全家那列：收入、支出、每月多或少，下面是共同的支出（生活費、房貸）', /收入 [\d.,]+ 萬、支出 [\d.,]+ 萬，每月(多|少) /.test(t2) && /共同的支出 .*生活費 7/.test(t2) && /房貸／車貸 [\d.]+/.test(t2), t2);
+  const num = (s) => +s.replace(/,/g, '');
+  const m = /收入 ([\d.,]+) 萬、支出 ([\d.,]+) 萬，每月(多|少) ([\d.,]+) 萬/.exec(t2);
+  check('全家的「每月多或少」＝收入－支出', m && Math.abs(num(m[1]) - num(m[2]) - (m[3] === '多' ? 1 : -1) * num(m[4])) < 0.02, m && m.slice(1));
+}
 T2.click('[data-cpyear="2035"]');
 check('　點 2035：換成那一年', /^2035 年/.test(T2.txt('#cpStages .mhd')));
 T2.click('[data-cpphase="1"]');
@@ -333,6 +344,24 @@ section('切換模式：不會弄丟方案，單人和夫妻不會互相覆蓋�
   check('重新打開網頁（目前是單人方案）→ 按我和另一半：打開清單裡的夫妻方案，不是空白', !T9.q('#couple').hidden && !!T9.q('#cpSlider') && /49 歲 8 個月/.test(T9.txt('.cou-seg')), T9.txt('#couple').slice(0, 120));
   check('色條：「現在」、最後一年、兩個退休標籤都有，沒有被擠掉', /現在 2026/.test(T9.txt('#cpStages .strip')) && /2078/.test(T9.txt('#cpStages .strip')) && /你退 2034/.test(T9.txt('#cpStages .strip')) && /另一半退 2053/.test(T9.txt('#cpStages .strip')), T9.txt('#cpStages .strip'));
   check('切換測試沒有執行錯誤', T8.errs.length === 0 && T9.errs.length === 0, T8.errs.concat(T9.errs).join('|'));
+}
+
+
+section('孩子只列還沒讀完的教育階段（v1.0.8，使用者回報：201206 出生已經讀國中，還要填學齡前、國小）');
+{
+  const K = mk(); K.click('[data-mode="couple"]'); K.click('[data-cptab="home"]'); K.click('[data-cpchip="kidsOn"]');
+  check('還沒填出生年月：先說明填了才會列出階段，不列任何費用欄', /填了出生年月，會列出還沒讀完的階段/.test(K.txt('[data-cpkst="0"]')) && !K.q('[data-cpk^="kids.0.costs."]'));
+  K.type('kids.0.bym', '201206');
+  const keys = [...K.d.querySelectorAll('[data-cpk^="kids.0.costs."]')].map((el) => el.dataset.cpk.split('.').pop());
+  check('打完 201206（不用等選學制）：只列國中、高中職、大學', keys.join(',') === 'jun,sen,uni', keys);
+  check('寫出現在讀國中 3 年級、國中到什麼時候', /現在讀國中 3 年級/.test(K.txt('[data-cpkst="0"]')) && /國中 到 2027\/06/.test(K.txt('[data-cpkst="0"]')), K.txt('[data-cpkst="0"]'));
+  check('打字時游標還在出生年月那一格（只重畫階段那一塊）', K.q('[data-cpk="kids.0.bym"]') && K.q('[data-cpk="kids.0.bym"]').value === '201206');
+  K.type('kids.0.bym', '199901');
+  check('已經畢業：寫「已經畢業，不用計入」，沒有費用欄', /已經畢業，不用計入/.test(K.txt('[data-cpkst="0"]')) && !K.q('[data-cpk^="kids.0.costs."]'));
+  K.type('kids.0.bym', '202801');
+  const k2 = [...K.d.querySelectorAll('[data-cpk^="kids.0.costs."]')].map((el) => el.dataset.cpk.split('.').pop());
+  check('還沒出生：從學齡前開始全部列出', /還沒出生/.test(K.txt('[data-cpkst="0"]')) && k2[0] === 'pre' && k2.includes('ele'), k2);
+  check('孩子欄位測試沒有執行錯誤', K.errs.length === 0, K.errs.join('|'));
 }
 
 section('輸入錯誤、回到單人模式');

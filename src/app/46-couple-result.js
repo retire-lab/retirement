@@ -123,11 +123,36 @@
     return '<div class="strip" role="img" aria-label="' + esc(aria) + '"><div class="slrow up">' + labs.filter(function (l) { return l.row === 'up'; }).map(lab).join('') + '</div>' +
       '<div class="sbar"><div class="sbarin">' + segs + '</div></div><div class="slrow dn">' + labs.filter(function (l) { return l.row === 'dn'; }).map(lab).join('') + '</div></div>';
   }
+  /* 逐月明細的收支（v1.0.8）：分成「你、另一半、全家」三列，不再把兩個人的項目混在一長串裡。
+     每個人的列只寫那個人自己的收入與支出（名字已在列首，項目不再重複名字）；
+     全家那列寫兩人合計的收入、支出、每月差多少，下面再列共同的支出（生活費、房貸、孩子…）。
+     一次發生的錢（一次領、大筆收支、勞退餘額回家）已經寫在事件裡，這裡不重複。 */
+  var CP_MINE = {
+    inn: [['wage', '薪水'], ['li', '勞保'], ['ls', '勞退'], ['np', '國保年金'], ['old', '勞退舊制'], ['surv', '遺屬年金']],
+    out: [['npPrem', '國保保費'], ['nhi', '健保（第六類）']]
+  };
+  var CP_HOME_OUT = [['living', '生活費'], ['loan', '房貸／車貸'], ['kid', '孩子'], ['par', '孝親費'], ['nhiDep', '健保眷屬費']];
+  function cpMonthParts(o) {
+    var once = {}; (o.lumps || []).forEach(function (x) { once[x[0]] = true; });
+    var v = function (k) { return once[k] || !(o[k] > 0.5) ? 0 : o[k]; };
+    var pick = function (list, suf) { return list.map(function (p) { return { name: p[1], amt: v(p[0] + suf) }; }).filter(function (x) { return x.amt > 0; }); };
+    var sum = function (l) { return l.reduce(function (s, x) { return s + x.amt; }, 0); };
+    var A = { inn: pick(CP_MINE.inn, 'A'), out: pick(CP_MINE.out, 'A') }, B = { inn: pick(CP_MINE.inn, 'B'), out: pick(CP_MINE.out, 'B') };
+    var home = pick(CP_HOME_OUT, '');
+    var inn = sum(A.inn) + sum(B.inn), out = sum(A.out) + sum(B.out) + sum(home);
+    return { A: A, B: B, home: home, inn: inn, out: out, net: inn - out, sum: sum };
+  }
   function cpMonthSummary(o) {
-    var L = cpStageLabels(), money = function (v) { return fmtW(Math.round(v)); }, a = [], b = [];
-    Object.keys(L.inn).forEach(function (k) { if (o[k] > 0.5 && !o.lumps.some(function (x) { return x[0] === k; })) a.push(L.inn[k] + ' ' + money(o[k])); });
-    Object.keys(L.out).forEach(function (k) { if (o[k] > 0.5) b.push(L.out[k] + ' ' + money(o[k])); });
-    return '每月收入：' + (a.join('、') || '無') + '<br>每月支出：' + (b.join('、') || '無');
+    var p = cpMonthParts(o), w = function (v) { return fmtW(Math.round(v)); }, n = function (v) { return w(v).replace(/ 萬$/, ''); };
+    var detail = function (l) { return l.length > 1 ? '（' + l.map(function (x) { return x.name + ' ' + n(x.amt); }).join('、') + '）' : l.length ? '（' + l[0].name + '）' : ''; };
+    var part = function (label, l) { return l.length ? label + ' ' + w(p.sum(l)) + detail(l) : ''; };
+    var person = function (who, X) {
+      var s = [part('收入', X.inn), part('支出', X.out)].filter(Boolean);
+      return '<div class="mw"><b>' + esc(cpName(who)) + '</b><span>' + (s.join('<br>') || '沒有收支') + '</span></div>';
+    };
+    var tot = '收入 ' + w(p.inn) + '、支出 ' + w(p.out) + '，' + (Math.abs(p.net) < 50 ? '收支打平' : '每月' + (p.net > 0 ? '多 ' : '少 ') + w(Math.abs(p.net)));
+    var shared = p.home.length ? '<br>共同的支出 ' + w(p.sum(p.home)) + detail(p.home) : '';
+    return person('you', p.A) + person('partner', p.B) + '<div class="mw tot"><b>全家</b><span>' + tot + shared + '</span></div>';
   }
   function cpYearsHtml(PM, x) {
     var M = CP.M, rows = PM.rows, years = [], y;
@@ -153,9 +178,9 @@
       var o = rows[t], ev = PM.evAt[t] || [];
       if (!ev.length && !first) { if (run) { run.b = m; run.end = o.bal; } else run = { a: m, b: m, end: o.bal }; continue; }
       flush();
-      var txt = ev.map(function (e) { return '<div class="mev">● ' + e.text + (e.impact ? '（' + e.impact + '）' : '') + '</div>'; }).join('') + ((first || ev.length) ? '<div class="msum">' + cpMonthSummary(o) + '</div>' : '');
-      first = false;
-      out.push('<div class="mr' + (ev.length ? ' hit' : '') + '"><span class="mm">' + m + ' 月</span><span class="mt">' + txt + '</span><span class="me' + (o.bal < 0 ? ' neg' : '') + '">月底 ' + bal(o.bal) + '</span></div>');
+      var txt = ev.map(function (e) { return '<div class="mev">● ' + e.text + (e.impact ? '（' + e.impact + '）' : '') + '</div>'; }).join('');
+      first = false;   /* v1.0.8：三列收支放在月底存款下面、拉滿整列寬，手機上不會被擠成一字一行 */
+      out.push('<div class="mr' + (ev.length ? ' hit' : '') + '"><span class="mm">' + m + ' 月</span><span class="mt">' + (txt || '<span class="muted">這個月的收支</span>') + '</span><span class="me' + (o.bal < 0 ? ' neg' : '') + '">月底 ' + bal(o.bal) + '</span><div class="msum">' + cpMonthSummary(o) + '</div></div>');
     }
     flush();
     return pager + btns + '<div class="mlist"><div class="mhd">' + Y + ' 年（' + ageR(Y) + ' 歲）</div>' + out.join('') + '</div>' +

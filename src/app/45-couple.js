@@ -75,24 +75,26 @@
       '<div class="muted" style="margin-top:8px">勞保、勞退的年資與薪資，算完之後在「提高準確度」補，沒填就先用估算。</div>' +
       '<button type="button" class="cou-next" data-cptab="' + (w === 'you' ? 'p' : 'home') + '">下一步：' + esc(w === 'you' ? cpName('partner') : '我們家') + ' ›</button></div>';
   }
-  function cpStageKeys(kid) {
-    var st = kid.bym ? EN0.kidStages(kid.bym, kid.path) : null;
-    if (st) return st.map(function (x) { return x.key; }).filter(function (x, i, a) { return a.indexOf(x) === i; });
-    return ({ grad: ['ele', 'jun', 'sen', 'uni', 'grad'], uni: ['ele', 'jun', 'sen', 'uni'], med: ['ele', 'jun', 'sen', 'med'], five2: ['ele', 'jun', 'five', 'tech2'], five: ['ele', 'jun', 'five'], hs: ['ele', 'jun', 'sen'] })[kid.path] || [];
+  /* v1.0.8：跟單人一樣只列還沒讀完的階段（kidLiveInfo，85-ui.js），並寫出現在讀幾年級、每個階段到什麼時候。
+     原本照學制列出全部階段，國中的孩子也要填學齡前、國小。 */
+  function cpKidStagesHtml(i) {   /* 打出生年月時只重畫這一塊，游標留在原來的欄位 */
+    var kd = CP.inp.kids[i], info = kidLiveInfo(kd.bym, kd.path), gs = info.gs || [];
+    return '<div class="knote' + (gs.length ? ' on' : '') + '">' + info.note + '</div>' +
+      (gs.length ? '<div class="muted">還沒讀完的階段，一年的教育費（萬，沒有就填 0）</div>' : '') +
+      gs.map(function (g) { return cpIn('kids.' + i + '.costs.' + g.g, g.label + ' <span class="opt">' + kidWhenText(g) + '</span>', '萬', '例如 5'); }).join('');
   }
   function cpKidsHtml() {
     var I = CP.inp; if (!I.kidsOn) return '';
     if (I.kids.length === 1) CP.openKid = 0;
     var pl = {}; SP5Engine.PATHS.forEach(function (o) { pl[o[0]] = o[1]; });
     return I.kids.map(function (kd, i) {
-      var keys = cpStageKeys(kd);
       if (CP.openKid !== i) return '<div class="isum"><div><b>孩子 ' + (i + 1) + '</b><div class="muted">' + (String(kd.bym || '').trim() ? ymShow(kd.bym) + '・讀到' + esc(pl[kd.path] || '') : '還沒填出生年月') + '</div></div><button type="button" class="linkbtn" data-cpkidopen="' + i + '">修改</button></div>';   /* v1.0.3 */
       return '<div class="cou-kid"><div class="cou-kidh"><b>孩子 ' + (i + 1) + '</b>' + (I.kids.length > 1 ? '<button type="button" class="linkbtn" data-cpkiddel="' + i + '">刪除</button>' : '') + '</div>' +
         cpIn('kids.' + i + '.bym', '出生年月', '', '西元年月，不用打 -', 'numeric') +
         '<div class="qf"><label class="qlab" for="cq-kids-' + i + '-path">讀到</label><select id="cq-kids-' + i + '-path" data-cpk="kids.' + i + '.path">' +
         SP5Engine.PATHS.map(function (p) { return '<option value="' + p[0] + '"' + (kd.path === p[0] ? ' selected' : '') + '>' + esc(p[1]) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="muted">每個階段一年的教育費（萬，沒有就填 0）</div>' +
-        keys.map(function (key) { return cpIn('kids.' + i + '.costs.' + key, SP5Engine.STAGE_LABEL[key] || key, '萬', '例如 5'); }).join('') + (I.kids.length > 1 ? '<button type="button" class="primary" style="margin-top:10px" data-cpkiddone="1">好了</button>' : '') + '</div>';
+        '<div data-cpkst="' + i + '">' + cpKidStagesHtml(i) + '</div>' +
+        (I.kids.length > 1 ? '<button type="button" class="primary" style="margin-top:10px" data-cpkiddone="1">好了</button>' : '') + '</div>';
     }).join('') + (I.kids.length < 6 ? '<button type="button" class="linkbtn" id="cpKidAdd">＋ 再加一個孩子</button>' : '');
   }
   /* v1.0.2：未來的大筆收支（錢合併算，不用分是誰的；時間可以用年月、你幾歲、另一半幾歲） */
@@ -234,7 +236,8 @@
   document.addEventListener('input', function (e) {
     var el = e.target; if (!el || !el.closest || !el.closest('#couple')) return;
     if (el.id === 'cpRange') { CP.mon = +el.value; el.setAttribute('aria-valuetext', cpPosText(CP.mode, CP.mon)); $('cpOut').innerHTML = cpSlideOut(); $('cpStages').innerHTML = cpStagesHtml(cpDescAt(CP.M, CP.mode, CP.mon)); return; }
-    if (el.dataset.cpk) { cpSet(el.dataset.cpk, el.value); if (CP.view === 'input') cpRefreshInputBits(); if ((el.dataset.cpk === 'spend' || el.dataset.cpk === 'reserve') && $('cpResv')) $('cpResv').innerHTML = reserveChips(CP.inp.spend, CP.inp.reserve, function (v) { return 'data-cpresv="' + v + '"'; }); }
+    if (el.dataset.cpk) { cpSet(el.dataset.cpk, el.value); if (CP.view === 'input') cpRefreshInputBits();
+      var kb = /^kids\.(\d+)\.bym$/.exec(el.dataset.cpk), kst = kb && document.querySelector('[data-cpkst="' + kb[1] + '"]'); if (kst) kst.innerHTML = cpKidStagesHtml(+kb[1]); if ((el.dataset.cpk === 'spend' || el.dataset.cpk === 'reserve') && $('cpResv')) $('cpResv').innerHTML = reserveChips(CP.inp.spend, CP.inp.reserve, function (v) { return 'data-cpresv="' + v + '"'; }); }
   });
   document.addEventListener('change', function (e) {
     var el = e.target; if (!el || !el.closest || !el.closest('#couple')) return;

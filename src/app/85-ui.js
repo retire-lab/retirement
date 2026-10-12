@@ -149,6 +149,17 @@
     }).join('');
   }
   function newLump() { return { name: '', kind: 'out', amt: '', when: 'age', val: '' }; }
+  /* v1.0.8：孩子的教育階段——單人、夫妻共用。只列還沒讀完的階段（已經讀完的不用填），並寫出現在讀幾年級。
+     gs：null＝出生年月還沒填好；[]＝都讀完了 */
+  function kidLiveInfo(bym, path) {
+    var st = String(bym || '').trim() ? kidStages(bym, path) : null;
+    if (!st) return { gs: null, note: '填了出生年月，會列出還沒讀完的階段' };
+    var gs = kidGroups(st);
+    if (!gs.length) return { gs: [], note: '已經畢業，不用計入' };
+    var cur = st.filter(function (t) { return t.started && t.live; })[0];
+    return { gs: gs, note: !cur ? '還沒出生' : cur.pre ? '現在是學齡前' : '現在讀' + cur.label + ' ' + cur.grade + ' 年級' };
+  }
+  function kidWhenText(g) { return g.started ? '到 ' + ymStr(g.end) + '・還剩 ' + durStr(g.rem) : ymStr(g.start) + ' 起・共 ' + g.years + ' 年'; }
   /* 養老預備金的參考按鈕：用剛填的生活費算半年、一年 */
   function reserveChips(spend, cur, attr) {   /* attr(值) → 按鈕的屬性 */
     var m = num(spend); if (!(m > 0)) return '';
